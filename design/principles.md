@@ -2,7 +2,7 @@ Principles of the project
 =========================
 
 I hope it's OK if I pontificate a bit, but I think neglect of
-some of these guidelines has caused a *lot* of skilled time and effort
+these guidelines has caused a *lot* of skilled time and effort
 to be simply wasted, and that there's not enough concern about that.
 
 A project should be specifically targeted
