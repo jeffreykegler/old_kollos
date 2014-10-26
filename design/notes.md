@@ -15,10 +15,10 @@ The LUIF will be Lua, extended with BNF statements.
 In designing the LUIF, preference will be given to having
 its statements be exactly like pure Lua.
 Exceptions will be made only when other considerations
-considerably outweighs the convenient of adhering to a familiar,
+considerably outweigh the convenience of adhering to a familiar,
 well-known and well-documented standard.
 
-At the moment, and possible forever, the only extension
+At the moment, and possibly forever, the only extension
 which meets this criterion are BNF statements.
 These are an extremely well-known and familar way of expression
 grammar rules.
