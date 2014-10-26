@@ -21,7 +21,7 @@ well-known and well-documented standard.
 At the moment, and possible forever, the only extension
 which meets this criterion are BNF statements.
 These are an extremely well-known and familar way of expression
-grammar rules.
+for grammar rules.
 Individual features of BNF statements will also have to meet
 the "clearly better than pure Lua" test.
 If a BNF extension
