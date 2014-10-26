@@ -47,7 +47,7 @@ in names.
 
 Here is an example of a LUIF BNF statement:
 
-`
+```
     Script ::= Expression+ % comma
     Expression ::=
       Number
@@ -57,4 +57,4 @@ Here is an example of a LUIF BNF statement:
       | Expression div Expression
      || Expression add Expression
       | Expression sub Expression
-`
+```
