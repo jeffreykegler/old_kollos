@@ -39,7 +39,7 @@ combining priorities, sequences, and alternation.
 The SLIF's sequence notation is extended to counted sequences,
 and a separator notation adopted from Perl 6 is used.
 
-A LUIF symbol names is any valid Lua name.
+A LUIF symbol name is any valid Lua name.
 In addition, names with non-initial hyphens are allowed.
 Eventually an angle bracket notation for LUIF symbol names,
 similar to that of the SLIF, will allow whitespace
