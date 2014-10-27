@@ -61,14 +61,40 @@ Here is an example of a LUIF BNF statement:
 Grammars
 ========
 
-BNF statements may be grouped into one or more grammars, or left in a default grammar.  It is a fatal error to try to do both -- that is, no Lua script with one or more rules in the default grammar may have a rule in an explicit grammar, and vice versa.
+BNF statements may be grouped into one or more grammars, or left in a default grammar.
+It is a fatal error to try to do both --
+that is, no Lua script with one or more rules in the default grammar may have a rule in an explicit grammar, and vice versa.
 
 The syntax for an explicit grammar is similar to that for an anonymous function:
 
 ```
     g = grammar ()
-          a ::= b c
-          w ::= x y z
-          -- other statements here
+    local x = 1
+      a ::= b c
+      w ::= x y z
+      -- not just BNF, but pure Lua statements are allowed in a grammar
+      for i = 2,n do
+        x = x * i
+      end
     end
 ```
+
+Default grammar
+---------------
+
+A LUIF script has a top-level default grammar set, if it contains no explicit grammars.
+If the LUIF script has explicit grammars, there is no top-level default grammar,
+but the block of each grammar has a default grammar defined,
+The default grammar of 
+a `grammar` expression
+will be returned as the value of the the `grammar` expression.
+
+All BNF statements add results to the default grammar that is current in its scope.
+
+Grammar objects
+---------------
+
+Grammar objects in fact may define two Libmarpa grammars: a structural grammar
+and a lexical grammar.
+The structural grammar is defined by those BNF rules which use the `::=` operator,
+and the lexical grammar is defined by those BNF rules which use the `~` operator.
