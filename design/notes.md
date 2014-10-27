@@ -58,3 +58,17 @@ Here is an example of a LUIF BNF statement:
      || Expression add Expression
       | Expression sub Expression
 ```
+Grammars
+========
+
+BNF statements may be grouped into one or more grammars, or left in a default grammar.  It is a fatal error to try to do both -- that is, no Lua script with one or more rules in the default grammar may have a rule in an explicit grammar, and vice versa.
+
+The syntax for an explicit grammar is similar to that for an anonymous function:
+
+```
+    g = grammar ()
+          a ::= b c
+          w ::= x y z
+          -- other statements here
+    end
+```
