@@ -11,4 +11,3 @@ in Episode 5 of Season 3.
 Since Medusans are
 disembodied balls of energy, he has no voice, and
 speaks through the other characters.
-The quote above is spoken by Kollos while in Spock's body.
