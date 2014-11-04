@@ -3,7 +3,7 @@ The name "Kollos"
 
 > This thing you call language though, most remarkable. You depend on it 
 > for so very much. But is any one of you really its master?
->> Kollos (speaking through Spock)
+> -- *Kollos (speaking through Spock)*
 
 The name of this project is that of a Star Trek character,
 Kollos.   He's the Medusan ambassador
