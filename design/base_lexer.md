@@ -73,17 +73,23 @@ If "string_obj" is specified, also sets a new input string.
 The algorithm
 -------------
 
-*[ Under construction!  DO NOT USE! ]*
+Input is a series of lexeme ID's.
+These will be acceptable lexemes as returned by the
+G1 parser.
+
 
 ```
+    Filter out all inactive lexemes
     First, sort all lexemes by length within priority
+    Set hit to OFF
+    Set found to OFF
     Set the lexeme accepted flag to OFF
     Set accepted priority = 0
     Set accepted length = 0
     Lexeme loop: For every lexeme
-        If the lexeme is not acceptable, skip to the next lexeme
-        If the lexeme is not activated, skip to the next lexeme
         If lexeme priority < accepted priority, end the lexeme loop
+	If found && maximum_length < (length of found lexemes),
+	     end the lexeme loop
         If the lexeme accepted flag is ON
             If lexeme length < accepted length, end the lexeme loop
 	    end if
