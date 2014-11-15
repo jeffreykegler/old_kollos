@@ -83,33 +83,38 @@ G1 parser.
     First, sort all lexemes by length within priority
     Set hit to OFF
     Set found to OFF
-    Set the lexeme accepted flag to OFF
-    Set accepted priority = 0
-    Set accepted length = 0
+    local found_priority, found_length
     Lexeme loop: For every lexeme
-        If lexeme priority < accepted priority, end the lexeme loop
-	If found && maximum_length < (length of found lexemes),
+        If found && lexeme priority != found_priority, end the lexeme loop
+	If found && maximum_length < found_length,
 	     end the lexeme loop
-        If the lexeme accepted flag is ON
-            If lexeme length < accepted length, end the lexeme loop
-	    end if
-	end if
+	local hit = OFF
 	Pattern loop: For every pattern
-		if the pattern is memoized
-		     set value to the memoized value
-		otherwise, try to match the Lua pattern and
-		     set value to the result
-	        end if
-	        if the value is FAIL skip to the next pattern
-	        do an "alternative" callback
-		memoized the pattern
-	        set lexeme accepted to ON
-	        skip to the next lexeme
-	    end pattern loop
+	    if the pattern is memoized
+		if memoized hit, hit = ON
+	    else
+		matches = match pattern and input string
+		memoized matches
+		if matches hit = ON
+	    fi
+	    if hit, exit pattern lopp
+	end pattern loop
+	if not hit, next lexeme loop
+	local hit_length = length of hit
+	if not found
+	    found = ON
+	    found_length = hit_length
+	    found_priority = hit_priority
+	    lexemes_list = singleton list containing hit
+	    next lexeme_loop
+	fi
+	if hit_length < found_length, next lexeme_loop
+	if hit_length > found_length,
+	    clear lexemes list
+	fi
+	found_length = length
+	add hit to lexemes_list
     end lexeme loop
-    if a lexeme was accepted
-	    do a "completion" callback
-	    generate the resulting events for Lua
-    Otherwise, generate a "rejection" callback
-    end main lexer code
+    return lexemes_list
+
 ```
