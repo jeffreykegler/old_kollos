@@ -19,10 +19,12 @@ Lua is extremely minimal and lightweight, and is perfect for this purpose.
 ## What are the advantages foreseen for Kollos?
 
 First, currently several of Marpa's nicest features rely on Perl callbacks
-for their custom logic, and having to cross the C/Perl interface is costly.
-To a certain extent Marpa lets you bypass this, but to allow this has evolved its
+for their custom logic.
+Crossing the C/Perl interface is expensive.
+To a certain extent Marpa lets you bypass this,
+and to allow this Marpa has evolved its
 own virtual machine.
-Kollos will replace this "intrinsic" virtual machine with Lua, which will be much more
+Kollos will replace this "homegrown" virtual machine with Lua, which will be much more
 powerful, no bigger, and (I expect) faster.
 
 Second, the current Marpa implementation, which has to support
@@ -35,7 +37,8 @@ I will freeze Marpa::R2, and put new features into Kollos.
 ## Will Kollos be compatible with Marpa::R2?
 
 No.  Old features will only be kept based on their merits.
-Behavior won't be changed capriciously, but it will be
+Behavior won't be changed whimsically,
+but it will be
 changed if there is any good reason to do so.
 
 ## What will happen to the SLIF?
