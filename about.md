@@ -34,6 +34,12 @@ especially now that it is seeing major usage.
 But since stability and backwards compatibility are important,
 I will freeze Marpa::R2, and put new features into Kollos.
 
+Third, Kollos will make the higher layers of Marpa::R2,
+which are not very tightly tied to Perl,
+available as a c api.
+In other words, Kollos will be a language-agnostic high level interface,
+one that can be made available in other languages.
+
 ## Will Kollos be compatible with Marpa::R2?
 
 No.  Old features will only be kept based on their merits.
