@@ -19,8 +19,8 @@ Lua is extremely minimal and lightweight, and is perfect for this purpose.
 ## What are the advantages foreseen for Kollos?
 
 First, currently several of Marpa's nicest features rely on Perl callbacks
-for their custom logic, and having to cross the C/Perl inteface costly.
-To a certain extent Marpa lets you bypass this, and to allow this has evolved its
+for their custom logic, and having to cross the C/Perl interface is costly.
+To a certain extent Marpa lets you bypass this, but to allow this has evolved its
 own virtual machine.
 Kollos will replace this "intrinsic" virtual machine with Lua, which will be much more
 powerful, no bigger, and (I expect) faster.
