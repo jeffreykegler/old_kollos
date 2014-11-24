@@ -35,10 +35,16 @@ But since stability and backwards compatibility are important,
 I will freeze Marpa::R2, and put new features into Kollos.
 
 Third, Kollos will make the higher layers of Marpa::R2,
-which are not very tightly tied to Perl,
-available as a c api.
+which are now tightly tied to Perl,
+available as a C language api.
 In other words, Kollos will be a language-agnostic high level interface,
 one that can be made available in other languages.
+
+Kollos itself will be a Lua API for Libmarpa.
+Lua is a minimal language, but quite useable for many purposes.
+For example, Kollos's test suite can be written in Lua,
+so that other languages which port Kollos/Marpa will
+not need to rewrite the test suite.
 
 ## Will Kollos be compatible with Marpa::R2?
 
