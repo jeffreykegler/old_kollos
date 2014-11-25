@@ -16,8 +16,8 @@ they can avoid it.  These notes are for them.
 The 1st editon of G&J is online, but unfortunately did not cover
 Leo's algorithm.
 
-+  My (Marpa theory paper)
-[http://drive.google.com/open?id=0B9_mR_M2zOc4SjctSE1kTXpVMkE&authuser=0]
++  My [Marpa theory paper]
+(http://drive.google.com/open?id=0B9_mR_M2zOc4SjctSE1kTXpVMkE&authuser=0)
 has pseudo-code for the algorithm.  Much of
 the rest of the paper is math, but the pseudo-code should be readable
 in isolaton.
