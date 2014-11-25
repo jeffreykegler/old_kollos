@@ -13,7 +13,7 @@ they can avoid it.  These notes are for them.
 
 I am far from 100% sure these resources will be enough to do the job --
 but a number of folks have expressed interest in them, so it's better
-to put them out there and enalbe them to make the attempt.
+to put them out there and enable them to make the attempt.
 
 +  In the Grune & Jacobs parsing textbook, it's discussed on pp.
 224-226 of the 2nd edition.   There are mentions on pages 548 and 582.
