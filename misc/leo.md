@@ -17,6 +17,8 @@ to put them out there and enable them to make the attempt.
 
 +  In the Grune & Jacobs parsing textbook, it's discussed on pp.
 224-226 of the 2nd edition.   There are mentions on pages 548 and 582.
+The 1st editon of G&J is online, but unfortunately did not cover
+Leo's algorithm.
 
 +  My Marpa theory paper has pseudo-code for the algorithm.  Much of
 the rest of the paper is math, but the pseudo-code should be readable
