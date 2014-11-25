@@ -11,16 +11,14 @@ Many of those who want to implement the Leo 1991 algorithm are math-averse
 mathematical and notation-intensive presentation of an algorithm, if
 they can avoid it.  These notes are for them.
 
-I am far from 100% sure these resources will be enough to do the job --
-but a number of folks have expressed interest in them, so it's better
-to put them out there and enable them to make the attempt.
-
 +  In the Grune & Jacobs parsing textbook, it's discussed on pp.
 224-226 of the 2nd edition.   There are mentions on pages 548 and 582.
 The 1st editon of G&J is online, but unfortunately did not cover
 Leo's algorithm.
 
-+  My Marpa theory paper has pseudo-code for the algorithm.  Much of
++  My (Marpa theory paper)
+[http://drive.google.com/open?id=0B9_mR_M2zOc4SjctSE1kTXpVMkE&authuser=0]
+has pseudo-code for the algorithm.  Much of
 the rest of the paper is math, but the pseudo-code should be readable
 in isolaton.
 
@@ -32,4 +30,8 @@ in isolaton.
     undocumented internal call.  The Leo  items are the lines beginning
     with a capital letter 'L'
 
+I am far from 100% sure these resources will be enough to do the job --
+but a number of folks have expressed interest in them, so it's better
+to put them out there and enable them to make the attempt.
+They *are* more than I had available.
 
