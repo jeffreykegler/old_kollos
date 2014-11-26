@@ -87,13 +87,19 @@ a lot of transitive closures.
 For these we should use Warshall's algorithm,
 already implemented within Libmarpa.
 
-* Cycles are prohibited
+### Cycles
 
-* The RHS symbol and,
+Cycles are prohibited, for now.
+
+### Restrictions on sequence rules
+
+The RHS symbol and,
 if there is one, the separator of a sequence rule
 cannot be nullable.
 
-* Multi-precedence symbols have several restrictions.
+### Restrictions on multi-precedence symbols
+
+Multi-precedence symbols have several restrictions.
 A multi-precedence symbol is one with more than one PKS.
 Equivalently, it is a symbol on the LHS of a rule with a double
 bar operator (`||`) ].
@@ -113,9 +119,11 @@ rule.
 Intuitively, the last restriction say that a multi-precedence symbol cannot
 be "downstream" from its home rule.
 
-* The LHS of a nullable rule must
-   + be the LHS of only one rule
-   + be the LHS of an empty rule
+### Restrictions on nullabe rules
+
+The LHS of a nullable rule must
+  * be the LHS of only one rule; or
+  * be the LHS of an empty rule.
 
 This is in order for the semantics to be unambiguous,
 and to prevent the user from being surprised
