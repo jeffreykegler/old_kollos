@@ -8,7 +8,7 @@ Eventually, I intend to expand the rewriting even
 further.
 
 Intuitively,
-"Semantics-friendly" means that you can very quickly
+"semantics-friendly" means that you can very quickly
 go from the "rewritten" symbols and rules
 back to the "original" symbols and rules.
 And that you can do this, not only after
@@ -95,31 +95,37 @@ already implemented within Libmarpa.
 
 Cycles are prohibited, for now.
 This will change in favor of a rewrite at some point.
+The rewrite will write the grammar into a form which uses
+the rules involved in the cycle,
+but does not actually allow a cycle.
+(This idea is that this rewrites grammars with
+unintended cycles into a form which is cycle-free
+and perhaps what the grammar author intended.)
 
 ### Restrictions on sequence rules
 
-The RHS symbol and,
-if there is one, the separator of a sequence rule
-cannot be nullable.
+The RHS symbol cannot be nullable.
+The separator of a sequence rule,
+if there is one, cannot be nullable.
 
 ### Restrictions on multi-precedence symbols
 
 Multi-precedence symbols have several restrictions.
 A multi-precedence symbol is one with more than one PKS.
 Equivalently, it is a symbol on the LHS of a rule with a double
-bar operator (`||`) ].
+bar operator (`||`).
 Such a rule is said to be a *home rule*
 of the multi-precedence symbol.
 
   + A multi-precedence symbol cannot be nullable.
   + A multi-precedence symbol cannot be on the LHS of more than one rule.
-     This implies that a multi-precedence symbol
-      can have only one home rule.
+    This implies that a multi-precedence symbol
+    can have only one home rule.
   + A multi-precedence symbol cannot be on the RHS of any rule,
-     unless
-        * that rule is its home rule, or
-        * that rule's LHS cannot be derived
-          from the multi-precedence symbol.
+   unless
+      * that rule is its home rule, or
+      * that rule's LHS cannot be derived
+        from the multi-precedence symbol.
 
 Intuitively, the last restriction say that a multi-precedence symbol cannot
 be "downstream" from its home rule.
@@ -132,8 +138,10 @@ The LHS of a nullable rule must
 
 This is in order for the semantics to be unambiguous,
 and to prevent the user from being surprised
-by a completely different semantics
-when the rule happens to be nulled.  In the SLIF, there's a third possibility.  A nullable LHS is OK if all rules have the same semantics.
+by a sudden change to a completely different semantics
+when the rule happens to be nulled.
+In the SLIF, there's a third possibility.
+A nullable LHS is OK if all rules have the same semantics.
 But figuring out whether two semantics are "identical" is tricky,
 and I think this simpler way makes more sense.
 
@@ -153,14 +161,14 @@ and I think this simpler way makes more sense.
  * Expand all rules into rules with a single alternative.
 
   * For rules which have one or more sequences on their RHS, expand the
-    sequences into rules
-     whose RHS is a single symbol.
+  sequences into rules
+  whose RHS is a single symbol.
 
   * Expand all explicitly counted sequences (`a{7,42}`)
-     into ordinary BNF rules and
-     star (`*`) or plus (`+`) sequences.
-     [ TO DO: I need to explain how to do this.  Numbered sequences should
-     not be implemented with long RHS's.
+  into ordinary BNF rules and
+  star (`*`) or plus (`+`) sequences.
+  [ TO DO: I need to explain how to do this.  Numbered sequences should
+  not be implemented with long RHS's.
      Instead they should be binary-factored.
      I actually wrote up the logic for this and posted it to the
      Google group some months ago. ]
