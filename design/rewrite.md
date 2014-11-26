@@ -57,3 +57,69 @@ Every Kollos symbol has at least once precedenced
 counter part.
 For the Kollos symbol `base`, it would be `base@0`.
 
+### Intermediate symbols
+
+Intermediate symbols are used in the rewrite, and exist
+only during the rewrite.  They has names in
+some internal form to be determined.
+
+### Libmarpa symbols
+
+These symbols are the result of the rewrite,
+and are the ones used in creating the Libmarpa grammar.
+They has names in
+some internal form to be determined.
+
+## Prohibitions
+
+For reasons that I think will become clear
+as we do the writing,
+some possibilities are forbidden.
+
+FUTURE: Some of these prohibitions might be eased,
+or eliminated.
+In doing so we should consider whether we're not
+giving the user too much freedom to shoot himself
+in the foot.
+
+Implementation of these will require
+a lot of transitive closures.
+For these we should use Warshall's algorithm,
+already implemented within Libmarpa.
+
+* Cycles are prohibited
+
+* The RHS symbol and,
+if there is one, the separator of a sequence rule
+cannot be nullable.
+
+* Multi-precedence symbols have several restrictions.
+A multi-precedence symbol is one with more than one PKS.
+Equivalently, it is a symbol on the LHS of a rule with a double
+bar operator (`||`) ].
+Such a rule is said to the multi-precedence's symbol's home
+rule.
+
+  + A multi-precedence symbol cannot be nullable.
+  + A multi-precedence symbol cannot be on the LHS of more than one rule.
+     This implies that a multi-precedence symbol
+      can have only one home rule.
+  + A multi-precedence symbol cannot be on the RHS of any rule,
+     unless
+        * that rule is its home rule, or
+        * that rule's LHS cannot be derived
+          from the multi-precedence symbol.
+
+Intuitively, the last restriction say that a multi-precedence symbol cannot
+be "downstream" from its home rule.
+
+* The LHS of a nullable rule must
+   + be the LHS of only one rule
+   + be the LHS of an empty rule
+
+This is in order for the semantics to be unambiguous,
+and to prevent the user from being surprised
+by a completely different semantics
+when the rule happens to be nulled.  In the SLIF, there's a third possibility.  A nullable LHS is OK if all rules have the same semantics.
+But figuring out whether two semantics are "identical" is tricky,
+and I think this simpler way makes more sense.
