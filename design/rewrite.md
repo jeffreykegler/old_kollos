@@ -173,11 +173,11 @@ and I think this simpler way makes more sense.
   I actually wrote up the logic for this and posted it to the
   Google group some months ago. ]
 
-  * Copy the intermediate symbols and rules to Libmarpa rules and symbols.
+* Copy the intermediate symbols and rules to Libmarpa rules and symbols.
   When copying,
   do not include inaccessible and unproductive rules and symbols.
 
-   * Create the Libmarpa grammar.
+* Create the Libmarpa grammar.
 
 ## Notes
 
