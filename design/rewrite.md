@@ -119,7 +119,7 @@ rule.
 Intuitively, the last restriction say that a multi-precedence symbol cannot
 be "downstream" from its home rule.
 
-### Restrictions on nullabe rules
+### Restrictions on nullable rules
 
 The LHS of a nullable rule must
   * be the LHS of only one rule; or
@@ -131,3 +131,70 @@ by a completely different semantics
 when the rule happens to be nulled.  In the SLIF, there's a third possibility.  A nullable LHS is OK if all rules have the same semantics.
 But figuring out whether two semantics are "identical" is tricky,
 and I think this simpler way makes more sense.
+
+## Pseudo-code
+
+* Get the Kollos symbols and rules from the LUIF DSL script.
+
+* Convert all character classes and single-quoted strings to Kollos symbols.
+
+* Create the precedented Kollos symbols.  [ I need to describe how to do
+  this for multi-precedented rules. ]
+
+ * Expand the multi-precedented rules into single-precedented rules.
+    [ TO DO: I need to describe how to do this.  It's already done in
+    the SLIF. ]
+
+ * Expand all rules into rules with a single alternative.
+
+  * For rules which have a sequence on their RHS, expand them into rules
+     whose RHS is a single symbol.
+
+  * Expand all explicitly counted sequences (`a{7,42}`)
+     into ordinary BNF rules and
+     star (`*`) or plus (`+`) sequences.
+     [ TO DO: I need to explain how to do this.  Numbered sequences should
+     not be implemented with long RHS's.
+     Instead they should be binary-factored. ]
+
+   * Copy the intermediate symbols and rules to Libmarpa rules and symbols.
+      Do not include inaccessible and unproduction rules and symbols.
+
+   * Create the Libmarpa grammar.
+
+## Notes
+
+### External semantics by LHS symbol
+
+ TO DO:
+ I need to describe how to do this.  Hint:
+ The only semantics active symbols are the KPSs
+ which appear on a LHS.
+ The semantics can be done with dual stacks
+ (one for rules, one for symbols),
+ and tracking which symbols are "virtual" and
+ which are "physical" in the sense they are directly
+equivalent to a Kollos symbol.
+This is the mechanism currently used by the SLIF.
+
+### History
+
+Probably the Libmarpa symbols should contain a "history"
+of their creation, in some compact form.
+
+### Mapping symbols
+
+PKSs are a partial function of Libmarpa symbols --
+every Libmarpa symbol maps to zero or one PKS.
+(Many Libmarpa symbols will be "virtual" in the
+sense they do not correspond directly to any PKS.)
+
+PKSs map to one or more Libmarpa symbols,
+unless the PKS is inaccessible or unproductive.
+
+There is a total function from PKSs to Kollos symbols.
+Every PKS map to one Kollos symbol.
+
+Every Kollos symbols maps to one or more PKS.
+
+  
