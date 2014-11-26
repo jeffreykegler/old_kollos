@@ -154,28 +154,28 @@ and I think this simpler way makes more sense.
 * Create the precedenced Kollos symbols.  [ I need to describe how to do
   this for multi-precedenced rules. ]
 
- * Expand the multi-precedenced rules into single-precedenced rules.
-    [ TO DO: I need to describe how to do this.  It's already done in
-    the SLIF. ]
+* Expand the multi-precedenced rules into single-precedenced rules.
+  [ TO DO: I need to describe how to do this.  It's already done in
+  the SLIF. ]
 
- * Expand all rules into rules with a single alternative.
+* Expand all rules into rules with a single alternative.
 
-  * For rules which have one or more sequences on their RHS, expand the
+* For rules which have one or more sequences on their RHS, expand the
   sequences into rules
   whose RHS is a single symbol.
 
-  * Expand all explicitly counted sequences (`a{7,42}`)
+* Expand all explicitly counted sequences (`a{7,42}`)
   into ordinary BNF rules and
   star (`*`) or plus (`+`) sequences.
   [ TO DO: I need to explain how to do this.  Numbered sequences should
   not be implemented with long RHS's.
-     Instead they should be binary-factored.
-     I actually wrote up the logic for this and posted it to the
-     Google group some months ago. ]
+  Instead they should be binary-factored.
+  I actually wrote up the logic for this and posted it to the
+  Google group some months ago. ]
 
-   * Copy the intermediate symbols and rules to Libmarpa rules and symbols.
-      When copying,
-      do not include inaccessible and unproductive rules and symbols.
+  * Copy the intermediate symbols and rules to Libmarpa rules and symbols.
+  When copying,
+  do not include inaccessible and unproductive rules and symbols.
 
    * Create the Libmarpa grammar.
 
@@ -183,14 +183,14 @@ and I think this simpler way makes more sense.
 
 ### External semantics by LHS symbol
 
- TO DO:
- I need to describe how to do this.  Hint:
- The only semantics active symbols are the KPSs
- which appear on a LHS.
- The semantics can be done with dual stacks
- (one for rules, one for symbols),
- and tracking which symbols are "virtual" and
- which are "physical" in the sense they are directly
+TO DO:
+I need to describe how to do this.  Hint:
+The only semantics active symbols are the KPSs
+which appear on a LHS.
+The semantics can be done with dual stacks
+(one for rules, one for symbols),
+and tracking which symbols are "virtual" and
+which are "physical" in the sense they are directly
 equivalent to a Kollos symbol.
 This is the mechanism currently used by the SLIF.
 I'm thinking of changing this method to take account
