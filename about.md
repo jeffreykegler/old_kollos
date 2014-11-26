@@ -16,6 +16,21 @@ In the process Lua will become the language for Marpa's semantics --
 that is, you'll be able to specify custom logic in Lua.
 Lua is extremely minimal and lightweight, and is perfect for this purpose.
 
+## Where does the name "Kollos" come from?
+
+> This thing you call language though, most remarkable. You depend on it 
+> for so very much. But is any one of you really its master?
+> -- *Kollos*
+
+The name of this project is that of a Star Trek character,
+Kollos.   He's the Medusan ambassador
+in Episode 5 of Season 3.
+Since Medusans are
+disembodied balls of energy, he has no voice, and
+speaks through the other characters.
+He speaks the above quote through Spock,
+during a mind-meld.
+
 ## What are the advantages foreseen for Kollos?
 
 First, currently several of Marpa's nicest features rely on Perl callbacks
