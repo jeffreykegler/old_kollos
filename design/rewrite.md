@@ -185,7 +185,7 @@ and I think this simpler way makes more sense.
 
 TO DO:
 I need to describe how to do this.  Hint:
-The only semantics active symbols are the KPSs
+The only semantics active symbols are the PKSs
 which appear on a LHS.
 The semantics can be done with dual stacks
 (one for rules, one for symbols),
