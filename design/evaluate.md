@@ -82,14 +82,29 @@ This object becomes the value of the rule.
 
 ### Start rule
 
-The grammar is augmented with a start rule.
-When its turn to be evaluated comes, it will always have
-exactly one child.
-This child will be a singleton "intermediate result" object.
-Its element is extracted and returned as the value of the parse.
+The grammar has an augmented start rule of the
+form
+```
+    <augmented start> ::= <old start symbol>
+```
 
-The above may not work for nulling grammars.
-This should be handled as a special case.
+The augmented start is evaluation differently from
+other rules.
+First off, if the parse is nulled (zero length),
+the whole evaluation is treated as a special case.
+In that case, `<old start symbol>` will have a nulling
+semantics.
+This nulling semantics is used to determine a value,
+and that value becomes the value of the parse.
+
+If the parse is successful,
+and is not nulled,
+then the only child of the augmented start rule
+will be a brick-result object,
+and that brick-result object
+will be a singleton -- its array
+will contain only one element.
+That element becomes the value of the parse.
 
 ## Futures
 
