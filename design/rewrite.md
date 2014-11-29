@@ -137,6 +137,10 @@ Each rewrite must track which brick symbols are
 A rewritten rule whose LHS is a brick symbol
 mapping to the original rule's LHS is
 called a *semantically active rule*.
+A rule is semantically inactive
+if it is not a semantically active rule.
+Semantically inactive rules are
+also called intermediate rules.
 
 ## Prohibitions
 
