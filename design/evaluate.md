@@ -93,14 +93,28 @@ This should be handled as a special case.
 
 ## Futures
 
-The method described above is not the best,
-but it leverages existing Libmarpa.
-Better would be to rewrite the ASF logic,
-now in the SLIF, into C (or perhaps initially,
-Lua) and then evaluate by traversing the ASF
+The method described above is not the best.
+The current SLIF uses a dual-stack mechanism -- one stack
+for the arguments to the semantics, and a second one
+of rules.
+The rules stack contains indexes to the arguments stack.
+This is more efficient than the above,
+but harder to implement.
+
+One reason not to bother with the dual-stack implementation,
+is that there is probably an even better way --
+rewriting the ASF logic.
+The ASF (abstract syntax forest) logic is
+now in the SLIF, and is in Perl,
+so it's currently not every efficient.
+
+If the ASF logic were used,
+evaluation would take place
+by traversing the ASF
 top-down.
 To iterate the ASF,
-a stack of the choices at each glade can be used.
+the choices at each glade can be tracked using
+a stack.
 
 This would have the advantage, that sections of the ASF
 whose topmost symbol is "hidden", can be skipped.
