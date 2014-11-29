@@ -74,6 +74,70 @@ and are the ones used when creating the Libmarpa grammar.
 They have names in
 some internal form to be determined.
 
+## Guidelines for rewrites
+
+All rewrites must follow certain principles 
+in order to guarantee they can be reversed efficiently.
+When a rule is rewritten, it is rewritten into
+one or more other rules.
+using "brick" symbols and "mortar" symbols.
+Intuitively, the brick symbols represent symbols
+from the original rule, and the "mortar" symbols
+glue them together.
+
+There is a total function from the set of
+brick symbols to the set of original symbols,
+and it is a surjection.
+In other words, every brick symbols maps to
+an original symbol;
+and every original symbol has one or more
+brick symbols which map to it.
+The mortar symbols do *not* map to the original
+symbols.
+
+In every parse or partial parse of any input
+that uses
+the rewritten rules,
+every instance of a rewritten rule must be
+part of a substree that obeys the following rules:
+
++ The top symbol of the subtree must be
+  a brick symbol mapping to the original rule's LHS.
+
++ The terminals of the subtree
+  must be brick symbols mapping to one of the original rule's RHS
+  symbols.
+
++ When the subtree is traversed
+  left-to-right, bottom-to-top,
+  the order in which the brick symbols of the subtree
+  are encountered as follows:
+
+  * For BNF rules,
+    first, exactly one brick symbol mapping
+    to each RHS symbol in the
+    order in which it occurs
+    on the rule's RHS;
+    and then a brick symbol
+    mapping to the original LHS symbol.
+
+  * For sequence rules,
+    zero or more brick symbols mapping to
+    the original RHS symbol;
+    then a brick symbol mapping
+    to the original LHS symbol.
+
+  * For alternatives and precedented rules,
+    brick symbols as required
+    for one of the rule alternatives,
+    as described above for BNF rules.
+
+Each rewrite must track which brick symbols are
+"hidden" in their original rules.
+A rewritten rule whose LHS is a brick symbol
+mapping to the original rule's LHS is
+called a *semantically active rule*.
+
 ## Prohibitions
 
 For reasons that I think will become clear
