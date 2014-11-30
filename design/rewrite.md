@@ -99,7 +99,7 @@ In every parse or partial parse of any input
 that uses
 the rewritten rules,
 every instance of a rewritten rule must be
-part of a substree that obeys the following rules:
+part of a subtree that obeys the following rules:
 
 + The top symbol of the subtree must be
   a brick symbol mapping to the original rule's LHS.
