@@ -49,8 +49,8 @@ child_evaluate(rule, child, arg_array)
         push value of child onto arg_array
         return
     if child is a brick symbol
-	push brick_evaluate(brick) onto arg_array
-	return
+        push brick_evaluate(brick) onto arg_array
+        return
     -- if we are here, child is a mortar Libmarpa symbol
     mortar_evaluate(child, arg_array)
     return
@@ -128,3 +128,7 @@ In many cases, this can be a major efficiency.
 This also open the road to
 symbol hiding, and
 partial evaluation, as a technique in itself.
+
+<!---
+vim: expandtab shiftwidth=4
+-->
