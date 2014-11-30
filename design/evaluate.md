@@ -27,7 +27,47 @@ This tree of libmarpa-node objects and terminals
 should be evaluated left-to-right,
 bottom-to-top.
 
-[ Add stuff from notes ]
+```
+
+-- here the 'brick' argument must
+-- be a brick Libmarpa symbol
+-- from a Libmarpa node
+brick_evaluate(brick)
+    let arg_array be an empty array
+    get rule, child[0], child[1], ... from brick
+    child_evaluate(rule, child, arg_array) for child[0], child[1], ...
+    get semantics from rule
+    get result by applying the semantics to the arguments in arg_array
+    wrap the result into a brick object
+    return the brick object
+end of brick_evaluate method
+
+child_evaluate(rule, child, arg_array)
+    from position of child in rule, determine if it is hidden
+        if yes, return
+    if child is a terminal (that is, a lexeme)
+        push value of child onto arg_array
+        return
+    if child is a brick symbol
+	push brick_evaluate(brick) onto arg_array
+	return
+    -- if we are here, child is a mortar Libmarpa symbol
+    mortar_evaluate(child, arg_array)
+    return
+end of child_evaluate
+
+-- the 'child' argument is a Libmarpa mortar symbol
+-- the arg_array is an array onto which the argument
+--     for the semantics can be pushed, as we find
+--     them in left-to-right order
+mortar_evaluate(mortar, arg_array)
+    -- if we are here, child is a mortar symbol
+    get rule, child[0], child[1], ... from mortar
+    child_evaluate(rule, child, arg_array) for child[0], child[1], ...
+    return
+end of mortar_evaluate method
+
+```
 
 ### Start rule
 
@@ -49,9 +89,11 @@ and that value becomes the value of the parse.
 If the parse is successful,
 and is not nulled,
 then the only child of the augmented start rule
-will be a brick-result object,
-and that brick-result object
-will be a singleton -- its array
+will be a brick-result object.
+If `start_child` is that child,
+then `brick_evaluate(child)`
+will be a singleton brick object --
+its array
 will contain only one element.
 That element becomes the value of the parse.
 
