@@ -18,7 +18,7 @@ and symbols.
 First, the Libmarpa parse should be turned into a tree,
 where each node is a `libmarpa-node` Lua object.
 The array of the `libmarpa-node` object should have
-the ID of the Libmarpa rule as its first
+the ID of the Libmarpa rule as its
 first element.
 The remaining elements should be its
 RHS children -- either terminal or non-terminals.
@@ -27,7 +27,7 @@ Terminals are nulling symbols or lexemes,
 in some suitable representation.
 This tree of `libmarpa-node` objects and terminals
 should be evaluated left-to-right,
-bottom-to-top.
+bottom-to-top, as in the following pseudo-code.
 
 ```
 
@@ -115,7 +115,7 @@ but harder to implement.
 
 I do not bother with the dual-stack implementation,
 because there is an even better way --
-rewriting the ASF logic.
+rewriting the ASF logic in C.
 The ASF (abstract syntax forest) logic is
 now in the SLIF,
 and is written in Perl,
@@ -138,7 +138,7 @@ Using the ASF would open the way to
 many other new techniques.
 As one small example, symbol hiding
 could be used as a technique
-for implementing parial evaluation.
+for implementing partial evaluation.
 
 <!---
 vim: expandtab shiftwidth=4
