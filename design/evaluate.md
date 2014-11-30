@@ -91,7 +91,7 @@ and is not nulled,
 then the only child of the augmented start rule
 will be a brick-result object.
 If `start_child` is that child,
-then `brick_evaluate(child)`
+then `brick_evaluate(start_child)`
 will be a singleton brick object --
 its array
 will contain only one element.
