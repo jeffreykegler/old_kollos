@@ -16,13 +16,15 @@ and symbols.
 ## Performing the evalution
 
 First, the Libmarpa parse should be turned into a tree,
-with each node is a `libmarpa-node` Lua object.
-The array of the Lua object should have the Libmarpa rule as its first
+where each node is a `libmarpa-node` Lua object.
+The array of the `libmarpa-node` object should have
+the ID of the Libmarpa rule as its first
 first element.
 The remaining elements should be its
-RHS children.
-These children will be represented by other `libmarpa-node` objects,
-if they are non-terminals.
+RHS children -- either terminal or non-terminals.
+Non-terminals are other `libmarpa-node` objects.
+Terminals are nulling symbols or lexemes,
+in some suitable representation.
 This tree of `libmarpa-node` objects and terminals
 should be evaluated left-to-right,
 bottom-to-top.
@@ -45,7 +47,8 @@ end of brick_evaluate method
 child_evaluate(rule, child, arg_array)
     from position of child in rule, determine if it is hidden
         if yes, return
-    if child is a terminal (that is, a lexeme)
+    if child is a terminal
+        -- terminals are lexemes and nulled symbols
         push value of child onto arg_array
         return
     if child is a brick symbol
@@ -56,7 +59,7 @@ child_evaluate(rule, child, arg_array)
     return
 end of child_evaluate
 
--- the 'child' argument is a Libmarpa mortar symbol
+-- the 'mortar' argument is a Libmarpa mortar symbol
 -- the arg_array is an array onto which the argument
 --     for the semantics can be pushed, as we find
 --     them in left-to-right order
@@ -76,30 +79,33 @@ form
 ```
     <augmented start> ::= <old start symbol>
 ```
+This augmented start rule is a special case
+for the semantics.
 
-The augmented start is evaluation differently from
-other rules.
-First off, if the parse is nulled (zero length),
-the whole evaluation is treated as a special case.
+#### Nulled parses
+
+A parse is nulled if it is zero length.
 In that case, `<old start symbol>` will have a nulling
 semantics.
 This nulling semantics is used to determine a value,
 and that value becomes the value of the parse.
 
+#### Other parses
+
 If the parse is successful,
 and is not nulled,
 then the only child of the augmented start rule
-will be a brick-result object.
-If `start_child` is that child,
-then `brick_evaluate(start_child)`
-will be a singleton brick object --
-its array
-will contain only one element.
+will be a Libmarpa brick symbol.
+Let `old_start_symbol` be that child.
+Then `brick_evaluate(old_start_symbol)`
+will return a singleton brick object --
+one whose array
+contains only one element.
 That element becomes the value of the parse.
 
 ## Futures
 
-The method described above is not the best.
+The method described above is not the best possible.
 The current SLIF uses a dual-stack mechanism -- one stack
 for the arguments to the semantics, and a second one
 of rules.
@@ -107,12 +113,13 @@ The rules stack contains indexes to the arguments stack.
 This is more efficient than the above,
 but harder to implement.
 
-One reason not to bother with the dual-stack implementation,
-is that there is probably an even better way --
+I do not bother with the dual-stack implementation,
+because there is an even better way --
 rewriting the ASF logic.
 The ASF (abstract syntax forest) logic is
-now in the SLIF, and is in Perl,
-so it's currently not every efficient.
+now in the SLIF,
+and is written in Perl,
+so it is currently not every efficient.
 
 If the ASF logic were used,
 evaluation would take place
@@ -122,12 +129,16 @@ To iterate the ASF,
 the choices at each glade can be tracked using
 a stack.
 
-This would have the advantage, that sections of the ASF
-whose topmost symbol is "hidden", can be skipped.
-In many cases, this can be a major efficiency.
-This also open the road to
-symbol hiding, and
-partial evaluation, as a technique in itself.
+Using the ASF's would
+allow sections of the ASF
+whose topmost symbol is "hidden" to be skipped.
+In many cases, this would be a major efficiency.
+
+Using the ASF would open the way to
+many other new techniques.
+As one small example, symbol hiding
+could be used as a technique
+for implementing parial evaluation.
 
 <!---
 vim: expandtab shiftwidth=4
