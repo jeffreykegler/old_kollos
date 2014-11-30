@@ -16,14 +16,14 @@ and symbols.
 ## Performing the evalution
 
 First, the Libmarpa parse should be turned into a tree,
-with each node is a libmarpa-node Lua object.
+with each node is a `libmarpa-node` Lua object.
 The array of the Lua object should have the Libmarpa rule as its first
 first element.
 The remaining elements should be its
 RHS children.
-These children will be represented by other libmarpa-node objects,
+These children will be represented by other `libmarpa-node` objects,
 if they are non-terminals.
-This tree of libmarpa-node objects and terminals
+This tree of `libmarpa-node` objects and terminals
 should be evaluated left-to-right,
 bottom-to-top.
 
