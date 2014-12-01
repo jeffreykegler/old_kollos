@@ -114,11 +114,10 @@ can be either a single symbol,
 or a sequence of symbols grouped by
 parentheses or square brackets,
 as described above.
-Possible syntaxs for a repetition are
+A repetiton consists of
 
-+ A repetend, followed by a repetition specifier.
-+ A repetend, followed by a repetition specifier and a terminator specifier.
-+ A repetend, followed by a repetition specifier and a separator specifier.
++ A repetend, followed by
++ An optional puncuation specifier.
 
 A repetition specifier is one of
 
@@ -130,18 +129,13 @@ A repetition specifier is one of
     +           -- equivalent to ** 1..*
 ```
 
-A separation specifier is
+A punctuation specifier is one of
 ```
     % <sep>     -- use <sep> as a separator
+    %% <sep>     -- use <sep> as a terminator
 ```
-which specifies `<sep>` as the separator between repetends.
-
-A terminator specifier is
-```
-    %% <sep>     -- use <sep> as a separator
-```
-which specifies `<sep>` as the terminator after every repetend.
-The final terminator is optional.
+When a terminator specifier is in use,
+the final terminator is optional.
 
 Here are some examples:
 
