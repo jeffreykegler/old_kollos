@@ -1,5 +1,7 @@
 # Kollos: sequence rule rewrite
 
+[ Needs proofreading. ]
+
 This document describes how the LUIF rewrites
 sequence rules.
 In the following rule,
