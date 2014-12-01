@@ -58,6 +58,123 @@ Here is an example of a LUIF BNF statement:
      || Expression add Expression
       | Expression sub Expression
 ```
+
+Grouping and hidden symbols
+===========================
+
+To group a series of RHS symbols use parentheses:
+```
+   ( A B C )
+```
+You can also use square brackets,
+in which case the symbols will be hidden
+from the semantics:
+```
+   [ A B C ]
+```
+
+Parentheses and square brackets can be nested.
+If square brackets are used at any nesting level
+containing a symbol, that symbol is hidden.
+In other words,
+there is no way to "unhide" a symbol that is inside
+square brackets.
+
+Sequences
+=========
+
+Sequences are expressions on the RHS of a BNF rule alternative
+which imply the repetition of a symbol,
+or a parenthesized series of symbols.
+
+The syntax is inspired by
+Perl6
+[see Synopsis 5](http://perlcabal.org/syn/S05.html).
+Those familar with Perl 6 syntax, however,
+need to be careful, because the meanings
+are often quite different.
+Perl 6 syntax is designed with regular expressions
+in mind.
+LUIF syntax is general BNF -- more more powerful
+and quite different.
+
+For example, in Perl 6 `**` means a greedy match.
+In the LUIF it means just a match -- if there's more
+than one possibility, it means all of them.
+As another example, 
+the Perl 6 syntax specifies
+treatment of whitespace
+In the LUIF, whitespace handling is taken
+care of the lexer.
+The rules for the structural grammar have nothing
+to do with it.
+
+The item to be repeated (the repetend)
+can be either a single symbol,
+or a sequence of symbols grouped by
+parentheses or square brackets,
+as described above.
+Possible syntaxs for a repetition are
+
++ A repetend, followed by a repetition specifier.
++ A repetend, followed by a repetition specifier and a terminator specifier.
++ A repetend, followed by a repetition specifier and a separator specifier.
+
+A repetition specifier is one of
+
+```
+    ** N..M     -- repeat between N and M times
+    ** N..*     -- repeat more than N times
+    ?           -- equivalent to ** 0..1
+    *           -- equivalent to ** 0..*
+    +           -- equivalent to ** 1..*
+```
+
+A separation specifier is
+```
+    % <sep>     -- use <sep> as a separator
+```
+which specifies `<sep>` as the separator between repetends.
+
+A terminator specifier is
+```
+    %% <sep>     -- use <sep> as a separator
+```
+which specifies `<sep>` as the terminator after every repetend.
+The final terminator is optional.
+
+Here are some examples:
+
+```
+    A+                 -- one or more <A> symbols
+    A*                 -- zero or more <A> symbols
+    A ** 42            -- exactly 42 <A> symbols
+    <A> ** 3..*        -- 3 or more <A> symbols
+    <A> ** 3..42       -- between 3 and 42 <A> symbols
+    (<A> <B>) ** 3..42 -- between 3 and 42 repetitions of <A> and <B>
+    [<A> <B>] ** 3..42 -- between 3 and 42 repetitions of <A> and <B>,
+                       --   hidden from the semantics
+    <a>* % ','         -- 0 or more comma-separated <a> symbols
+    <a>+ % ','         -- 1 or more comma-separated <a> symbols
+    <a>? % ','         -- 0 or 1 <a> symbols; note that ',' is never used
+    <a> ** 2..* % ','  -- 2 or more comma-separated <a> symbols
+    <A>+ % ','         -- one or more comma-separated <A> symbols
+    <A>* % ','         -- zero or more comma-separated <A> symbols
+    (A B)* % ','       -- A and B, repeated zero or more times, and comma-separated
+    <A>+ %% ','        -- one or more comma-terminated <A> symbols
+
+```
+
+The repetend cannot be nullable.
+If a separator is specified, it cannot be nullable.
+If a terminator is specified, it cannot be nullable.
+If you try to work out what repetition of a nullable item actually means,
+I think the reason for these restrictions will be clear --
+such a repetition is very ambiguous.
+An application which really wants to specify rules involving nullable repetition,
+can specify them directly in BNF,
+and these will make the programmer's intent clear.
+
 Grammars
 ========
 
