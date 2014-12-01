@@ -94,8 +94,6 @@ In what follows, we'll need some definitions:
 * A block is a closed range with a span of one, for example,
 `A**42`.
 
-* A *trivial range* is a range with a span of zero or one.
-
 * `pow2(X)` is the largest power of two
 strictly less than `X`.
 That is
@@ -108,11 +106,7 @@ That is
 
 ## Closed ranges with a minimum of two or more
 
-Rewrite them so all ranges are either
-
-+ blocks, that is, the minimum and maximum the same; or
-+ 1-based.
-
+Rewrite them so all ranges are either blocks or 1-based.
 For `A**N..M % punct`, where N is 2 or more,
 introduce these new rules.
 ```
@@ -126,7 +120,6 @@ introduce these new rules.
 At this point,
 all ranges are either one-based or blocks.
 
-We will first consider separators.
 For a range of the form
 For `A**1..M % punct`, where M is 5 or more,
 rewrite as follows:
@@ -179,7 +172,7 @@ and have a maximum of four or less.
 
 Blocks of 4 or less should be turned
 into a single NF rule.
-For example `A**4 % punct` should
+For example, `A**4 % punct` should
 be rewritten as
 ```
     Rep ::= A punct A punct A punct A
@@ -192,8 +185,10 @@ they have all been rewritten into
 
 +_regular BNF rules;
 + empty rules;
-+ star-quantified (`*`) rules;
-+ plus-quantified (`+`) rules;
++ unpunctuated star-quantified (`*`) rules;
++ unpunctuated plus-quantified (`+`) rules;
++ star-quantified (`*`) rules with separation; or
++ plus-quantified (`+`) rules with separation;
 
 All repetitions are now in
 a form in which a Libmarpa grammar can
