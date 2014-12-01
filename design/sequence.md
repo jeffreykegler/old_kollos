@@ -1,7 +1,5 @@
 # Kollos: sequence rule rewrite
 
-[ Needs proofreading. ]
-
 This document describes how the LUIF rewrites
 sequence rules.
 In the following rule,
@@ -26,13 +24,14 @@ rewrite it as two rules with separation,
 one terminated, and one not.
 For example, rewrite `A ** 42..1041 %% punct` as 
 ```
-    A ** 42..1041 % punct
-    (A ** 42..1041 % punct) punct
+    Rep ::= A ** 42..1041 % punct
+    Rep ::= (A ** 42..1041 % punct) punct
 ```
 
 In the second rule of the example,
-unnecessary parentheses have been added for clarity.
-We will do this often in what follows.
+unnecessary parentheses have been added.
+In what follows,
+we will often over-parenthesize for clarity.
 
 In the rest of this document, most examples
 will be punctuated with separation.
