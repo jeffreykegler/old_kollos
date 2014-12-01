@@ -183,7 +183,7 @@ be rewritten as
 At this point, we have no more ranges or blocks --
 they have all been rewritten into
 
-+_regular BNF rules;
++ regular BNF rules;
 + empty rules;
 + unpunctuated star-quantified (`*`) rules;
 + unpunctuated plus-quantified (`+`) rules;
