@@ -15,14 +15,18 @@ The rules added should be kept in table,
 and, when a rule with a RHS and punctuation
 identical to one already in the table would be
 added,
-instead the mortar LHS should be reused.
+the rule in the table should be reused instead.
 
 ## Eliminate terminators
 
 If any rule has a terminator,
 rewrite it as two rules with separation,
 one terminated, and one not.
-For example, rewrite `A ** 42..1041 %% punct` as 
+For example, rewrite
+```
+    A ** 42..1041 %% punct
+```
+as `Rep`, and add these two rules:
 ```
     Rep ::= A ** 42..1041 % punct
     Rep ::= (A ** 42..1041 % punct) punct
@@ -37,12 +41,11 @@ In the rest of this document, most examples
 will be punctuated with separation.
 From these, it should be easy to
 deduce how the rewrite is done
-for the unpunctuated case.
+in the unpunctuated case.
 
 ## Eliminate '?' quantifier
 
 Rewrite `A?` or `A**0..1` as two rules
-
 ```
    Rep ::= -- empty rule
    Rep ::= A -- singleton rule
@@ -53,7 +56,7 @@ Ignore any separator.
 ## Eliminate explicitly-based open ranges
 
 An explicitly based open range is a repetition
-of the form `A ** N..* % punch`.
+of the form `A ** N..* % punct`.
 
 + Rewrite `A ** 0..* % punct` as `A* % punct`.
 
@@ -157,7 +160,7 @@ be rewritten as
 The only remaining ranges are now blocks,
 that is,
 they have the same minimum and maximum,
-and so are of the form `A**N..N % punch`
+and so are of the form `A**N..N % punct`
 or simply `A**N % punct`.
 If N is greater than 4,
 we binarize the block, much as we did with
