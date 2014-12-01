@@ -9,18 +9,7 @@ In the following rule,
 introduced to function
 as left hand sides for intermediate rules.
 
-Where punctuation
-(separation or termination)
-is relevant,
-it is shown as the `% punct`, where it is understood
-that the relevant separation or termination is
-to be used.
-It is understood that,
-in cases where there is no punctuation,
-the punctuation specifier
-is to be omitted.
-
-These rewrite may call for rules with a mortar
+This rewrite may call for rules with a mortar
 LHS and the same
 RHS and punctuation to be added
 multiple times.
@@ -30,14 +19,28 @@ identical to one already in the table would be
 added,
 instead the mortar LHS should be reused.
 
-## Empty quantification
+## Eliminate terminators
 
-Rewrite `A**0..0` or `A**0` as
+If any rule has a terminator,
+rewrite it as two rules with separation,
+one terminated, and one not.
+For example, rewrite `A ** 42..1041 %% punct` as 
 ```
-   Rep ::= -- empty rule
+    A ** 42..1041 % punct
+    (A ** 42..1041 % punct) punct
 ```
 
-## '?' quantifier
+In the second rule of the example,
+unnecessary parentheses have been added for clarity.
+We will do this often in what follows.
+
+In the rest of this document, most examples
+will be punctuated with separation.
+From these, it should be easy to
+deduce how the rewrite is done
+for the unpunctuated case.
+
+## Eliminate '?' quantifier
 
 Rewrite `A?` or `A**0..1` as two rules
 
@@ -46,41 +49,46 @@ Rewrite `A?` or `A**0..1` as two rules
    Rep ::= A -- singleton rule
 ```
 
-Ignore any separators or terminators.
+Ignore any separator.
 
-## Kleene star
+## Eliminate explicitly-based open ranges
 
-Rewrite `A**0..*` as `A*`
+An explicitly based open range is a repetition
+of the form `A ** N..* % punch`.
 
-Ignore any separators or terminators.
++ Rewrite `A ** 0..* % punct` as `A* % punct`.
 
-## Infinite quantifiers
++ Rewrite `A ** 1..* % punct` as `A+ % punct`.
 
-For `A**N..* % punct` introduce the intermediate rules
+* Where N is 2 or more,
+  rewrite `A ** N..* % punct` as
+  as
 ```
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** 0..N-1 % punct
-   Rep2 ::= A+ % punct -- singleton rule
+    Rep ::= Rep1 punct Rep2
+    Rep1 ::= (A ** 1 .. N-1 % punct)
+    Rep2 ::= A+
 ```
-Note that because of the application of previous
-rules, `N` here must be at least 2.
-The rule for `Rep1` is subject to processing
-in the steps which follow.
 
-## Ranges with a minimum of zero
+## Closed ranges with a minimum of zero
 
-For `A**0..M % punct`,
+All ranges are now closed -- they have an explicit maximum.
+Rewrite `A**0..0` or `A**0` as
+```
+   Rep ::= -- empty rule
+```
+For `A**0..M % punct`, where M is 1 or more.
 introduce these new rules.
 ```
    Rep ::=  -- empty rule
    Rep ::= A ** 1 .. (M-1) % punct
 ```
-Note that `M` will be at least one,
-because of the application of previous rules.
-These rules are subject to processing
-in the steps which follow.
 
-## Ranges with a minimum of two or more
+## Closed ranges with a minimum of two or more
+
+Rewrite them so all ranges are either
+
++ blocks, that is, the minimum and maximum the same; or
++ 1-based.
 
 For `A**N..M % punct`, where N is 2 or more,
 introduce these new rules.
@@ -89,18 +97,19 @@ introduce these new rules.
    Rep1 ::= A ** N-1 % punct
    Rep2 ::= A ** 1 .. (M-N+1) % punct
 ```
-These rules are subject to processing
-in the steps which follow.
 
-## One-based ranges
+## Some definitions
 
-At this point,
-because of the application of previous rules,
-all ranges are either one-based or blocks.
-(A block is a range of the form `A**N..N` --
-its minimum and maximum are identical.
+In what follows, we'll need some definitions:
 
-Let `pow2(X)` be the largest power of two
++ The *span* of the closed range `A ** N..M` is `(M-N)+1`.
+
+* A block is a closed range with a span of one, for example,
+`A**42`.
+
+* A *trivial range* is a range with a span of zero or one.
+
+* `pow2(X)` is the largest power of two
 strictly less than `X`.
 That is
 ```
@@ -110,10 +119,10 @@ That is
     pow2(9) == 8
 ```
 
-Also previously, we did not
-need to distinguish between separators
-and terminators.
-In this step we will have to.
+## One-based non-block ranges
+
+At this point,
+all ranges are either one-based or blocks.
 
 We will first consider separators.
 For a range of the form
@@ -122,74 +131,38 @@ rewrite as follows:
 ```
    Rep ::= A ** 1 .. (pow(M)-1) % punct
    Rep ::= Rep1
+   Rep ::= Rep1 punct Rep2
    Rep1 ::= A ** pow(M) % punct
-   Rep2 ::= Rep1 punct (A**1..(M-pow(M)) % punct)
-```
-The parentheses around the final repetition
-in the rule for `Rep2`
-are unnecessary, but are added
-for clarity.
-
-For terminators, we will need to add
-a rule.
-```
-   Rep ::= A ** 1 .. (pow(M)-1) %% punct
-   Rep ::= Rep1
-   Rep ::= Rep1 punct
-   Rep1 ::= A ** pow(M) %% punct
-   Rep2 ::= Rep1 punct A ** 1..(M-pow(M)) %% punct
+   Rep2 ::= A**1..(M-pow(M)) % punct
 ```
 
 This step should be repeated until
 all ranges are either blocks,
-or have an maximum of four or less.
+or have an span of four or less.
 
-## Short ranges
+## Short one-based ranges
 
 Ranges of 4 or less should be turned
 into a sets of fixed length alernatives.
-For example `A**1..4` should
+For example `A**1..4 % punct` should
 be rewritten as
 ```
     Rep ::= A
-    Rep ::= A punct
     Rep ::= A punct A
-    Rep ::= A punct A punct
     Rep ::= A punct A punct A
-    Rep ::= A punct A punct A punct
     Rep ::= A punct A punct A punct A
-    Rep ::= A punct A punct A punct A punct
 ```
-where `punct` is the punctuator.
-It the punctuator is separator,
-the rules ending in `punct` should be ommitted.
 
 # Large blocks
 
 The only remaining ranges are now blocks,
 that is,
 they have the same minimum and maximum,
-and so are of the form `A**N..N`
-or simply `A**N`.
+and so are of the form `A**N..N % punch`
+or simply `A**N % punct`.
 If N is greater than 4,
 we binarize the block, much as we did with
-ranges.
-
-Again, we need to distinguish separation
-from termination.
-For the termination case,
-`A**1..M %% punct`, where M is 5 or more,
-rewrite as follows:
-```
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** pow(M) % punct
-   Rep2 ::= A ** 1..(M-pow(M)) %% punct
-```
-Note the `Rep1` rule uses separation,
-while the `Rep2` rule uses termination.
-
-For the separation case, we use separation
-for both the `Rep1` and `Rep2` rules:
+ranges:
 ```
    Rep ::= Rep1 punct Rep2
    Rep1 ::= A ** pow(M) % punct
@@ -200,21 +173,17 @@ This step should be repeated until
 all ranges are blocks,
 and have a maximum of four or less.
 
-## Short blocks
+## Small blocks
 
 Blocks of 4 or less should be turned
-into a BNF rule.
-For example `A**4` should
+into a single NF rule.
+For example `A**4 % punct` should
 be rewritten as
 ```
     Rep ::= A punct A punct A punct A
-    Rep ::= A punct A punct A punct A punct
 ```
-where `punct` is the punctuator.
-It the punctuator is separator,
-the rule ending in `punct` should be ommitted.
 
-## Eliminate terminators
+## Pass to Libmarpa
 
 At this point, we have no more ranges or blocks --
 they have all been rewritten into
@@ -224,28 +193,11 @@ they have all been rewritten into
 + star-quantified (`*`) rules;
 + plus-quantified (`+`) rules;
 
-We do one more rewrite.
-Libmarpa will handle terminators,
-but we want to move the rewrites
-out of the Libmarpa core code,
-and this is a good place to start.
-For a repetition of the form `A* %% punct`,
-we turn the punctation is separation,
-using these two rules:
-```
-   Rep ::= A* % punct
-   Rep ::= (A* % punct) punct
-```
-The parentheses in the second rule are
-not necessary, but are added for clarity.
-
-## Libmarpa
-
-We've now rewritten all repetitions into
+All repetitions are now in
 a form in which a Libmarpa grammar can
 be created from them.
 
-# Rewrite
+# Other approaches
 
 A naive approach to
 a rewrite of rules of the form `A ::= B{min,max}`
