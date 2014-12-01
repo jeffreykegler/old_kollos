@@ -85,21 +85,6 @@ introduce these new rules.
    Rep ::= A ** 1 .. (M-1) % punct
 ```
 
-## Closed ranges with a minimum of two or more
-
-Rewrite them so all ranges are either
-
-+ blocks, that is, the minimum and maximum the same; or
-+ 1-based.
-
-For `A**N..M % punct`, where N is 2 or more,
-introduce these new rules.
-```
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** N-1 % punct
-   Rep2 ::= A ** 1 .. (M-N+1) % punct
-```
-
 ## Some definitions
 
 In what follows, we'll need some definitions:
@@ -119,6 +104,21 @@ That is
     pow2(7) == 4
     pow2(8) == 4
     pow2(9) == 8
+```
+
+## Closed ranges with a minimum of two or more
+
+Rewrite them so all ranges are either
+
++ blocks, that is, the minimum and maximum the same; or
++ 1-based.
+
+For `A**N..M % punct`, where N is 2 or more,
+introduce these new rules.
+```
+   Rep ::= Rep1 punct Rep2
+   Rep1 ::= A ** N-1 % punct
+   Rep2 ::= A ** 1 .. (M-N+1) % punct
 ```
 
 ## One-based non-block ranges
