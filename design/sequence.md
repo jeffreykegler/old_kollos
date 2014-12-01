@@ -31,18 +31,18 @@ instead the mortar LHS should be reused.
 ## Empty quantification
 
 Rewrite `A**0..0` or `A**0` as
-``
+```
    Rep ::= -- empty rule
-``
+```
 
 ## '?' quantifier
 
 Rewrite `A?` or `A**0..1` as two rules
 
-``
+```
    Rep ::= -- empty rule
    Rep ::= A -- singleton rule
-``
+```
 
 Ignore any separators or terminators.
 
@@ -55,11 +55,11 @@ Ignore any separators or terminators.
 ## Infinite quantifiers
 
 For `A**N..* % punct` introduce the intermediate rules
-``
+```
    Rep ::= Rep1 punct Rep2
    Rep1 ::= A ** 0..N-1 % punct
    Rep2 ::= A+ % punct -- singleton rule
-``
+```
 Note that because of the application of previous
 rules, `N` here must be at least 2.
 The rule for `Rep1` is subject to processing
@@ -69,10 +69,10 @@ in the steps which follow.
 
 For `A**0..M % punct`,
 introduce these new rules.
-``
+```
    Rep ::=  -- empty rule
    Rep ::= A ** 1 .. (M-1) % punct
-``
+```
 Note that `M` will be at least one,
 because of the application of previous rules.
 These rules are subject to processing
@@ -82,11 +82,11 @@ in the steps which follow.
 
 For `A**N..M % punct`, where N is 2 or more,
 introduce these new rules.
-``
+```
    Rep ::= Rep1 punct Rep2
    Rep1 ::= A ** N-1 % punct
    Rep2 ::= A ** 1 .. (M-N+1) % punct
-``
+```
 These rules are subject to processing
 in the steps which follow.
 
