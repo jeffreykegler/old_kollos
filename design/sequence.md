@@ -2,20 +2,25 @@
 
 This document describes how the LUIF rewrites
 sequence rules.
-In the following rule,
+In this document,
 `Rep`, `Rep1`, `Rep2`, etc. are mortar symbols,
-introduced to function
+introduced during the rewrite,
+so that they can function
 as left hand sides for intermediate rules.
 
 This rewrite may call for rules with a mortar
 LHS and the same
 RHS and punctuation to be added
-multiple times.
-The rules added should be kept in table,
-and, when a rule with a RHS and punctuation
-identical to one already in the table would be
-added,
-the rule in the table should be reused instead.
+more than once.
+In the implementation,
+the added rules should be kept in a table.
+The table should contain mortar LHS symbols,
+indexed by RHS symbols and punctuation.
+When a rule is to added,
+if its RHS and punctuation
+are identical to one already in the table,
+the mortar LHS should
+be reused instead.
 
 ## Eliminate terminators
 
