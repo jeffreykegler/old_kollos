@@ -1,0 +1,17 @@
+            json         ::= object 
+                           | array
+            object       ::= [lcurly rcurly]
+                           | [lcurly] members [rcurly]
+            members      ::= pair* % comma
+            pair         ::= string [colon] value
+            value        ::= string
+                           | object
+                           | number
+                           | array
+                           | true 
+                           | false
+                           | null 
+            array        ::= [lsquare rsquare]
+                           | [lsquare] elements [rsquare] 
+            elements     ::= value+ % comma
+            string       ::= lstring
