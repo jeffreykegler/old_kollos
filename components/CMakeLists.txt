@@ -19,6 +19,7 @@ endif ()
 
 # NOTE: The order matters! The most independent ones should go first.
 add_subdirectory(libmarpa) # static library
+add_subdirectory(wrapper)
 add_subdirectory(json) # test executable
 
 # vim: expandtab shiftwidth=4:
