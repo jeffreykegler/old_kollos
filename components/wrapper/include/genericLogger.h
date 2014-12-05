@@ -1,7 +1,7 @@
 #ifndef GENERICLOGGER_LOG_H
 #define GENERICLOGGER_LOG_H
 
-#include "marpaWrapper_Export.h"
+#include "marpa_wrapper_Export.h"
 
 typedef enum genericLoggerLevel {
   GENERICLOGGER_LOGLEVEL_TRACE = 0,

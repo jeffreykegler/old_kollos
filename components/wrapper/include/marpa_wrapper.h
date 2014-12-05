@@ -1,7 +1,7 @@
 #ifndef MARPAWRAPPER_INTERNAL_MARPAWRAPPER_H
 #define MARPAWRAPPER_INTERNAL_MARPAWRAPPER_H
 
-#include "marpaWrapper_Export.h"
+#include "marpa_wrapper_Export.h"
 #include <stddef.h>                  /* size_t definition */
 
 /* Convention is:

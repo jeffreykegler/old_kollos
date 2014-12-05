@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 3.0)
-PROJECT (marpaWrapper)
+PROJECT (marpa_wrapper C)
 
 # ------------------
 # Module search path
@@ -37,9 +37,9 @@ CHECK_INCLUDE_FILE("sys/time.h" HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILE("time.h" HAVE_TIME_H)
 CHECK_INCLUDE_FILE("unistd.h" HAVE_UNISTD_H)
 CHECK_INCLUDE_FILE("io.h" HAVE_IO_H)
-CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/include/marpa_wrapper_config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/marpa_wrapper_config.h")
+CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/include/marpa_wrapper_config.h.in" "${PROJECT_BINARY_DIR}/include/marpa_wrapper_config.h")
 
-INCLUDE_DIRECTORIES ("${PROJECT_SOURCE_DIR}/include" ${libmarpa_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES ("${PROJECT_BINARY_DIR}/include" "${PROJECT_SOURCE_DIR}/include" ${libmarpa_INCLUDE_DIRS})
 
 # ---------------------------
 # General overwrite of CFLAGS
@@ -57,14 +57,20 @@ ADD_DEFINITIONS(-DMARPAWRAPPER_NTRACE)
 # ------------------------
 # marpa_wrapper library
 # ------------------------
-FILE(GLOB marpa_wrapper_lib_src src/*.c)
+FILE(GLOB marpa_wrapper_lib_src src/*.c include/*.h)
 INCLUDE (GenerateExportHeader)
 ADD_COMPILER_EXPORT_FLAGS ()
-ADD_LIBRARY (marpa_wrapper SHARED
+
+# Add PIC later
+# Required on Unix OS family to be able to be linked into shared libraries.
+# set_target_properties(${PROJECT_NAME}
+#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+ADD_LIBRARY (marpa_wrapper STATIC
   ${marpa_wrapper_lib_src}
-  ${marpa_lib_src}
   ${libmarpa_BINARY_DIR}/config.h
   )
+
 SET (MARPAWRAPPER_VERSION_MAJOR 0)
 SET (MARPAWRAPPER_VERSION_MINOR 1)
 SET (MARPAWRAPPER_VERSION_PATCH 1)
@@ -80,33 +86,6 @@ GENERATE_EXPORT_HEADER(marpa_wrapper
   DEFINE_NO_DEPRECATED
   PREFIX_NAME MARPAWRAPPER_
 )
-# -----------------------
-# distclean custom target
-# -----------------------
-ADD_CUSTOM_TARGET (distclean)
-SET(DISTCLEANED
-  build
-  CMakeFiles
-  CMakeCache.txt
-  Makefile
-  cmake_install.cmake
-  "${MARPA_DIR}/config.log"
-  "${MARPA_DIR}/config.h"
-  "${MARPA_DIR}/config_from_autoconf.h"
-  "${MARPA_DIR}/stamp-h1"
-  include/marpa_wrapper_config.h
-  GLOB *vcxproj*
-  GLOB *sln
-  GLOB *suo
-  )
-ADD_CUSTOM_COMMAND (
-  DEPENDS clean
-  COMMENT "distclean"
-  COMMAND "${PERL}"
-  ARGS    -MExtUtils::Command -e rm_rf ${DISTCLEANED}
-  TARGET  distclean
-  VERBATIM
-  )
 
 # -----
 # Tests

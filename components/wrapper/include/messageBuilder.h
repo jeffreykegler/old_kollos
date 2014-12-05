@@ -1,7 +1,7 @@
 #ifndef MARPAWRAPPER_INTERNAL_MESSAGEBUILDER_H
 #define MARPAWRAPPER_INTERNAL_MESSAGEBUILDER_H
 
-#include "marpaWrapper_Export.h"
+#include "marpa_wrapper_Export.h"
 
 #include <stdarg.h>
 

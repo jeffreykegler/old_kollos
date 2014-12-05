@@ -1,4 +1,4 @@
-#include "marpaWrapper_config.h"
+#include "marpa_wrapper_config.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "marpaWrapper.h"
+#include "marpa_wrapper.h"
 #include "genericLogger.h"
 #include "messageBuilder.h"
 
