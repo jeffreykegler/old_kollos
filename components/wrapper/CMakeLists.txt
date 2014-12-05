@@ -63,7 +63,7 @@ ADD_COMPILER_EXPORT_FLAGS ()
 ADD_LIBRARY (marpa_wrapper SHARED
   ${marpa_wrapper_lib_src}
   ${marpa_lib_src}
-  libmarpa-dist/config.h
+  ${libmarpa_BINARY_DIR}/config.h
   )
 SET (MARPAWRAPPER_VERSION_MAJOR 0)
 SET (MARPAWRAPPER_VERSION_MINOR 1)
@@ -120,19 +120,6 @@ ADD_EXECUTABLE        (marpa_wrapper_test EXCLUDE_FROM_ALL test/marpa_wrapper_te
 TARGET_LINK_LIBRARIES (marpa_wrapper_test marpa_wrapper)
 ADD_TEST              (marpa_wrapperTest marpa_wrapper_test)
 ADD_DEPENDENCIES      (check marpa_wrapper_test)
-
-# ----------------
-# Utility (c) curl
-# ----------------
-# Converts a CMake list to a string containing elements separated by spaces
-function(TO_LIST_SPACES _LIST_NAME OUTPUT_VAR)
-  set(NEW_LIST_SPACE)
-  foreach(ITEM ${${_LIST_NAME}})
-    set(NEW_LIST_SPACE "${NEW_LIST_SPACE} ${ITEM}")
-  endforeach()
-  string(STRIP ${NEW_LIST_SPACE} NEW_LIST_SPACE)
-  set(${OUTPUT_VAR} "${NEW_LIST_SPACE}" PARENT_SCOPE)
-endfunction()
 
 # --------
 # Bindings
