@@ -1,3 +1,18 @@
+# Copyright 2014 Jeffrey Kegler
+# This file is part of Libmarpa.  Libmarpa is free software: you can
+# redistribute it and/or modify it under the terms of the GNU Lesser
+# General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# Libmarpa is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser
+# General Public License along with Libmarpa.  If not, see
+# http://www.gnu.org/licenses/.
+
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 PROJECT(libmarpa C)
@@ -5,7 +20,7 @@ PROJECT(libmarpa C)
 # ------------------
 # Module search path
 # ------------------
-SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
+SET (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules")
 ENABLE_TESTING()
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -50,6 +65,11 @@ SET(libmarpa_src
     marpa_ami.h marpa_codes.c marpa.c marpa_tavl.c marpa.h marpa_slif.h marpa_tavl.h
     marpa_ami.c marpa_obs.c marpa_slif.c marpa_avl.c marpa_avl.h marpa_obs.h)
 
+# Add PIC later
+# Required on Unix OS family to be able to be linked into shared libraries.
+# set_target_properties(${PROJECT_NAME}
+#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Expose B's public includes (including Boost transitively) to other
 # subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
@@ -57,10 +77,5 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 
 include_directories("${PROJECT_BINARY_DIR}")
 ADD_LIBRARY(marpa STATIC ${libmarpa_src})
-
-# Required on Unix OS family to be able to be linked into shared libraries.
-set_target_properties(marpa
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 
 # vim: expandtab shiftwidth=4:
