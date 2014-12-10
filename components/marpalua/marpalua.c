@@ -30,6 +30,8 @@ static const struct luaL_Reg marpalua_funcs[] = {
   { NULL, NULL }
 };
 
+#if 0
+
 void
 new( ... )
 PPCODE:
@@ -139,6 +141,8 @@ PPCODE:
       XPUSHs (sv_2mortal (newSViv (error_code)));
     }
 }
+
+#endif
 
 LUALIB_API int luaopen_marpalua(lua_State *L)
 {

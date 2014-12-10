@@ -51,7 +51,8 @@ SET(marpalua_src marpalua.c)
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-include_directories("${PROJECT_BINARY_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}")
+include_directories("${libmarpa_SOURCE_DIR}/include")
 ADD_LIBRARY(marpalua SHARED ${marpalua_src})
 target_link_libraries(${PROJECT_NAME} ${libmarpa_BINARY_DIR}/libmarpa.a)
 
