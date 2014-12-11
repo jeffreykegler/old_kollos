@@ -2,7 +2,9 @@
 
 Dear Loup,
 
-Folks in the Marpa community
+Folks in the
+[Marpa](http://savage.net.au/Marpa.html)
+community
 brought
 [your write-up of Leo's algorithm]
 (http://loup-vaillant.fr/tutorials/earley-parsing/right-recursion)
@@ -19,7 +21,10 @@ in the tutorial.
 
 ## How to implement Leo's algorithm efficiently
 
-In Joop Leo's he describes a lazy implementation of his algorithm,
+In
+[Joop Leo's 1991 paper]
+(http://www.sciencedirect.com/science/article/pii/030439759190180A)
+he describes a lazy implementation of his algorithm,
 which as you suggest takes an Earley parser into a situation
 where it could be adding Earley items to many Earley sets at once.
 As you point out, this would have implications for the kind
@@ -32,8 +37,7 @@ Leo's lazy implementation is *not*, as you suggest,
 quadratic in time,
 but linear,
 and
-[his 1991 paper]
-(http://www.sciencedirect.com/science/article/pii/030439759190180A)
+Leo's 1991 paper
 shows this,
 though how Leo shows this
 can be hard to see if you're not familiar with
