@@ -100,6 +100,17 @@ a lot of complex and mysterious
 code can simply be removed from
 Libmarpa.
 
+## Eliminate the "unvalued symbols" feature
+
+Libmarpa currently implements "unvalued symbols" --
+tokens which the lexer can specify as having an "undefined"
+value.
+The intent here was to allow optimization at evalution time.
+This optimization was targeted at situations where evaluation
+would be by expensive callbacks.
+It turned out to introduce a lot of complications,
+and to have little or no payoff.
+
 <!---
 vim: expandtab shiftwidth=4
 -->
