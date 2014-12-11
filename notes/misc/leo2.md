@@ -91,14 +91,13 @@ is not visible to the user.
 
 You pose this question at the end of your right recursion
 tutorial, and I think it can be answered, "yes".
-With Leo's optimization,
 The advantage here can be seen in another of your excellent
 writeups -- [the one motivating Earley parsing]
 (http://loup-vaillant.fr/tutorials/earley-parsing/what-and-why).
 Leo's optimization would have allowed you to make much
 stronger claims for Earley parsing:
 
-+ If a yacc or bison
++ If yacc or bison
     can parse a grammar in linear time,
     a Leo parser can parse it in linear time.
 
@@ -158,7 +157,7 @@ an Earley set is complete, so that
 you know completely the state of the parse so far,
 including all rules and symbols recognized,
 and precisely what symbols are expected next.
-You can also imitate the most-loved feature of recursive descent --
+You can also duplicate the most-loved feature of recursive descent --
 you can hand control over to the user for their custom hacks,
 so that you get the best of syntax-driven parsing and
 parsing by custom hackery.
