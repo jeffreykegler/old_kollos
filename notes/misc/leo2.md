@@ -25,8 +25,9 @@ where it could be adding Earley items to many Earley sets at once.
 As you point out, this would have implications for the kind
 of data structure you need to use.
 
-Marpa's solution is easy -- add Leo items eagerly.
-That way they only need to be added to the one Earley set.
+Marpa's solution is easy -- add Leo items eagerly,
+That way they only need to be added to the one Earley set
+at a time.
 Leo's lazy implementation is *not*, as you suggest,
 quadratic in time,
 but linear,
@@ -34,13 +35,13 @@ and
 [his 1991 paper]
 (http://www.sciencedirect.com/science/article/pii/030439759190180A)
 shows this,
-though that can be hard to see if you're not familiar with
+though how Leo shows this
+can be hard to see if you're not familiar with
 the literature.
 Leo's paper skips most of the details,
-because it assumes that its readers were familiar with
-the complexity proofs for Earley's original algorithm.
+and simply refers to Earley's complexity proofs.
 Math papers usually do not
-repeat arguments available
+repeat arguments already available
 in standard textbooks or
 in papers familiar to the people who know the field.
 
@@ -49,16 +50,19 @@ eventually want a Leo item in an Earley set,
 you add it.
 Marpa,
 once it finishes each Earley set,
-creates an index to it,
+creates an index to it by postdot symbol,
 and this phase is a great opportunity for
 adding the Leo items --
 they essentially come at no additional overhead.
 
 An additional optimization is useful.
-Leo's 1991 adds Leo items for all rules,
-even those for symbols
+Leo's 1991 adds Leo items for some rules
+whose postdot symbols
 which are never part
 of a right recursion.
+In the absence of a right recursion,
+the payoff for a Leo item is always low --
+it is bounded by a constant which depends on the grammar.
 Marpa analyzes the grammar, and only adds
 Leo items for right-recursive symbols.
 
@@ -88,46 +92,54 @@ is not visible to the user.
 You pose this question at the end of your right recursion
 tutorial, and I think it can be answered, "yes".
 With Leo's optimization,
-Earley's can be made linear for every unambiguous grammar
-which is free of ummarked middle recursions.
-(Writing a grammar with unmarked middle recursions which
-is still unambiguous is not easy to do, but Leo's 1991
-shows how to do it.)
-
 The advantage here can be seen in another of your excellent
 writeups -- [the one motivating Earley parsing]
 (http://loup-vaillant.fr/tutorials/earley-parsing/what-and-why).
-It allows much
-stronger claims to be made for Earley parsing:
-if an LALR parser like yacc or bison can parse it,
-a Leo parser can parse it in linear time.
-(Bison can also switch to GLR, but GLR is not linear.)
-Beyond LALR, Leo's parser parses LR(1) grammars in linear time.
-In fact, Leo's parser parses LR(k) grammars in linaer time
-for every constant value of k.
+Leo's optimization would have allowed you to make much
+stronger claims for Earley parsing:
 
-It is genuinely difficult to write an unambiguous
-grammar which is *not* linear for Leo's algorithm.
-You're unlikely to do it without trying,
-and it is easy to avoid doing it -- just
-stay unambiguous,
-and be careful about unmarked middle recursion.
-(Actually ambiguous grammars are also linear,
-as long as you keep the ambiguity bounded.)
++ If a yacc or bison
+    can parse a grammar in linear time,
+    a Leo parser can parse it in linear time.
 
-This opens the way to new techniques.
+* Many grammars which
+    yacc and bison cannot parse in linear time,
+    a Leo parser can.
+
+* With practice, it's straightforward, in practical cases,
+    to determine if a grammar is linear for a Leo parser.
+    Most users write Leo-linear grammars without thinking about it.
+    A Leo parser is linear if a grammar
+
+    + is free of ambiguous right recursions;
+
+    + is free of unmarked middle recursions; and
+
+    + is unambiguous, or has bounded ambiguity.
+
+    None of these are things a grammar writer usually wants to do.
+
+By contrast GLR is worst-case exponential, is non-linear for
+many more grammars,
+and requires the user to analyze the behavior of LR(1) states.
+
+Because the Leo parser is linear for a vast class of grammars,
+and is predictably so,
+the way opens up to powerful new techniques.
 For example, you can now do true "higher order languages" -- languages
 which write languages.
 This is more useful than it might sound -- for example,
 you can specify a set of rules, with precedence and association,
 as they do in textbooks and standards,
-and automatically transform it into a language which you can
+and programmatically transform it into a language which you can
 reasonably expect to be parsed in linear time.
+(Marpa::R2's DSL actually does this.)
 
 ## Working on one Earley set at at time
 
 Not directly related to the questions about Leo parsing,
-but very much useful for efficient implementation is another
+but very useful for efficient implementation,
+is another
 change -- rearranging the Earley parse engine so that,
 instead of working on two Earley sets at a time,
 it works on only one.
@@ -154,5 +166,4 @@ parsing by custom hackery.
 Best,
 
 Jeffrey Kegler
-
 
