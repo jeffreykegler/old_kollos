@@ -82,10 +82,22 @@ The advantage here can be seen in another of your excellent
 writeups -- [the one motivating Earley parsing]
 (http://loup-vaillant.fr/tutorials/earley-parsing/what-and-why).
 It allows much
-stronger claims to be made for Earley parsing.
+stronger claims to be made for Earley parsing:
+if an LALR parser like yacc or bison can parse it,
+a Leo parser can parse it in linear time.
+(Bison can also switch to GLR, but GLR is not linear.)
+Beyond LALR, Leo's parser parses LR(1) grammars in linear time.
+In fact, Leo's parser parses LR(k) grammars in linaer time
+for every constant value of k.
+
 It is genuinely difficult to write an unambiguous
 grammar which is *not* linear for Leo's algorithm.
-You're unlikely to do it without trying.
+You're unlikely to do it without trying,
+and it is easy to avoid doing it -- just
+stay unambiguous,
+and be careful about unmarked middle recursion.
+(Actually ambiguous gramars are also linear,
+as long as you keep the ambiguity bounded.)
 
 This opens the way to new techniques.
 For example, you can now do true "higher order languages" -- languages
@@ -115,5 +127,12 @@ of pleasant side effects.
 One is that it makes the parser left-eidetic --
 once the operations as described above are done,
 an Earley set is complete, so that
+you know completely the state of the parse so far,
+including all rules and symbols recognized,
+and precisely what symbols are expected next.
+You can also imitate the most-loved feature of recursive descent --
+you can hand control over to the user for their custom hacks,
+so that you get the best of syntax-driven parsing and
+parsing by custom hackery.
 
 
