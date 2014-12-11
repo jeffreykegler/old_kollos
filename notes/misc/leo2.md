@@ -72,11 +72,14 @@ the same semantics as the original,
 but this is not the case for Aycock & Horspool's
 rewrite.
 
-The Marpa algorithm allows the user to specify
+The Marpa algorithm uses a rewrite based
+on the ideas of Aycock & Horspool,
+and Marpa allows the user to specify
 semantics for empty rules and nullable and
-nulling symbols,
-and the fact that the parse engine is using
-a rewritten grammar is invisible to the user.
+nulling symbols.
+The fact that Marpa's parse engine is using
+a rewritten grammar, free of empty rules,
+is not visible to the user.
 
 ## Is Leo's optimization worth it?
 
