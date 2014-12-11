@@ -4,14 +4,17 @@ Dear Loup,
 
 Folks in the Marpa community
 brought
-your write-up of Leo's algorithm
+[your write-up of Leo's algorithm]
+(http://loup-vaillant.fr/tutorials/earley-parsing/right-recursion)
 to my attention.
-I am forced to report,
-that they found your write-up of Leo's algorithm
+I am forced to report
+that they found your description of Leo's algorithm
 much clearer than mine.
 
 I have come comments on it,
-some of which I believe answer questions you pose.
+which I hope will be helpful.
+Some of which I answer questions you pose
+in the tutorial.
 
 ## How to implement Leo's algorithm efficiency
 
@@ -26,11 +29,19 @@ That way they only need to be added to the one Earley set.
 Leo's lazy implementation is *not*, as you suggest,
 quadratic in time,
 but linear,
-and his 1991 paper shows this.
-The argument for a lazy implementation,
-however,
-is not easy to follow.
-It's easier to see for an eager implementation.
+and
+[his 1991 paper]
+(http://www.sciencedirect.com/science/article/pii/030439759190180A)
+shows this,
+though that can be hard to see if you're not familiar with
+the literature.
+Leo's paper skips most of the details,
+because it assumes that its readers were familiar with
+the complexity proofs for Earley's original algorithm.
+Math papers usually do not
+repeat arguments available
+in standard textbooks or
+in papers familiar to the people who know the field.
 
 In an eager implementation, whenever you might
 eventually want a Leo item in an Earley set,
@@ -134,5 +145,9 @@ You can also imitate the most-loved feature of recursive descent --
 you can hand control over to the user for their custom hacks,
 so that you get the best of syntax-driven parsing and
 parsing by custom hackery.
+
+Best,
+
+Jeffrey Kegler
 
 
