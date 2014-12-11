@@ -136,7 +136,7 @@ It's possible to arrange things so that for each Earley set
 * you first perform all scans;
 * then all completions;
 * then all predictions;
-* and finally do post-processing, including eager computation of Earley items.
+* and finally do post-processing, including eager computation of Leo items.
 
 This ordering of operations for the parse engine has a large number
 of pleasant side effects.
