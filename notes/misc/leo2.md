@@ -11,9 +11,10 @@ I am forced to report
 that they found your description of Leo's algorithm
 much clearer than mine.
 
-I have some comments on it,
-which I hope will be helpful.
-Some of which I answer questions you pose
+I hope
+you will find these comments helpful.
+Some of them
+answer questions that you pose
 in the tutorial.
 
 ## How to implement Leo's algorithm efficiently
@@ -46,7 +47,8 @@ in papers familiar to the people who know the field.
 In an eager implementation, whenever you might
 eventually want a Leo item in an Earley set,
 you add it.
-Marpa once it finishes each Earley set,
+Marpa,
+once it finishes each Earley set,
 creates an index to it,
 and this phase is a great opportunity for
 adding the Leo items --
