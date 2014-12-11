@@ -11,12 +11,12 @@ I am forced to report
 that they found your description of Leo's algorithm
 much clearer than mine.
 
-I have come comments on it,
+I have some comments on it,
 which I hope will be helpful.
 Some of which I answer questions you pose
 in the tutorial.
 
-## How to implement Leo's algorithm efficiency
+## How to implement Leo's algorithm efficiently
 
 In Joop Leo's he describes a lazy implementation of his algorithm,
 which as you suggest takes an Earley parser into a situation
@@ -110,7 +110,7 @@ You're unlikely to do it without trying,
 and it is easy to avoid doing it -- just
 stay unambiguous,
 and be careful about unmarked middle recursion.
-(Actually ambiguous gramars are also linear,
+(Actually ambiguous grammars are also linear,
 as long as you keep the ambiguity bounded.)
 
 This opens the way to new techniques.
