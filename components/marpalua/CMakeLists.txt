@@ -2,7 +2,13 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 PROJECT(marpalua C)
 
-FIND_PACKAGE(Lua 5.1)
+# ------------------
+# Module search path
+# ------------------
+SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
+ENABLE_TESTING()
+
+FIND_PACKAGE(Lua51)
 IF (LUA_INCLUDE_DIR)
   MESSAGE(STATUS "Lua include path: ${LUA_INCLUDE_DIR}")
   include_directories("${LUA_INCLUDE_DIR}")
@@ -10,11 +16,12 @@ ELSE ()
   message( FATAL_ERROR "Lua 5.1 not available.  Kollos cannot be built" )
 ENDIF (LUA_INCLUDE_DIR)
 
-# ------------------
-# Module search path
-# ------------------
-SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
-ENABLE_TESTING()
+FIND_PACKAGE(LuaInterp5_1)
+IF (LUA) 
+  MESSAGE(STATUS "Found Lua interpreter: ${LUA}")
+ELSE()
+  message( FATAL_ERROR "Lua 5.1 interpreter not available.  Kollos cannot be built" )
+ENDIF()
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
    message(SEND_ERROR "In-source builds are not allowed.")
@@ -44,16 +51,23 @@ INCLUDE(CheckIncludeFile)
 CHECK_INCLUDE_FILE("stdint.h" HAVE_STDINT_H)
 CHECK_INCLUDE_FILE("inttypes.h" HAVE_INTTYPES_H)
 
-SET(marpalua_src marpalua.c)
+ADD_CUSTOM_COMMAND (
+  COMMENT "Writing marpalua.c"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+  COMMAND ${LUA} ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua
+  VERBATIM
+  )
+
 
 # Expose B's public includes (including Boost transitively) to other
 # subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-include_directories("${PROJECT_SOURCE_DIR}")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${libmarpa_SOURCE_DIR}/include")
-ADD_LIBRARY(marpalua SHARED ${marpalua_src})
+ADD_LIBRARY(marpalua SHARED ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c)
 target_link_libraries(${PROJECT_NAME} ${libmarpa_BINARY_DIR}/libmarpa.a)
 
 # vim: expandtab shiftwidth=4:

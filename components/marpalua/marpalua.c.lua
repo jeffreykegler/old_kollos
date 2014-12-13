@@ -1,3 +1,5 @@
+io.output(arg[1])
+
 piece = [=[
 /*
 ** Permission is hereby granted, free of charge, to any person obtaining
