@@ -2,6 +2,10 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 PROJECT(marpalua C)
 
+if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+   message(SEND_ERROR "In-source builds are not allowed.")
+   endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+
 # ------------------
 # Module search path
 # ------------------
@@ -15,17 +19,6 @@ IF (LUA_INCLUDE_DIR)
 ELSE ()
   message( FATAL_ERROR "Lua 5.1 not available.  Kollos cannot be built" )
 ENDIF (LUA_INCLUDE_DIR)
-
-FIND_PACKAGE(LuaInterp5_1)
-IF (LUA) 
-  MESSAGE(STATUS "Found Lua interpreter: ${LUA}")
-ELSE()
-  message( FATAL_ERROR "Lua 5.1 interpreter not available.  Kollos cannot be built" )
-ENDIF()
-
-if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
-   message(SEND_ERROR "In-source builds are not allowed.")
-   endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 
 # ----------------------------------------------------------------------------
 # Enable all warnings depending on compiler
@@ -54,7 +47,7 @@ CHECK_INCLUDE_FILE("inttypes.h" HAVE_INTTYPES_H)
 ADD_CUSTOM_COMMAND (
   COMMENT "Writing marpalua.c"
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
-  COMMAND ${LUA} ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua
   VERBATIM
   )

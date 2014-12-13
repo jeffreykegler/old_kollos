@@ -1,0 +1,9 @@
+This directory contains a standard Lua 5.1 interpreter "as is" and
+un-customized.  For an arbitrary build target it is just as easy to
+build it as to find an interpreter with exactly the right version.
+
+You might ask, "Why not apply the same logic to the interpreter?"
+But the libraries have standard cmake modules for finding them, which
+for the moment I will trust.  Also, for linking into the Kollos shared
+library, we may want to allows appropriate substitutions -- such as the
+5.1-based luajit for plain lua 5.1.
