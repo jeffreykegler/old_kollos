@@ -1,4 +1,12 @@
-io.output(arg[1])
+-- assumes that, when called, out_file to set to output file
+local out_file
+
+for k,v in ipairs(arg) do
+   if not v:find("=")
+   then return nil, "Bad options: ", arg end
+   local ids, val = v:match("^([^=]+)%=(.*)") -- no space around =
+   if ids == "out" then io.output(val) end
+end
 
 piece = [=[
 /*

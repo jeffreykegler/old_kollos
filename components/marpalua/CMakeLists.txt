@@ -47,7 +47,9 @@ CHECK_INCLUDE_FILE("inttypes.h" HAVE_INTTYPES_H)
 ADD_CUSTOM_COMMAND (
   COMMENT "Writing marpalua.c"
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
-  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+  COMMAND ${lua_INTERP}
+      ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua 
+      out=${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua
   VERBATIM
   )
