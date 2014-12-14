@@ -1,5 +1,12 @@
 # Open letter to Loup Vaillant
 
+[ *Revised Dec 13, 2014*:
+In the original version,
+I attempted to correct Loup on a complexity issue.
+Loup kindly pointed out to me that his article was 100% correct,
+and that I had
+misread him.  Sorry!  I've removed that point. ]
+
 Dear Loup,
 
 Folks in the
@@ -30,28 +37,12 @@ where it could be adding Earley items to many Earley sets at once.
 As you point out, this would have implications for the kind
 of data structure you need to use.
 
-Marpa's solution is easy -- add Leo items eagerly,
+Marpa's solution is easy -- add Leo items eagerly.
 That way they only need to be added to the one Earley set
 at a time.
-Leo's lazy implementation is *not*, as you suggest,
-quadratic in time,
-but linear,
-and
-Leo's 1991 paper
-shows this,
-though how Leo shows this
-can be hard to see if you're not familiar with
-the literature.
-Leo's paper skips most of the details,
-and simply refers to Earley's complexity proofs.
-Math papers usually do not
-repeat arguments already available
-in standard textbooks or
-in papers familiar to the people who know the field.
-
 In an eager implementation, whenever you might
 eventually want a Leo item in an Earley set,
-you add it.
+you add it right away.
 Marpa,
 once it finishes each Earley set,
 creates an index to it by postdot symbol,
@@ -65,10 +56,15 @@ whose postdot symbols
 which are never part
 of a right recursion.
 In the absence of a right recursion,
-the payoff for a Leo item is always low --
-it is bounded by a constant which depends on the grammar.
-Marpa analyzes the grammar, and only adds
-Leo items for right-recursive symbols.
+the payoff for a Leo item is always limited --
+bounded by a constant which depends on the grammar.
+Leo items have a low overhead, but it is not zero
+and Marpa only bothers with them
+where the payoff is potentially unlimited.
+Marpa analyzes the grammar
+for right-recursions
+and only adds Leo items for symbols
+which might be part of a right recursion.
 
 ## What about empty rules
 
