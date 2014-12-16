@@ -93,6 +93,9 @@ observations:
 * Second, the processing for each symbol popped from the "work stack"
 is constant (`O(42)`).
 
+* The time is taken either in the symbol loop, or as overhead.
+    Some of the pre-processing is also linear in the symbol count.
+
 *   The overall cost of this algorithm is
     ```
     o + c*s,
@@ -103,7 +106,7 @@ is constant (`O(42)`).
     and `s` is the number of symbols,
     so that the time complexity is
     ```
-    o + c*s = O(42) + O(42)*O(s) = O(s)
+    o + c*s = O(s) + O(42)*O(s) = O(s)
     ```
 
 For more about
