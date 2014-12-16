@@ -83,9 +83,9 @@ algorithm to find "the RHS closure" of a bit vector,
 where the an `ON` bit can mean "nullable" or "productive",
 as required.
 
-The algorithm in Loup's tutorial is cubic time (`O(s<sup>3</sup>)`),
+The algorithm in Loup's tutorial is cubic time (O(s<sup>3</sup>)),
 where `s` is the count of symbols in the grammar.
-This algorithm can be shown to be quadratic time (`O(s<sup>2</sup>)`),
+This algorithm can be shown to be quadratic time (O(s<sup>2</sup>)),
 based on the following
 observations:
 
@@ -103,17 +103,16 @@ observations:
     Some of the pre-processing is also linear in the symbol count.
 
 *   The overall cost of this algorithm is
-    ```
+```
     o + c*s,
-    ```
+```
     where `o` is the overhead
     outside the symbol loop, `c` is a constant which bounds the time consumed
     on each pass through the symbol loop,
     and `s` is the number of symbols,
     so that the time complexity is
-    ```
-    o + c*s = O(s) + O(s)*O(s) = O(s<sup>2</sup>)
-    ```
+    
+    `o + c*s = O(s) + O(s)*O(s) = O(`s<sup>2</sup>`)`
 
 For more about
 [Marpa](http://savage.net.au/Marpa.html),
