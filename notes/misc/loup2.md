@@ -83,6 +83,26 @@ algorithm to find "the RHS closure" of a bit vector,
 where the an `ON` bit can mean "nullable" or "productive",
 as required.
 
+This algorithm can be shown to be linear time (`O(s)`),
+where `s` is the count of symbols in the grammar,
+based on the following
+observations:
+First, no symbol goes on the "work stack" more than once.
+Second, the processing for each symbol popped from the "work stack"
+is constant (`O(42)`).
+Third, overall cost of this algorithm is
+```
+o + c*s,
+```
+where `o` is the overhead
+outside the symbol loop, `c` is a constant which bounds the time consumed
+on each pass through the symbol loop,
+and `s` is the number of symbols,
+so that the time complexity is
+```
+o + c*s = O(42) + O(42)*O(s) = O(s)
+```
+
 For more about
 [Marpa](http://savage.net.au/Marpa.html),
 see its web site.
