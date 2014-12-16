@@ -87,10 +87,13 @@ This algorithm can be shown to be linear time (`O(s)`),
 where `s` is the count of symbols in the grammar,
 based on the following
 observations:
-First, no symbol goes on the "work stack" more than once.
-Second, the processing for each symbol popped from the "work stack"
+
+* First, no symbol goes on the "work stack" more than once.
+
+* Second, the processing for each symbol popped from the "work stack"
 is constant (`O(42)`).
-Third, overall cost of this algorithm is
+
+* The overall cost of this algorithm is
 ```
 o + c*s,
 ```
