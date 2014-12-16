@@ -60,7 +60,7 @@ of nullables.  Here it is, in pseudo-code:
 
         * Continue with the next rule of the rule loop.
 
-    + Continue with the next rule of the symbol loop.
+    + Continue with the next symbol of the symbol loop.
 
 * When there are no symbols left in the "work stack",
     all the nullable symbols will have been marked in the `nullable`
