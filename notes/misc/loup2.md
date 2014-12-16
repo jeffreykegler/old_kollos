@@ -83,15 +83,21 @@ algorithm to find "the RHS closure" of a bit vector,
 where the an `ON` bit can mean "nullable" or "productive",
 as required.
 
-This algorithm can be shown to be linear time (`O(s)`),
-where `s` is the count of symbols in the grammar,
+The algorithm in Loup's tutorial is cubic time (`O(s<sup>3</sup>)`),
+where `s` is the count of symbols in the grammar.
+This algorithm can be shown to be quadratic time (`O(s<sup>2</sup>)`),
 based on the following
 observations:
 
 * First, no symbol goes on the "work stack" more than once.
 
 * Second, the processing for each symbol popped from the "work stack"
-is constant (`O(42)`).
+    is constant (`O(s)`).
+    It is not linear each RHS symbol of a rule must be scanned,
+    that worst-case that is on the order the number of symbols in the 
+    grammar.
+    Worst-case is realistic, because the time divided among the rules also
+    depends on the order the number of symbols in the  grammar.
 
 * The time is taken either in the symbol loop, or as overhead.
     Some of the pre-processing is also linear in the symbol count.
@@ -106,7 +112,7 @@ is constant (`O(42)`).
     and `s` is the number of symbols,
     so that the time complexity is
     ```
-    o + c*s = O(s) + O(42)*O(s) = O(s)
+    o + c*s = O(s) + O(s)*O(s) = O(s<sup>2</sup>)
     ```
 
 For more about
