@@ -11,8 +11,8 @@ This note is on Loup's
 This note will be about the code at the end of the tutorial.
 There Loup describes a way
 
-1.  To find the set of nullable symbols in a grammar.
-2.  and to use this set while parsing.
+1.  to find the set of nullable symbols in a grammar; and
+2.  to use this set while parsing.
 
 This note will present an alternative way to find the set
 of nullables.  Here it is, in pseudo-code:
@@ -43,7 +43,7 @@ of nullables.  Here it is, in pseudo-code:
 
     + Rule loop: For every rule with the work symbol on its RHS, call it the "work rule"
 
-	+ If the LHS of the work rule is already marked nullable,
+	* If the LHS of the work rule is already marked nullable,
 	   we do not need to look at this rule --
            continue with the next rule of the rule loop.
 
@@ -60,7 +60,7 @@ of nullables.  Here it is, in pseudo-code:
 
 	* Continue with the next rule of the rule loop.
 
-      + Continue with the next rule of the rule loop.
+      + Continue with the next rule of the symbol loop.
 
 * When there are no symbols left in the "work stack",
     all the nullable symbols will have been marked in the `nullable`
