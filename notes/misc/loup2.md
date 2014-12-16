@@ -93,18 +93,18 @@ observations:
 * Second, the processing for each symbol popped from the "work stack"
 is constant (`O(42)`).
 
-* The overall cost of this algorithm is
-```
-o + c*s,
-```
-where `o` is the overhead
-outside the symbol loop, `c` is a constant which bounds the time consumed
-on each pass through the symbol loop,
-and `s` is the number of symbols,
-so that the time complexity is
-```
-o + c*s = O(42) + O(42)*O(s) = O(s)
-```
+*   The overall cost of this algorithm is
+    ```
+    o + c*s,
+    ```
+    where `o` is the overhead
+    outside the symbol loop, `c` is a constant which bounds the time consumed
+    on each pass through the symbol loop,
+    and `s` is the number of symbols,
+    so that the time complexity is
+    ```
+    o + c*s = O(42) + O(42)*O(s) = O(s)
+    ```
 
 For more about
 [Marpa](http://savage.net.au/Marpa.html),
