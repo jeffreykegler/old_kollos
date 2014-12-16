@@ -102,10 +102,7 @@ observations:
 * The time is taken either in the symbol loop, or as overhead.
     Some of the pre-processing is also linear in the symbol count.
 
-*   The overall cost of this algorithm is
-```
-    o + c*s,
-```
+*   The overall cost of this algorithm is ` o + c*s`,
     where `o` is the overhead
     outside the symbol loop, `c` is a constant which bounds the time consumed
     on each pass through the symbol loop,
