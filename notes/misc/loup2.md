@@ -43,24 +43,24 @@ of nullables.  Here it is, in pseudo-code:
 
     + Rule loop: For every rule with the work symbol on its RHS, call it the "work rule"
 
-	* If the LHS of the work rule is already marked nullable,
-	   we do not need to look at this rule --
-           continue with the next rule of the rule loop.
+        *   If the LHS of the work rule is already marked nullable,
+            we do not need to look at this rule --
+            continue with the next rule of the rule loop.
 
-	* For every RHS symbol of the work rule,
-           if it is not marked nullable, 
-           continue with the next rule of the rule loop.
+        *   For every RHS symbol of the work rule,
+            if it is not marked nullable, 
+            continue with the next rule of the rule loop.
 
-        * If we reach this point, the LHS of the work rule is nullable,
-	    but is not marked nullable.
+        *   If we reach this point, the LHS of the work rule is nullable,
+            but is not marked nullable.
 
-	* Mark the LHS of the work rule nullable.
+        * Mark the LHS of the work rule nullable.
 
-	* Push the LHS of the work rule onto the "work stack".
+        * Push the LHS of the work rule onto the "work stack".
 
-	* Continue with the next rule of the rule loop.
+        * Continue with the next rule of the rule loop.
 
-      + Continue with the next rule of the symbol loop.
+    + Continue with the next rule of the symbol loop.
 
 * When there are no symbols left in the "work stack",
     all the nullable symbols will have been marked in the `nullable`
@@ -86,3 +86,7 @@ as required.
 For more about
 [Marpa](http://savage.net.au/Marpa.html),
 see its web site.
+
+<!---
+vim: expandtab shiftwidth=4
+-->
