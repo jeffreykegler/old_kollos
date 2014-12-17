@@ -83,6 +83,16 @@ algorithm to find "the RHS closure" of a bit vector,
 where the an `ON` bit can mean "nullable" or "productive",
 as required.
 
+## Possible improvement
+
+It won't change the time complexity, but using a "work queue" instead
+of a "work stack" -- that is a FIFO instead of a LIFO -- might be
+faster in practice.
+Note that since no symbol is pushed more than
+once,
+the stack (or queue) will never be larger than the number of symbols,
+and may therefore be of fixed size.
+
 ## Proof of correctness
 
 Folks who don't care about proofs can stop reading here.
@@ -133,6 +143,61 @@ nullable, and seek to show that
 our algorithm will mark as nullable
 any nullable symbol `x` of nulling height `n + 1`.
 
+First, from the definition of nulling height,
+we can see that symbol `x` is on the LHS
+of at least one rule,
+call it `rule_n`
+all of whose RHS symbols have a nulling height of
+`n` or less.
+Let `rule_n` be
+```
+     <x> ::= <rhs1> <rhs2> ... <rhs_n>
+```
+By the assumption for the step,
+we can see that
+all of the symbols
+`rhs1`, `rhs2`, ... `rhs_n`,
+will have been marked nullable,
+and from inspection of the pseudo-code,
+we can see that when they were marked nullable,
+they were also pushed onto the "work stack".
+
+Of the symbols `rhs1`, `rhs2`, ... `rhs_n`,
+one of them,
+call it `rhs_last`,
+will be the last to be popped off the "work stack".
+Since `rhs_last` is the last symbol
+in the series `rhs1`, `rhs2`, ... `rhs_n`
+to be popped,
+all the symbols in that series
+will already have been popped from the work stack,
+and, since they were marked nullable when they were
+put on the work stack,
+all the symbols in the series
+will have been marked nullable.
+
+From inspection of the pseudo-code,
+this means that the LHS of `rule_n` will be marked nullable
+and put onto "work stack",
+if it has not been already.
+The LHS of `rule_n` is the symbol `x`, and showing that 
+this will be marked nullable is what was needed to
+show the step of the strong induction.
+
+### Conclusion
+
+Showing the strong induction show that all symbols with
+a defined nulling height are marked nullable by our algorithm.
+Earlier we showed that only symbols with a defined nulling height
+are marked nullable by our algorithm.
+So we know that our algorithm marks a symbol nullable if
+and only if it has a nulling height.
+And we saw, when defining nulling height,
+that having a defined nulling height is equivalent
+to being nullable.
+This concludes our proof of correctness.
+QED.
+
 ## Proof of time complexity
 
 The algorithm in Loup's tutorial is cubic time (O(s<sup>3</sup>)),
@@ -144,12 +209,11 @@ observations:
 * First, no symbol goes on the "work stack" more than once.
 
 * Second, the processing for each symbol popped from the "work stack"
-    is constant (`O(s)`).
-    It is not linear each RHS symbol of a rule must be scanned,
-    that worst-case that is on the order the number of symbols in the 
+    is linear in the number of symbols -- `O(s)`.
+    This is because each symbol on the RHS of a rule must be looked at,
+    so and worst-case is
+    that this is on the order the number of symbols in the 
     grammar.
-    Worst-case is realistic, because the time divided among the rules also
-    depends on the order the number of symbols in the  grammar.
 
 * The time is taken either in the symbol loop, or as overhead.
     Some of the pre-processing is also linear in the symbol count.
