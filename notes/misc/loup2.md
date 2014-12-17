@@ -105,37 +105,47 @@ but they are certainly not necessary if you only want to implement it.
 First we define *nulling height* for rules and for symbols.
 The definition is inductive.
 
-* Any symbol on the LHS of an empty rule also has nulling height 0.
+* The nulling height of an empty rule is -1.
 
-* If the highest nulling height of the the symbols on its RHS is `n`
-    the nulling height of a rule is `n + 1`.
+* The nulling height of a rule is `n + 1`,
+    where `n` is the highest nulling height of any of its RHS symbols.
+    The nulling height of a rule is not defined if the nulling height of any symbol
+    on its RHS is not defined. 
 
-* If symbol `x` is not of nulling height zero, it must be on the LHS
-    of at least one non-emtpy rule.
-    If the lowest nulling height of the rules with symbol `x` on
-    the LHS is `n`, then the nulling height 
-    of the symbol is `n + 1`.
+* The nulling height of a symbol is `n + 1` where `n`
+    is the lowest nulling height of a rule with that symbol on its LHS.
+    The nulling height of a symbol is not defined if it is not on the LHS
+    of at any rule.
 
-* The nulling height of empty rules will not be used, but
-    for consistency,
-    they can be thought of as having a nulling height of -1.
-
+Note that these definition imply that the nulling height of any symbol
+that is on the LHS of an empty rule is 0.
 It can be seen by induction on this definition that nulling height
-is defined for a symbol if and only if it is nullable.
+is defined for a symbol if and only if it derives the empty string
+in a finite number of derivation steps.
+In other words, the nulling height of a symbol is defined
+if and only if it is nullable.
 
-### If a symbol is marked nullable, it has a nulling height nullable
+### If a symbol is marked nullable, it has a nulling height
 
-It is straightforward to by examining the pseudo-code that
+By examining the pseudo-code,
+it is straightforward to confirm that
 no symbol is marked nullable unless
-it has a defined nulling height.
+
+* it is initialized nullable, or
+
+* it is on the LHS of a rule all of whose RHS symbols are marked nullable.
+
+It is easy to show that by induction that
+no symbol will be marked nullable unless it has a nulling height.
 Less obvious is the converse, which we will show next.
 
 ### If a symbol has a nulling height, our algorithm marks it nullable.
 
 The proof is by strong induction on the nulling height of symbols.
-The basis is that all symbols of nulling height 0 are marked nullable.
-The basis is given by the initialiation of the "work stack"
-in the pseudo code.
+The basis of the induction
+is that all symbols of nulling height 0 are marked nullable.
+The basis is given by the initialiation of the "work stack",
+as can be confirmed by examining the pseudo code.
 
 For the step of the induction, we assume that
 all nullables of nulling height `n` or less are marked
@@ -180,19 +190,20 @@ From inspection of the pseudo-code,
 this means that the LHS of `rule_n` will be marked nullable
 and put onto "work stack",
 if it has not been already.
-The LHS of `rule_n` is the symbol `x`, and showing that 
+The LHS of `rule_n` is the symbol `x`,
+and showing that 
 this will be marked nullable is what was needed to
 show the step of the strong induction.
 
-### Conclusion
+### Concluding the correctness proof
 
-Showing the strong induction show that all symbols with
+Showing the strong induction shows that all symbols with
 a defined nulling height are marked nullable by our algorithm.
 Earlier we showed that only symbols with a defined nulling height
 are marked nullable by our algorithm.
 So we know that our algorithm marks a symbol nullable if
 and only if it has a nulling height.
-And we saw, when defining nulling height,
+We saw, when defining nulling height,
 that having a defined nulling height is equivalent
 to being nullable.
 This concludes our proof of correctness.
@@ -211,7 +222,7 @@ observations:
 * Second, the processing for each symbol popped from the "work stack"
     is linear in the number of symbols -- `O(s)`.
     This is because each symbol on the RHS of a rule must be looked at,
-    so and worst-case is
+    and worst-case is
     that this is on the order the number of symbols in the 
     grammar.
 
