@@ -90,38 +90,48 @@ They are in fact very helpful for coming up with, understanding
 and improving the algorithm,
 but they are certainly not necessary if you only want to implement it.
 
-### The "level" of rules and symbols
+### The "nulling height" of rules and symbols
 
-First we define *level* for rules and for symbols.  The definition
-is inductive.
+First we define *nulling height* for rules and for symbols.
+The definition is inductive.
 
-* Symbols not on the LHS of any rule have level 0.
+* Any symbol on the LHS of an empty rule also has nulling height 0.
 
-* Any symbol on the LHS of an empty rule also has level 0.
+* If the highest nulling height of the the symbols on its RHS is `n`
+    the nulling height of a rule is `n + 1`.
 
-* If the highest level of the the symbols on its RHS is `n`
-    the level of a rule is `n + 1`.
-
-* If symbol `x` is not of level zero, it must be on the LHS
+* If symbol `x` is not of nulling height zero, it must be on the LHS
     of at least one non-emtpy rule.
-    If the lowest level of the rules with symbol `x` on
-    the LHS is `n`, then the level 
+    If the lowest nulling height of the rules with symbol `x` on
+    the LHS is `n`, then the nulling height 
     of the symbol is `n + 1`.
 
-* The level of empty rules will not be used, but
+* The nulling height of empty rules will not be used, but
     for consistency,
-    they can be thought of as having a level of -1.
+    they can be thought of as having a nulling height of -1.
 
-### Proof by induction
+It can be seen by induction on this definition that nulling height
+is defined for a symbol if and only if it is nullable.
 
-The proof is by strong induction on the symbol level.
-The basis is that all symbols of level 0 are marked nullable.
+### If a symbol is marked nullable, it has a nulling height nullable
+
+It is straightforward to by examining the pseudo-code that
+no symbol is marked nullable unless
+it has a defined nulling height.
+Less obvious is the converse, which we will show next.
+
+### If a symbol has a nulling height, our algorithm marks it nullable.
+
+The proof is by strong induction on the nulling height of symbols.
+The basis is that all symbols of nulling height 0 are marked nullable.
+The basis is given by the initialiation of the "work stack"
+in the pseudo code.
 
 For the step of the induction, we assume that
-all nullables of level `n` or less are marked
+all nullables of nulling height `n` or less are marked
 nullable, and seek to show that
 our algorithm will mark as nullable
-any nullable symbol `x` of level `n + 1`.
+any nullable symbol `x` of nulling height `n + 1`.
 
 ## Proof of time complexity
 
