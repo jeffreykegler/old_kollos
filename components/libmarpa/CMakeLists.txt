@@ -78,6 +78,9 @@ SET(libmarpa_src
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
+set(${PROJECT_NAME}_ERROR_CODES ${PROJECT_SOURCE_DIR}/error_codes.table
+    CACHE INTERNAL "${PROJECT_NAME}: Error codes table" FORCE)
+
 include_directories(
     "${PROJECT_BINARY_DIR}" \  # for config.h
     "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/include")

@@ -50,7 +50,8 @@ ADD_CUSTOM_COMMAND (
   COMMAND ${lua_INTERP}
       ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua 
       out=${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua
+      errors=${libmarpa_ERROR_CODES}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${libmarpa_ERROR_CODES}
   VERBATIM
   )
 

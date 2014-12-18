@@ -1,11 +1,13 @@
 -- assumes that, when called, out_file to set to output file
-local out_file
+local error_file
 
 for k,v in ipairs(arg) do
    if not v:find("=")
    then return nil, "Bad options: ", arg end
-   local ids, val = v:match("^([^=]+)%=(.*)") -- no space around =
-   if ids == "out" then io.output(val) end
+   local id, val = v:match("^([^=]+)%=(.*)") -- no space around =
+   if id == "out" then io.output(val)
+   elseif id == "errors" then error_file = val
+   else return nil, "Bad id in options: ", id end
 end
 
 -- initial piece
@@ -39,6 +41,31 @@ io.write[=[
 #include "lauxlib.h"
 
 ]=]
+
+-- error codes
+do
+    local f = assert(io.open(error_file, "r"))
+    while true do
+        local line = f:read()
+        if line == nil then break end
+        local i, j = string.find(line, "#")
+        if (i == nil) then stripped = line
+        else stripped = string.sub(line, 0, i-1)
+        end
+        if string.find(stripped, "%S") then
+            print(stripped)
+            local code
+            local mnemonic
+            local description
+            _, _, code, mnemonic, description = string.find(stripped, "^(%d+)%s(%S+)%s(.*)$")
+            print(code)
+            print(mnemonic)
+            print(description)
+            if description == nil then return nil, "Bad line in error code file ", line end
+        end
+    end
+    f:close()
+end
 
 -- functions
 io.write[=[
