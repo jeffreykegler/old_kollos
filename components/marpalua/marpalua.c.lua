@@ -8,7 +8,8 @@ for k,v in ipairs(arg) do
    if ids == "out" then io.output(val) end
 end
 
-piece = [=[
+-- initial piece
+io.write[=[
 /*
 ** Permission is hereby granted, free of charge, to any person obtaining
 ** a copy of this software and associated documentation files (the
@@ -37,10 +38,10 @@ piece = [=[
 #include "lua.h"
 #include "lauxlib.h"
 
-static const struct luaL_Reg marpalua_funcs[] = {
-  { NULL, NULL }
-};
+]=]
 
+-- functions
+io.write[=[
 #if 0
 
 void
@@ -155,6 +156,14 @@ PPCODE:
 
 #endif
 
+]=]
+
+io.write[=[
+
+static const struct luaL_Reg marpalua_funcs[] = {
+  { NULL, NULL }
+};
+
 LUALIB_API int luaopen_marpalua(lua_State *L)
 {
   /* Fail if not 5.1 ? */
@@ -165,4 +174,3 @@ LUALIB_API int luaopen_marpalua(lua_State *L)
 /* vim: expandtab shiftwidth=4:
  */
 ]=]
-io.write(piece)
