@@ -1,6 +1,12 @@
 -- assumes that, when called, out_file to set to output file
 local error_file
 
+function c_safe_string (s)
+    s = string.gsub(s, '"', '\\034')
+    s = string.gsub(s, '\\', '\\092')
+    return '"' .. s .. '"'
+end
+
 for k,v in ipairs(arg) do
    if not v:find("=")
    then return nil, "Bad options: ", arg end
@@ -43,8 +49,21 @@ io.write[=[
 ]=]
 
 -- error codes
+
+io.write[=[
+struct s_libmarpa_error_code {
+   int code;
+   const char* mnemonic;
+   const char* description;
+};
+
+]=]
+
 do
     local f = assert(io.open(error_file, "r"))
+    local code_lines = {}
+    local code_mnemonics = {}
+    local max_code = 0
     while true do
         local line = f:read()
         if line == nil then break end
@@ -53,19 +72,50 @@ do
         else stripped = string.sub(line, 0, i-1)
         end
         if string.find(stripped, "%S") then
-            print(stripped)
-            local code
-            local mnemonic
+            local raw_code
+            local raw_mnemonic
             local description
-            _, _, code, mnemonic, description = string.find(stripped, "^(%d+)%s(%S+)%s(.*)$")
-            print(code)
-            print(mnemonic)
-            print(description)
+            _, _, raw_code, raw_mnemonic, description = string.find(stripped, "^(%d+)%sMARPA_ERR_(%S+)%s(.*)$")
+            local code = tonumber(raw_code)
             if description == nil then return nil, "Bad line in error code file ", line end
+            if code > max_code then max_code = code end
+            local mnemonic = 'LUIF_ERR_' .. raw_mnemonic
+            code_mnemonics[code] = mnemonic
+            code_lines[code] = string.format( '   { %d, %s, %s },',
+                code,
+                c_safe_string(mnemonic),
+                c_safe_string(description)
+                )
         end
     end
+    io.write('#define LIBMARPA_MAX_ERROR_CODE ' .. max_code .. '\n\n')
+    for i = 0, max_code do
+        local mnemonic = code_mnemonics[i]
+        if mnemonic then
+            io.write(
+                   string.format('#define %s %d\n', mnemonic, i)
+           )
+       end
+    end
+    io.write('\n')
+    io.write('struct s_libmarpa_error_code libmarpa_error_codes[LIBMARPA_MAX_ERROR_CODE+1] = {\n')
+    for i = 0, max_code do
+        local code_line = code_lines[i]
+        if code_line then
+           io.write(code_line .. '\n')
+        else
+           io.write(
+               string.format(
+                   '    { %d, "LUIF_ERROR_RESERVED", "Unknown Libmarpa error %d" },\n',
+                   i, i
+               )
+           )
+        end
+    end
+    io.write('};\n\n');
     f:close()
 end
+
 
 -- functions
 io.write[=[
@@ -187,14 +237,41 @@ PPCODE:
 
 io.write[=[
 
+static void libmarpa_error_throw(lua_State *L, int error_code) {
+    if (error_code < 0 || error_code > LIBMARPA_MAX_ERROR_CODE) {
+        luaL_error(L, "Libmarpa returned invalid error code %d", error_code);
+    }
+    luaL_error(L, "%s", libmarpa_error_codes[error_code].description);
+}
+
+struct s_kollos_grammar {
+    int dummy;
+};
+
+static int grammar_new(lua_State *L)
+{
+   struct s_kollos_grammar *g;
+   luaL_checkany(L, 1); /* expecting a table */
+   g = (struct s_kollos_grammar *)lua_newuserdata(L, sizeof(*g));
+   return 1;
+}
+
 static const struct luaL_Reg marpalua_funcs[] = {
+  { "grammar", grammar_new },
+  { NULL, NULL }
+};
+
+static const struct luaL_Reg marpalua_methods[] = {
   { NULL, NULL }
 };
 
 LUALIB_API int luaopen_marpalua(lua_State *L)
 {
   /* Fail if not 5.1 ? */
-  luaL_newlib(L, marpalua_funcs);
+  luaL_newmetatable(L, "kollos.grammar");
+  lua_pushvalue(L, -1);
+  luaL_register(L, NULL, marpalua_methods);
+  luaL_register(L, "kollos", marpalua_funcs);
   return 1;
 }
 
