@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
-PROJECT(marpalua C)
+PROJECT(kollos_core C)
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
    message(SEND_ERROR "In-source builds are not allowed.")
@@ -45,13 +45,13 @@ CHECK_INCLUDE_FILE("stdint.h" HAVE_STDINT_H)
 CHECK_INCLUDE_FILE("inttypes.h" HAVE_INTTYPES_H)
 
 ADD_CUSTOM_COMMAND (
-  COMMENT "Writing marpalua.c"
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+  COMMENT "Writing kollos_core.c"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kollos_core.c
   COMMAND ${lua_INTERP}
-      ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua 
-      out=${CMAKE_CURRENT_BINARY_DIR}/marpalua.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/kollos_core.c.lua 
+      out=${CMAKE_CURRENT_BINARY_DIR}/kollos_core.c
       errors=${libmarpa_ERROR_CODES}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marpalua.c.lua ${libmarpa_ERROR_CODES}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kollos_core.c.lua ${libmarpa_ERROR_CODES}
   VERBATIM
   )
 
@@ -63,7 +63,7 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${libmarpa_SOURCE_DIR}/include")
-ADD_LIBRARY(marpalua SHARED ${CMAKE_CURRENT_BINARY_DIR}/marpalua.c)
+ADD_LIBRARY(kollos_core SHARED ${CMAKE_CURRENT_BINARY_DIR}/kollos_core.c)
 target_link_libraries(${PROJECT_NAME} ${libmarpa_BINARY_DIR}/libmarpa.a)
 
 # vim: expandtab shiftwidth=4:

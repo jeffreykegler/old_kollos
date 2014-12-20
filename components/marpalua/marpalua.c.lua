@@ -237,7 +237,7 @@ PPCODE:
 
 io.write[=[
 
-static void libmarpa_error_throw(lua_State *L, int error_code) {
+static void luif_err_throw(lua_State *L, int error_code) {
     if (error_code < 0 || error_code > LIBMARPA_MAX_ERROR_CODE) {
         luaL_error(L, "Libmarpa returned invalid error code %d", error_code);
     }
@@ -252,6 +252,7 @@ static int grammar_new(lua_State *L)
 {
    struct s_kollos_grammar *g;
    luaL_checkany(L, 1); /* expecting a table */
+   luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK);
    g = (struct s_kollos_grammar *)lua_newuserdata(L, sizeof(*g));
    return 1;
 }
@@ -268,7 +269,7 @@ static const struct luaL_Reg marpalua_methods[] = {
 LUALIB_API int luaopen_marpalua(lua_State *L)
 {
   /* Fail if not 5.1 ? */
-  luaL_newmetatable(L, "kollos.grammar");
+  luaL_newmetatable(L, "kollos-core-grammar");
   lua_pushvalue(L, -1);
   luaL_register(L, NULL, marpalua_methods);
   luaL_register(L, "kollos", marpalua_funcs);

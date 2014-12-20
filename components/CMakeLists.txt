@@ -20,7 +20,7 @@ endif ()
 # NOTE: The order matters! The most independent ones should go first.
 add_subdirectory(libmarpa) # static library
 add_subdirectory(lua) # interpreter
-add_subdirectory(marpalua) # shared library
+add_subdirectory(kollos_core) # shared library
 add_subdirectory(json) # test executable
 
 # vim: expandtab shiftwidth=4:
