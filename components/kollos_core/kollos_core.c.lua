@@ -46,6 +46,10 @@ io.write[=[
 #include "lua.h"
 #include "lauxlib.h"
 
+#define EXPECTED_LIBMARPA_MAJOR 7
+#define EXPECTED_LIBMARPA_MINOR 5
+#define EXPECTED_LIBMARPA_MICRO 0
+
 ]=]
 
 -- error codes
@@ -238,10 +242,31 @@ PPCODE:
 io.write[=[
 
 static void luif_err_throw(lua_State *L, int error_code) {
+
+#if 0
+    const char *where;
+    luaL_where(L, 1);
+    where = lua_tostring(L, -1);
+#endif
+
     if (error_code < 0 || error_code > LIBMARPA_MAX_ERROR_CODE) {
         luaL_error(L, "Libmarpa returned invalid error code %d", error_code);
     }
-    luaL_error(L, "%s", libmarpa_error_codes[error_code].description);
+    luaL_error(L, "%s", libmarpa_error_codes[error_code].description );
+}
+
+static void luif_err_throw2(lua_State *L, int error_code, const char *msg) {
+
+#if 0
+    const char *where;
+    luaL_where(L, 1);
+    where = lua_tostring(L, -1);
+#endif
+
+    if (error_code < 0 || error_code > LIBMARPA_MAX_ERROR_CODE) {
+        luaL_error(L, "%s\n    Libmarpa returned invalid error code %d", msg, error_code);
+    }
+    luaL_error(L, "%s\n    %s", msg, libmarpa_error_codes[error_code].description);
 }
 
 struct s_kollos_grammar {
@@ -252,27 +277,56 @@ static int grammar_new(lua_State *L)
 {
    struct s_kollos_grammar *g;
    luaL_checkany(L, 1); /* expecting a table */
+
+   {
+       const char * const header_mismatch =
+           "Header version does not match expected version";
+       /* Make sure the header is from the version we want */
+       if (MARPA_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR)
+           luif_err_throw2(L, LUIF_ERR_MAJOR_VERSION_MISMATCH, header_mismatch);
+       if (MARPA_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR)
+           luif_err_throw2(L, LUIF_ERR_MINOR_VERSION_MISMATCH, header_mismatch);
+       if (MARPA_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
+          luif_err_throw2(L, LUIF_ERR_MICRO_VERSION_MISMATCH, header_mismatch);
+  }
+
+  {
+      /* Now make sure the library is from the version we want */
+      const char * const library_mismatch =
+          "Library version does not match expected version";
+      int version[3];
+      const Marpa_Error_Code error_code = marpa_version (version);
+      if (error_code != MARPA_ERR_NONE) luif_err_throw2(L, error_code, "marpa_version() failed");
+      if (version[0] != EXPECTED_LIBMARPA_MAJOR)
+          luif_err_throw2(L, LUIF_ERR_MAJOR_VERSION_MISMATCH, library_mismatch);
+      if (version[1] != EXPECTED_LIBMARPA_MINOR)
+          luif_err_throw2(L, LUIF_ERR_MINOR_VERSION_MISMATCH, library_mismatch);
+      if (version[2] != EXPECTED_LIBMARPA_MICRO)
+          luif_err_throw2(L, LUIF_ERR_MICRO_VERSION_MISMATCH, library_mismatch);
+  }
+
    luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK);
    g = (struct s_kollos_grammar *)lua_newuserdata(L, sizeof(*g));
    return 1;
 }
 
-static const struct luaL_Reg marpalua_funcs[] = {
+static const struct luaL_Reg kollos_core_funcs[] = {
   { "grammar", grammar_new },
   { NULL, NULL }
 };
 
-static const struct luaL_Reg marpalua_methods[] = {
+static const struct luaL_Reg kollos_core_methods[] = {
   { NULL, NULL }
 };
 
-LUALIB_API int luaopen_marpalua(lua_State *L)
+LUALIB_API int luaopen_kollos_core(lua_State *L);
+LUALIB_API int luaopen_kollos_core(lua_State *L)
 {
   /* Fail if not 5.1 ? */
   luaL_newmetatable(L, "kollos-core-grammar");
   lua_pushvalue(L, -1);
-  luaL_register(L, NULL, marpalua_methods);
-  luaL_register(L, "kollos", marpalua_funcs);
+  luaL_register(L, NULL, kollos_core_methods);
+  luaL_register(L, "kollos", kollos_core_funcs);
   return 1;
 }
 
