@@ -120,6 +120,63 @@ do
     f:close()
 end
 
+-- for Kollos's own (that is, non-Libmarpa) error codes
+do
+    local code_lines = {}
+    local code_mnemonics = {}
+    local min_code = 200
+    local max_code = 200
+
+    -- Should add some checks on the errors, checking for
+    -- 1.) duplicate mnenomics
+    -- 2.) duplicate error codes
+
+    function luif_error_add (code, mnemonic, description)
+        code_mnemonics[code] = mnemonic
+        code_lines[code] = string.format( '   { %d, %s, %s },',
+            code,
+            c_safe_string(mnemonic),
+            c_safe_string(description)
+            )
+        if code > max_code then max_code = code end
+    end
+
+    -- LUIF_ERR_RESERVED_200 is a place-holder , not expected to be actually used
+    luif_error_add( 200, "LUIF_ERR_RESERVED_200", "Unexpected Kollos error: 200")
+    luif_error_add( 201, "LUIF_ERR_LUA_VERSION", "Bad Lua version")
+    luif_error_add( 202, "LUIF_ERR_LIBMARPA_HEADER_VERSION_MISMATCH", "Libmarpa header does not match expected version")
+    luif_error_add( 203, "LUIF_ERR_LIBMARPA_LIBRARY_VERSION_MISMATCH", "Libmarpa library does not match expected version")
+
+    io.write('#define LUIF_MIN_ERROR_CODE ' .. min_code .. '\n')
+    io.write('#define LUIF_MAX_ERROR_CODE ' .. max_code .. '\n\n')
+    for i = min_code, max_code
+    do
+        local mnemonic = code_mnemonics[i]
+        if mnemonic then
+            io.write(
+                   string.format('#define %s %d\n', mnemonic, i)
+           )
+       end
+    end
+
+    io.write('\n')
+    io.write('struct s_libmarpa_error_code kollos_error_codes[(LUIF_MAX_ERROR_CODE-LUIF_MIN_ERROR_CODE)+1] = {\n')
+    for i = min_code, max_code do
+        local code_line = code_lines[i]
+        if code_line then
+           io.write(code_line .. '\n')
+        else
+           io.write(
+               string.format(
+                   '    { %d, "LUIF_ERROR_RESERVED", "Unknown Kollos error %d" },\n',
+                   i, i
+               )
+           )
+        end
+    end
+    io.write('};\n\n');
+
+end
 
 -- functions
 io.write[=[
