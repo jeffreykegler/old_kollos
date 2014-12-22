@@ -208,7 +208,39 @@ static inline char* l_error_string_set(lua_State* L)
    if (!lua_isnil(L, -1)) {
        return 1;
    }
-   /* not finished */
+   /* [ error_object, nil ] */
+   lua_getfield(L, 1, "where");
+   if (lua_isnil(L, -1)) {
+      lua_pop(L, 1);
+      lua_pushstring("???: ");
+   }
+   /* [ error_object, nil, where ] */
+   lua_getfield(L, 1, "code");
+   if (lua_isnil(L, -1)) {
+      lua_pop(L, 1);
+      lua_pushstring("");
+   } else {
+      int error_code = lua_tonumber(L, -1);
+      const char* description = error_description_by_code(error_code);
+      if (description) {
+         lua_pushstring(L, description);
+      } else {
+         lua_pushfstring(L, "Unknown error code (%d)", error_code);
+      }
+   }
+  /* [ error_object, nil, where, code_description ] */
+   lua_getfield(L, 1, "details");
+   if (lua_isnil(L, -1)) {
+      lua_pop(L, 1);
+      lua_pushstring("");
+  }
+  /* [ error_object, nil, where, code_description, details ] */
+  lua_pushfstring(L, "%s %s\n%s", 
+      lua_to_string(L, -3), 
+      lua_to_string(L, -2), 
+      lua_to_string(L, -1))
+  /* [ error_object, nil, where, code_description, details, result ] */
+  return 1;
 }
    
 ]=]
