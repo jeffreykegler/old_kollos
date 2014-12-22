@@ -50,6 +50,9 @@ io.write[=[
 #define EXPECTED_LIBMARPA_MINOR 5
 #define EXPECTED_LIBMARPA_MICRO 0
 
+#define MT_ERROR "kollos_core.error"
+#define MT_GRAMMAR "kollos_core.grammar"
+
 ]=]
 
 -- error codes
@@ -92,7 +95,10 @@ do
                 )
         end
     end
+
+    io.write('#define LIBMARPA_MIN_ERROR_CODE 0\n')
     io.write('#define LIBMARPA_MAX_ERROR_CODE ' .. max_code .. '\n\n')
+
     for i = 0, max_code do
         local mnemonic = code_mnemonics[i]
         if mnemonic then
@@ -102,7 +108,7 @@ do
        end
     end
     io.write('\n')
-    io.write('struct s_libmarpa_error_code libmarpa_error_codes[LIBMARPA_MAX_ERROR_CODE+1] = {\n')
+    io.write('struct s_libmarpa_error_code libmarpa_error_codes[LIBMARPA_MAX_ERROR_CODE-LIBMARPA_MIN_ERROR_CODE+1] = {\n')
     for i = 0, max_code do
         local code_line = code_lines[i]
         if code_line then
@@ -177,6 +183,35 @@ do
     io.write('};\n\n');
 
 end
+
+-- error objects
+
+io.write[=[
+
+static inline const char* error_description_by_code(int error_code)
+{
+   if (error_code >= LIBMARPA_MIN_ERROR_CODE && error_code <= LIBMARPA_MAX_ERROR_CODE) {
+       return libmarpa_error_codes[error_code-LIBMARPA_MIN_ERROR_CODE].description;
+   }
+   if (error_code >= LUIF_MIN_ERROR_CODE && error_code <= LUIF_MAX_ERROR_CODE) {
+       return luif_error_codes[error_code-LUIF_MIN_ERROR_CODE].description;
+   }
+   return 0;
+}
+
+static inline char* l_error_string_set(lua_State* L)
+{
+   lua_checktype(L, 1, LUA_TTABLE);
+   /* [ error_object ] */
+   lua_getfield(L, 1, "string");
+   /* [ error_object, string ] */
+   if (!lua_isnil(L, -1)) {
+       return 1;
+   }
+   /* not finished */
+}
+   
+]=]
 
 -- functions
 io.write[=[
@@ -306,7 +341,7 @@ static void luif_err_throw(lua_State *L, int error_code) {
     where = lua_tostring(L, -1);
 #endif
 
-    if (error_code < 0 || error_code > LIBMARPA_MAX_ERROR_CODE) {
+    if (error_code < LIBMARPA_MIN_ERROR_CODE || error_code > LIBMARPA_MAX_ERROR_CODE) {
         luaL_error(L, "Libmarpa returned invalid error code %d", error_code);
     }
     luaL_error(L, "%s", libmarpa_error_codes[error_code].description );
@@ -372,7 +407,11 @@ static const struct luaL_Reg kollos_core_funcs[] = {
   { NULL, NULL }
 };
 
-static const struct luaL_Reg kollos_core_methods[] = {
+static const struct luaL_Reg kollos_error_methods[] = {
+  { NULL, NULL }
+};
+
+static const struct luaL_Reg kollos_grammar_methods[] = {
   { NULL, NULL }
 };
 
@@ -380,10 +419,16 @@ LUALIB_API int luaopen_kollos_core(lua_State *L);
 LUALIB_API int luaopen_kollos_core(lua_State *L)
 {
   /* Fail if not 5.1 ? */
-  luaL_newmetatable(L, "kollos-core-grammar");
-  lua_pushvalue(L, -1);
-  luaL_register(L, NULL, kollos_core_methods);
+  luaL_newmetatable(L, MT_E);
+  /* [ mt ] */
+  luaL_register(L, NULL, kollos_error_methods);
+
+  luaL_newmetatable(L, MT_G);
+  /* [ ..., mt ] */
+  luaL_register(L, NULL, kollos_grammar_methods);
+
   luaL_register(L, "kollos", kollos_core_funcs);
+  /* [ ..., table ] */
   return 1;
 }
 
