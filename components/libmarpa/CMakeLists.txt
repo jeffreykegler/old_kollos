@@ -20,7 +20,7 @@ PROJECT(libmarpa C)
 # ------------------
 # Module search path
 # ------------------
-SET (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules")
+SET (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/modules")
 ENABLE_TESTING()
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")

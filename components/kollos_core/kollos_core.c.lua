@@ -59,7 +59,7 @@ io.write[=[
 
 io.write[=[
 struct s_libmarpa_error_code {
-   int code;
+   lua_Integer code;
    const char* mnemonic;
    const char* description;
 };
@@ -153,8 +153,8 @@ do
     luif_error_add( 202, "LUIF_ERR_LIBMARPA_HEADER_VERSION_MISMATCH", "Libmarpa header does not match expected version")
     luif_error_add( 203, "LUIF_ERR_LIBMARPA_LIBRARY_VERSION_MISMATCH", "Libmarpa library does not match expected version")
 
-    io.write('#define LUIF_MIN_ERROR_CODE ' .. min_code .. '\n')
-    io.write('#define LUIF_MAX_ERROR_CODE ' .. max_code .. '\n\n')
+    io.write('#define KOLLOS_MIN_ERROR_CODE ' .. min_code .. '\n')
+    io.write('#define KOLLOS_MAX_ERROR_CODE ' .. max_code .. '\n\n')
     for i = min_code, max_code
     do
         local mnemonic = code_mnemonics[i]
@@ -166,7 +166,7 @@ do
     end
 
     io.write('\n')
-    io.write('struct s_libmarpa_error_code kollos_error_codes[(LUIF_MAX_ERROR_CODE-LUIF_MIN_ERROR_CODE)+1] = {\n')
+    io.write('struct s_libmarpa_error_code kollos_error_codes[(KOLLOS_MAX_ERROR_CODE-KOLLOS_MIN_ERROR_CODE)+1] = {\n')
     for i = min_code, max_code do
         local code_line = code_lines[i]
         if code_line then
@@ -188,20 +188,33 @@ end
 
 io.write[=[
 
-static inline const char* error_description_by_code(int error_code)
+static inline const char* error_description_by_code(lua_Integer error_code)
 {
    if (error_code >= LIBMARPA_MIN_ERROR_CODE && error_code <= LIBMARPA_MAX_ERROR_CODE) {
        return libmarpa_error_codes[error_code-LIBMARPA_MIN_ERROR_CODE].description;
    }
-   if (error_code >= LUIF_MIN_ERROR_CODE && error_code <= LUIF_MAX_ERROR_CODE) {
-       return luif_error_codes[error_code-LUIF_MIN_ERROR_CODE].description;
+   if (error_code >= KOLLOS_MIN_ERROR_CODE && error_code <= KOLLOS_MAX_ERROR_CODE) {
+       return kollos_error_codes[error_code-KOLLOS_MIN_ERROR_CODE].description;
    }
-   return 0;
+   return (const char *)0;
 }
 
-static inline char* l_error_string_set(lua_State* L)
+static inline int l_error_description_by_code(lua_State* L)
 {
-   lua_checktype(L, 1, LUA_TTABLE);
+   const lua_Integer error_code = luaL_checkinteger(L, 1);
+   const char* description = error_description_by_code(error_code);
+   if (description)
+   {
+       lua_pushfstring(L, "Unknown error code (%d)", error_code);
+   } else {
+       lua_pushstring(L, description);
+   }
+   return 1;
+}
+
+static int l_error_string_set(lua_State* L)
+{
+   luaL_checktype(L, 1, LUA_TTABLE);
    /* [ error_object ] */
    lua_getfield(L, 1, "string");
    /* [ error_object, string ] */
@@ -212,33 +225,33 @@ static inline char* l_error_string_set(lua_State* L)
    lua_getfield(L, 1, "where");
    if (lua_isnil(L, -1)) {
       lua_pop(L, 1);
-      lua_pushstring("???: ");
+      lua_pushstring(L, "???: ");
    }
    /* [ error_object, nil, where ] */
    lua_getfield(L, 1, "code");
    if (lua_isnil(L, -1)) {
       lua_pop(L, 1);
-      lua_pushstring("");
+      lua_pushstring(L, "");
    } else {
-      int error_code = lua_tonumber(L, -1);
+      lua_Integer error_code = lua_tointeger(L, -1);
       const char* description = error_description_by_code(error_code);
       if (description) {
          lua_pushstring(L, description);
       } else {
-         lua_pushfstring(L, "Unknown error code (%d)", error_code);
+         lua_pushfstring(L, "Unknown error code (%d)", (int)error_code);
       }
    }
   /* [ error_object, nil, where, code_description ] */
    lua_getfield(L, 1, "details");
    if (lua_isnil(L, -1)) {
       lua_pop(L, 1);
-      lua_pushstring("");
+      lua_pushstring(L, "");
   }
   /* [ error_object, nil, where, code_description, details ] */
   lua_pushfstring(L, "%s %s\n%s", 
-      lua_to_string(L, -3), 
-      lua_to_string(L, -2), 
-      lua_to_string(L, -1))
+      lua_tostring(L, -3), 
+      lua_tostring(L, -2), 
+      lua_tostring(L, -1));
   /* [ error_object, nil, where, code_description, details, result ] */
   return 1;
 }
@@ -397,7 +410,7 @@ struct s_kollos_grammar {
     int dummy;
 };
 
-static int grammar_new(lua_State *L)
+static int l_grammar_new(lua_State *L)
 {
    struct s_kollos_grammar *g;
    luaL_checkany(L, 1); /* expecting a table */
@@ -435,7 +448,8 @@ static int grammar_new(lua_State *L)
 }
 
 static const struct luaL_Reg kollos_core_funcs[] = {
-  { "grammar", grammar_new },
+  { "grammar", l_grammar_new },
+  { "error_description", l_error_description_by_code },
   { NULL, NULL }
 };
 
