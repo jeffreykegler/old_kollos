@@ -7,7 +7,8 @@ Kollos is the next phase of Marpa.  Today, Marpa's main implementation consist o
 + a C library, called Libmarpa, which implements the core parse engine.  It's very low-level --
 for example, there are no strings.  Rules, symbols, error messages, etc. are all integers.
 
-+ a Perl/XS wrapper, also in C, which provides the necessary upper layer for Libmarpa.
++ a Perl/XS wrapper, also in C, which provides the necessary upper layer for Libmarpa and
+contains most of the SLIF logic.
 
 + pure Perl logic, which combined with the previous two becomes Marpa::R2, a Perl module
 
