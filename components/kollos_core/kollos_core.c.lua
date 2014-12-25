@@ -50,8 +50,63 @@ io.write[=[
 #define EXPECTED_LIBMARPA_MINOR 5
 #define EXPECTED_LIBMARPA_MICRO 0
 
-#define MT_ERROR "kollos_core.error"
-#define MT_GRAMMAR "kollos_core.grammar"
+/* For debugging */
+static void dump_stack (lua_State *L) {
+      int i;
+      int top = lua_gettop(L);
+      for (i = 1; i <= top; i++) {  /* repeat for each level */
+        int t = lua_type(L, i);
+        switch (t) {
+    
+          case LUA_TSTRING:  /* strings */
+            printf("`%s'", lua_tostring(L, i));
+            break;
+    
+          case LUA_TBOOLEAN:  /* booleans */
+            printf(lua_toboolean(L, i) ? "true" : "false");
+            break;
+    
+          case LUA_TNUMBER:  /* numbers */
+            printf("%g", lua_tonumber(L, i));
+            break;
+    
+          case LUA_TTABLE:  /* numbers */
+            printf("table %s", lua_tostring(L, i));
+            break;
+    
+          default:  /* other values */
+            printf("%s", lua_typename(L, t));
+            break;
+    
+        }
+        printf("  ");  /* put a separator */
+      }
+      printf("\n");  /* end the listing */
+}
+
+static void dump_table(lua_State *L, int index)
+{
+    /* Original stack: [ ... ] */
+    lua_pushvalue(L, index);
+    lua_pushnil(L);
+    /* [ ..., table, nil ] */
+    while (lua_next(L, -2))
+    {
+        const char *key;
+        const char *value;
+        /* [ ..., table, key, value ] */
+        lua_pushvalue(L, -2);
+        /* [ ..., table, key, value, key ] */
+        key = lua_tostring(L, -1);
+        value = lua_tostring(L, -2);
+        printf("%s => %s\n", key, value);
+        lua_pop(L, 2);
+        /* [ ..., table, key ] */
+    }
+    /* [ ..., table ] */
+    lua_pop(L, 1);
+    /* Back to original stack: [ ... ] */
+}
 
 ]=]
 
@@ -185,6 +240,19 @@ do
 end
 
 -- error objects
+--
+-- There are written in C, but not because of efficiency --
+-- efficiency is not needed, and in any case, when the overhead
+-- from the use of the debug calls is considered, is not really
+-- gained.
+--
+-- The reason for the use of C is that the error routines
+-- must be available for use inside both C and Lua, and must
+-- also be available as early as possible during set up.
+-- It's possible to run Lua code both inside C and early in
+-- the set up, but the added unclarity, complexity from issues
+-- of error reporting for the Lua code, etc., etc. mean that
+-- it actually is easier to write them in C than in Lua.
 
 io.write[=[
 
@@ -212,50 +280,103 @@ static inline int l_error_description_by_code(lua_State* L)
    return 1;
 }
 
-static int l_error_string_set(lua_State* L)
+/* Leaves the stack as before,
+   except with the error object on top */
+static inline void kollos_error(lua_State* L,
+    int index, lua_Number code, const char* details)
 {
-   luaL_checktype(L, 1, LUA_TTABLE);
+   lua_newtable(L);
+   /* [ ..., error_object ] */
+   lua_pushvalue(L, index);
+   lua_setmetatable(L, -2);
+   /* [ ..., error_object ] */
+   lua_pushnumber(L, code);
+   lua_setfield(L, -2, "code" );
+   /* [ ..., error_object ] */
+   lua_pushstring(L, details);
+   lua_setfield(L, -2, "details" );
+   /* [ ..., error_object ] */
+}
+
+/* Replace an error object, on top of the stack,
+   with its string equivalent
+ */
+static inline void error_tostring(lua_State* L)
+{
+  const int error_object_ix = lua_gettop (L);
+  /* [ ..., error_object ] */
+  lua_getfield (L, -1, "string");
+
+  /* [ ..., error_object, string ] */
+
+  if (lua_isnil (L, -1))
+    {
+      /* [ ..., error_object, nil ] */
+      lua_pop (L, 1);
+      lua_getfield (L, error_object_ix, "where");
+      if (lua_isnil (L, -1))
+	{
+	  lua_pop (L, 1);
+	  lua_pushstring (L, "???: ");
+	}
+      /* [ ..., error_object, where ] */
+      lua_getfield (L, error_object_ix, "code");
+      if (lua_isnil (L, -1))
+	{
+	  lua_pop (L, 1);
+	  lua_pushstring (L, "");
+	}
+      else
+	{
+	  lua_Integer error_code = lua_tointeger (L, -1);
+	  const char *description = error_description_by_code (error_code);
+	  if (description)
+	    {
+	      lua_pushstring (L, description);
+	    }
+	  else
+	    {
+	      lua_pushfstring (L, "Unknown error code (%d)",
+			       (int) error_code);
+	    }
+	}
+      /* [ ..., error_object, where, code_description ] */
+      lua_getfield (L, error_object_ix, "details");
+      if (lua_isnil (L, -1))
+	{
+	  lua_pop (L, 1);
+	  lua_pushstring (L, "");
+	}
+      /* [ ..., error_object, where, code_description, details ] */
+      lua_pushfstring (L, "%s %s\n%s",
+		       lua_tostring (L, -3),
+		       lua_tostring (L, -2), lua_tostring (L, -1));
+      /* [ ..., error_object, where, code_description, details, result ] */
+    }
+
+  /* [ ..., error_object, ..., result ] */
+  lua_replace (L, error_object_ix);
+  lua_settop (L, error_object_ix);
+  /* [ ..., result ] */
+}
+  
+static inline void kollos_throw(lua_State* L,
+    int index, lua_Number code, const char* details)
+{
+   kollos_error(L, index, code, details);
+   error_tostring(L);
+   lua_error(L);
+}
+
+static int l_error_tostring(lua_State* L)
+{
    /* [ error_object ] */
-   lua_getfield(L, 1, "string");
-   /* [ error_object, string ] */
-   if (!lua_isnil(L, -1)) {
-       return 1;
-   }
-   /* [ error_object, nil ] */
-   lua_getfield(L, 1, "where");
-   if (lua_isnil(L, -1)) {
-      lua_pop(L, 1);
-      lua_pushstring(L, "???: ");
-   }
-   /* [ error_object, nil, where ] */
-   lua_getfield(L, 1, "code");
-   if (lua_isnil(L, -1)) {
-      lua_pop(L, 1);
-      lua_pushstring(L, "");
-   } else {
-      lua_Integer error_code = lua_tointeger(L, -1);
-      const char* description = error_description_by_code(error_code);
-      if (description) {
-         lua_pushstring(L, description);
-      } else {
-         lua_pushfstring(L, "Unknown error code (%d)", (int)error_code);
-      }
-   }
-  /* [ error_object, nil, where, code_description ] */
-   lua_getfield(L, 1, "details");
-   if (lua_isnil(L, -1)) {
-      lua_pop(L, 1);
-      lua_pushstring(L, "");
-  }
-  /* [ error_object, nil, where, code_description, details ] */
-  lua_pushfstring(L, "%s %s\n%s", 
-      lua_tostring(L, -3), 
-      lua_tostring(L, -2), 
-      lua_tostring(L, -1));
-  /* [ error_object, nil, where, code_description, details, result ] */
+   luaL_checktype(L, 1, LUA_TTABLE);
+   error_tostring(L);
+   /* [ error_string ] */
   return 1;
 }
-   
+  
 ]=]
 
 -- functions
@@ -464,17 +585,24 @@ static const struct luaL_Reg kollos_grammar_methods[] = {
 LUALIB_API int luaopen_kollos_core(lua_State *L);
 LUALIB_API int luaopen_kollos_core(lua_State *L)
 {
+  /* Create the main kollos object */
+   const int original_tos = lua_gettop(L);
+  lua_newtable(L);
+  /* First set up Kollos error handling */
+  lua_newtable(L);
+  /* [ kollos, error_mt ] */
+  /* I don't think I will need the upvalues */
+  lua_pushcclosure(L, l_error_tostring, 0);
+  /* [ kollos, error_mt, tostring_fn ] */
+  lua_setfield(L, -2, "__tostring");
+  /* [ kollos, error_mt ] */
+  lua_pushvalue(L, -1);
+  lua_setfield(L, original_tos+1, "error");
+  /* [ kollos, error_mt ] */
+  kollos_throw( L, original_tos+2, LUIF_ERR_I_AM_NOT_OK, "test" );
+
   /* Fail if not 5.1 ? */
-  luaL_newmetatable(L, MT_E);
-  /* [ mt ] */
-  luaL_register(L, NULL, kollos_error_methods);
 
-  luaL_newmetatable(L, MT_G);
-  /* [ ..., mt ] */
-  luaL_register(L, NULL, kollos_grammar_methods);
-
-  luaL_register(L, "kollos", kollos_core_funcs);
-  /* [ ..., table ] */
   return 1;
 }
 
