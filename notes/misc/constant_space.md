@@ -95,7 +95,7 @@ These are the new connector suffix rules
 ```
     LHS-C1 ::= Lex-C1 A B C
     LHS-C2 ::= Lex-C2 B C
-    LHS-C3 ::= Lex-C2 C
+    LHS-C3 ::= Lex-C3 C
 ```
 Here
 `LHS-C1`,
