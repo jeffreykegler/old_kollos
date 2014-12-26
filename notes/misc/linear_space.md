@@ -69,15 +69,20 @@ Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
 
 
 Since our purpose is not theoretical,
-but practical, we'll defined, not just a suffix grammar,
-but a "connector grammar", one that allows us to connect it to
-others.
+but practical, we will show how to create,
+not just a suffix grammar,
+but a "connector grammar", a grammar with not just
+suffixes,
+but all "connectors"
+that allows us to join it to
+a "prefix" parse.
 
 Creating the "connector grammar" from our original grammar is not hard,
 and could be automated.
 We need some new "connector rules" which are rules with a new LHS,
 and whose RHS is a "connector lexeme" plus the suffix of the RHS of one of the grammar's
 original rules.
+No connector rules should be created for empty rules.
 
 For example, let `g1` be our original grammar and assume it contains the rule
 ```
@@ -109,7 +114,7 @@ and "connector start rules", which are rules of the form
     Start-C ::= LHS-C3
     [ ... ]
 ```
-There is one connector start rule is every connector LHS symbol.
+There is one connector start rule for every connector LHS symbol.
 
 
 Our connector grammar, `g-conn`, consists of
@@ -140,7 +145,9 @@ Call the symbols after the dot, the "suffix" of a dotted rule.
 The connector lexeme of a dotted rule is the connector lexeme used
 in the connector rule which is derived with the 
 same original rule, and which has the same suffix.
-The reader might be able to see how these might be used to connect
+For example, the connector lexeme for the dotted rule above
+is `Lex-C2`.
+The reader may be able to see how these could be used to connect
 dotted rules from one parse with connector rules in another.
 
 ## The method
@@ -151,7 +158,7 @@ works.
 * First, parse with the original grammar, `g1`, until we decide we've
     used enough space.
 
-* At the last location, look at the all dotted rules.
+* At the last location, look at all the dotted rules.
     Ignore the completions -- those rules with the dot after the last
     symbol of the RHS.
     For the other, get the list of connector lexemes.
@@ -161,7 +168,7 @@ works.
     Use the connector lexemes to mark those places where more symbols are
     expected.
     We call the locations of the connector lexemes,
-    the "right edge" of the tree.
+    the "right edge" of the prefix tree.
 
 * Throw away the current Marpa parse, releasing its space.
 
@@ -171,7 +178,8 @@ works.
 
 * Resume parsing, with the new "connector" parser and the real input.
 
-* When enough memory has been used stop, and produce a new subtree.
+* When enough memory has been used, stop.
+    Produce a new subtree from the connector parse.
     Call this the "connector subtree".
     The connector lexemes in the connector subtree
     mark its "left edge".
@@ -182,7 +190,7 @@ works.
 * Throw away the connector parse, releasing its space.
 
 * If the entire input has been read,
-    This newly joined subtree is the full tree for the parse.
+    this newly joined subtree is the full tree for the parse.
     We are done.
 
 * If there is more input to be read,
@@ -195,13 +203,6 @@ works.
     until we reach the end of the input.
 
 ## Some details
-
-The above may seem complex,
-but that's because it is fully general.
-In practice it should be
-considerably simply than many programming tasks
--- in fact, it could
-be automated.
 
 It would be quite possible, for example, to modify Marpa
 so that it monitors memory and, if usage passes a limit,
