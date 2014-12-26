@@ -21,9 +21,12 @@ Compilers incur major space requirements for optimization
 and other purposes, and in their context optimizing the parser
 for space may be pointless.
 
-But some applications converting huge files into reasonably
-compact formats, and without using any space intensive intermediate processing.
-JSON or XML databases can be files of this sort.
+But there are applications that
+convert huge files into reasonably
+compact formats, and that do without using
+a lot of space in their intermediate processing.
+Applications that write
+JSON and XML databases can be of this kind.
 Pure JSON, in fact, is a small, lexing-driven language which really does
 not require a parser as powerful as Marpa.
 But bringing Marpa's performance as close as possible to that of custom-written
