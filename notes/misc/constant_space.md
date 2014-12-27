@@ -70,6 +70,12 @@ Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
 
 ## Creating the connector grammar
 
+[ From here on out my discussion has problems.
+I relied on my memory for the definition of suffix grammars,
+rather than going back to Grune and Jacobs.
+The basis idea is correct, I believe, but a lot of the details
+that follow
+are missing or wrong. ]
 
 Since our purpose is not theoretical,
 but practical, we will show how to create,
