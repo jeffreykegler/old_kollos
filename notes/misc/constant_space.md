@@ -68,63 +68,89 @@ Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
 `L1` will be a subset of `suffixes(L1)`.
 Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
 
-## Creating the connector grammar
+## Creating the split grammar
 
-[ From here on out my discussion has problems.
-I relied on my memory for the definition of suffix grammars,
-rather than going back to Grune and Jacobs.
-The basis idea is correct, I believe, but a lot of the details
-that follow
-are missing or wrong. ]
+The "split grammar" here is based on
+the "suffix grammar", whose construction is described in
+Grune & Jacobs, 2nd ed.
+Our purpose differs from theirs, in that
 
-Since our purpose is not theoretical,
-but practical, we will show how to create,
-not just a suffix grammar,
-but a "connector grammar", a grammar with not just
-suffixes,
-but all "connectors"
-that allows us to join it to
-a "prefix" parse.
+* we want our parse to contain only those suffixes which
+    match a known prefix; and
 
-Creating the "connector grammar" from our original grammar is not hard,
-and could be automated.
-We need some new "connector rules" which are rules with a new LHS,
-and whose RHS is a "connector lexeme" plus the suffix of the RHS of one of the grammar's
-original rules.
-No connector rules should be created for empty rules.
+* we want to be able to create trees from both suffix
+    and prefix, and to combine these trees.
 
-For example, let `g1` be our original grammar and assume it contains the rule
+In order to accomplish our purposes, we need to define
+a "split grammar".
+Let our original grammar be `g1`.
+Ignore, for the moment, the two issues of nullable symbols,
+and of empty rules.
+We need to define, for every rule in `g1`, two 'split rules',
+a `left rule` and a `right rule`.
+
+First, we'll need some new symbols.
+For every non-terminal, we will want a left
+and a right version.
+For example, for the symbol `A`,
+we want two new symbols, `A-L` and `A-R`.
+
+We will also defined a new set of "connector symbols",
+whose purpose will be to tell us how to reconnect
+split rules.
+Connector symbols will be defined in right-left pairs.
+The pairs of connector symbols will have the form `c42R`,
+and `c421L`;
+where the initial `c` means "connector";
+`R` and `L` indicate, respectively,
+the right and left member of the pair;
+and `42` represents some arbitrary number,
+chosen to make sure that the pair is unique.
+Every split rule must use a unique pair of connector
+symbols.
+
+
+Let a `g1` rule be
 ```
      X ::= A B C
 ```
-These are the new connector suffix rules
+The six pairs of 
+"split rules" that we will need are
 ```
-    LHS-C1 ::= Lex-C1 A B C
-    LHS-C2 ::= Lex-C2 B C
-    LHS-C3 ::= Lex-C3 C
+    X-L ::= c1L            X-R ::= c1R A B C
+    X-L ::= A-L c2L        X-R ::= c2R A-R B C
+    X-L ::= A c3L          X-R ::= c3R B C
+    X-L ::= A B-L c4L      X-R ::= c4R B-R C
+    X-L ::= A B c5L        X-R ::= c5R C
+    X-L ::= A B C-L c5L    X-R ::= c5R C-R
 ```
-Here
-`LHS-C1`,
-`LHS-C2` and
-`LHS-C3` are the "connector LHS symbols";
-and
-`Lex-C1`,
-`Lex-C2` and
-`Lex-C3` are the "connector lexemes".
-For every original rule with `n` symbols on its RHS,
-there will be `n` new connector rules.
+It will be seen that these pairs represent splits
+in the middle of each of the three symbols,
+and before each of the three symbols.
 
-We also want to define a "connector start symbol",
-call it `Start-C`,
-and "connector start rules", which are rules of the form
-```
-    Start-C ::= LHS-C1
-    Start-C ::= LHS-C2
-    Start-C ::= LHS-C3
-    [ ... ]
-```
-There is one connector start rule for every connector LHS symbol.
+Every `g1` rule will need `n` pairs of split rules,
+where `n` is the number of symbols on the RHS of the
+`g1` rule.
+Empty rules can be ignored.
 
+We need a pair of split rules to represent a "split" before the first
+symbol of a `g1` rule, but we do not need a pair to represent a
+split after the last symbol.
+In other words, we need to deal with predictions,
+but we can ignore completions.
+We can also ignore any splits that occur before nulling symbols.
+
+
+For a small grammar, it is not hard to write the above rules by hand.
+For large grammars, there is nothing to prevent the rewrite from
+being automated.
+
+[ *Corrected to here* ]
+
+[ *From here on out this discussion has problems.*
+The basis idea is correct, I believe, but a lot of the details
+that follow
+are missing or wrong. ]
 
 Our connector grammar, `g-conn`, consists of
 
