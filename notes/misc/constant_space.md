@@ -122,7 +122,7 @@ The six pairs of
     X-L ::= A c3L          X-R ::= c3R B C
     X-L ::= A B-L c4L      X-R ::= c4R B-R C
     X-L ::= A B c5L        X-R ::= c5R C
-    X-L ::= A B C-L c5L    X-R ::= c5R C-R
+    X-L ::= A B C-L c6L    X-R ::= c6R C-R
 ```
 It will be seen that these pairs represent splits
 in the middle of each of the three symbols,
@@ -140,6 +140,10 @@ In other words, we need to deal with predictions,
 but we can ignore completions.
 We can also ignore any splits that occur before nulling symbols.
 
+The above rules imply that left split rules can be nulling --
+in fact one of the left split rules must be nulling.
+But no right split rule can be nulling.
+Informally, a right split rule must represent "something".
 
 For a small grammar, it is not hard to write the above rules by hand.
 For large grammars, there is nothing to prevent the rewrite from
