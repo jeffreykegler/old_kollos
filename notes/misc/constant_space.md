@@ -131,7 +131,7 @@ symbols.
 Pairs 1, 3 and 5 represent splits
 between symbols -- these will be called "inter-split pairs".
 Pairs 2, 4 and 6 represent splits
-within symbols -- these will be called "inter-split pairs".
+within symbols -- these will be called "intra-split pairs".
 Every pair corresponds to a dotted rule.
 A "dotted rule" is the `g1` rule
 with one of its positions marked with a dot.
