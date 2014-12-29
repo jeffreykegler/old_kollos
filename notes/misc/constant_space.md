@@ -16,7 +16,7 @@ Reducing the time from linear to constant in just the parser
 does not affect the overall time complexity of the algorithm.
 So what's the point?
 
-In fact, in many cases, there may be little or not point.
+In fact, in many cases, there may be little or no point.
 Compilers incur major space requirements for optimization
 and other purposes, and in their context optimizing the parser
 for space may be pointless.
