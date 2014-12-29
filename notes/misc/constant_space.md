@@ -72,7 +72,7 @@ Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
 
 The "split grammar" here is based on
 the "suffix grammar", whose construction is described in
-Grune & Jacobs, 2nd ed.
+Grune & Jacobs, 2nd ed., section 12.1, p. 401.
 Our purpose differs from theirs, in that
 
 * we want our parse to contain only those suffixes which
