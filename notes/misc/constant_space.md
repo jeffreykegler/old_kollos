@@ -194,6 +194,60 @@ make the following adjustments.
 * This implies that the only split pair for
    a nulling rule is the prediction split pair.
 
+## Deriving the left subtree
+
+Call the point at which we choose to split the parse,
+the "split point".
+At the split point,
+we must derive a left subtree.
+
+The following discussion assumes that we know
+
+* the dotted rules that apply at the current location; and
+
+* how they link to child rules and symbols.
+
+At the Libmarpa level both these things are known.
+Unfortunately, as of this writing, only the dotted rules
+are available at the SLIF level -- not their links.
+
+### Is the parse exhausted?
+
+First, we look for medial dotted rules at the split point.
+Dotted rules are of three kinds:
+
+* predictions, in which the dot is before the first RHS symbol;
+
+* completions, in which the dot is after the last RHS symbol; and
+
+* medials, which are those dotted rules which are neither
+    predictions or completions.
+
+There may be no medial dotted rules.
+In this case the parse is exhausted -- it can go no further.
+We do not continue with the following steps.
+
+If there is completed start rule,
+the parse was a success,
+and we will be able to derive a full tree,
+If there is a completion,
+other than of the start rule,
+we will be able to derive a subtree,
+but it will not be a *left* subtree -- it will be the final subtree
+and there will be no way of
+joining it up with a subtree to its right.
+
+### Medial dotted rules at the split point
+
+At the split point, we look at each of the medial
+dotted rules.
+For each of these dotted rules, we add the
+corresponding left inter-split rule as a node of the left subtree.
+We link these nodes in the same way as the dotted rules are linked
+in libmarpa.
+
+### Derive split point predictions.
+
 [ *Corrected to here* ]
 
 [ *From here on out this discussion has problems.*
