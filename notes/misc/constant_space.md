@@ -117,16 +117,49 @@ Let a `g1` rule be
 The six pairs of 
 "split rules" that we will need are
 ```
-    X-L ::= c1L            X-R ::= c1R A B C
-    X-L ::= A-L c2L        X-R ::= c2R A-R B C
-    X-L ::= A c3L          X-R ::= c3R B C
-    X-L ::= A B-L c4L      X-R ::= c4R B-R C
-    X-L ::= A B c5L        X-R ::= c5R C
-    X-L ::= A B C-L c6L    X-R ::= c6R C-R
+    1: X-L ::= c1L            X-R ::= c1R A B C
+    2: X-L ::= A-L c2L        X-R ::= c2R A-R B C
+    3: X-L ::= A c3L          X-R ::= c3R B C
+    4: X-L ::= A B-L c4L      X-R ::= c4R B-R C
+    5: X-L ::= A B c5L        X-R ::= c5R C
+    6: X-L ::= A B C-L c6L    X-R ::= c6R C-R
 ```
-It will be seen that these pairs represent splits
-in the middle of each of the three symbols,
-and before each of the three symbols.
+The pairs are numbered 1 to 6, the same number which
+is used in the example to uniquely identify the connector
+symbols.
+
+Pairs 1, 3 and 5 represent splits
+between symbols -- these will be called "inter-split pairs".
+Pairs 2, 4 and 6 represent splits
+within symbols -- these will be called "inter-split pairs".
+Every pair corresponds to a dotted rule.
+A "dotted rule" is the `g1` rule
+with one of its positions marked with a dot.
+Pairs 1 and 2 correspond to the dotted rule
+```
+    X ::= . A B C
+```
+Pairs 3 and 4 correspond to the dotted rule
+```
+    X ::= A . B C
+```
+Pairs 5 and 6 correspond to the dotted rule
+```
+    X ::= A B . C
+```
+
+A completion is 
+a dotted rule with the dot
+after the last RHS symbol.
+In this example, it is
+```
+    X ::= A B C .
+```
+No split pairs correspond to completions.
+
+The inter-split pair for the dotted rule with the dot
+before the first RHS symbols is called the "prediction split pair".
+In this example, the prediction split pair is pair 1.
 
 Every `g1` rule will need `n` pairs of split rules,
 where `n` is the number of symbols on the RHS of the
@@ -148,6 +181,18 @@ Informally, a right split rule must represent "something".
 For a small grammar, it is not hard to write the above rules by hand.
 For large grammars, there is nothing to prevent the rewrite from
 being automated.
+
+## Nulling symbols
+
+Above, we assumed that no symbols are nulling.
+Where a rule has nulling symbols on its RHS, we
+make the following adjustments.
+
+* There are no split pairs for dotted rules
+    with the dot before a nulling symbol.
+
+* This implies that the only split pair for
+   a nulling rule is the prediction split pair.
 
 [ *Corrected to here* ]
 
