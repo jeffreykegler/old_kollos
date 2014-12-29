@@ -23,7 +23,7 @@ for space may be pointless.
 
 But there are applications that
 convert huge files into reasonably
-compact formats, and that do without using
+compact formats, and they do that without using
 a lot of space in their intermediate processing.
 Applications that write
 JSON and XML databases can be of this kind.
