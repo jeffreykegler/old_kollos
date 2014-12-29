@@ -243,10 +243,12 @@ At the split point, we look at each of the medial
 dotted rules.
 For each of these dotted rules, we add the
 corresponding left inter-split rule as a node of the left subtree.
-We link these nodes in the same way as the dotted rules are linked
+Within the left subtree,
+we link these nodes in the same way as the dotted rules are linked
 in libmarpa.
 
 ### Derive split point predictions.
+
 
 [ *Corrected to here* ]
 
