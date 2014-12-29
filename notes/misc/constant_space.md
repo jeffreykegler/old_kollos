@@ -312,7 +312,7 @@ works.
 
 * Throw away the current Marpa parse, releasing its space.
 
-* Start a new Marpa parse, using the connector grammar, 'g-conn`.
+* Start a new Marpa parse, using the connector grammar, `g-conn`.
     At its first location, read all the connector lexemes from the
     previous grammar.  Marpa allows ambiguous lexemes, so this can be done.
 
