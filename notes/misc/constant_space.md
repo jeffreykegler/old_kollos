@@ -241,11 +241,36 @@ joining it up with a subtree to its right.
 
 At the split point, we look at each of the medial
 dotted rules.
-For each of these dotted rules, we add the
-corresponding left inter-split rule as a node of the left subtree.
-Within the left subtree,
-we link these nodes in the same way as the dotted rules are linked
-in libmarpa.
+For each of these dotted rules:
+
+* Call the LHS of its dotted rule, `medial-LHS`.
+   Call its parent dotted rule, `parent-dr`.
+
+* Add the corresponding left inter-split rule
+   as a node of the left subtree.
+   Call this new node, `new-node`,
+
+Next, for every `new-node` in the list
+of nodes just created:
+
+* Let the medial dotted rule for `new-node` be
+    `new-dr`.
+
+* Let the parent dotted rule for `new-dr`, be `parent-dr`.
+
+* If `parent-dr` is a medial dotted rule,
+    we have already created
+    a left subtree node for it.
+    Call this node, `parent-node`.
+    Make `parent-node` the parent of  `new-node`
+    in the left subtree.
+
+* If `parent-dr` is *not*
+    a medial dotted rule,
+    add the duple `[parent-dr, new-node]`
+    to the "intra-medial worklist".
+    We will use the intra-medial worklist
+    in a later step.
 
 ### Derive split point predictions.
 
