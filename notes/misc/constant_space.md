@@ -249,6 +249,27 @@ in libmarpa.
 
 ### Derive split point predictions.
 
+We use a "prediction work list", of duples of the form:
+`[symbol, parent]`.
+To initialize it, for each medial rule from the above step,
+we add `[postdot, medial-node]` to the prediction work list,
+where `postdot` is the medial rule's postdot symbol,
+and `medial-node` is the left subtree node created from it.
+
+Then, for every `[symbol, parent]` in the prediction work list:
+
+* For every `rule` with `symbol` on its LHS:
+
+    + We find the subtree node for the left predicted split rule,
+      createing it if it does not already exist.
+      Call this node `new-node`.
+
+    + Link `new-node` to `parent`.
+
+    + Where `rule-postdot` is the postdot symbol of `rule`,
+      add `[rule-postdot, new-node]` to the prediction work list.
+
+### Intra-split nodes at the split point.
 
 [ *Corrected to here* ]
 
