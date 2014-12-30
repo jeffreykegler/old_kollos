@@ -1,5 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
+enable_testing()
+
 # You can tweak some common (for all subprojects) stuff here. For example:
 
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
@@ -22,6 +24,7 @@ endif ()
 add_subdirectory(libmarpa) # static library
 add_subdirectory(lua) # interpreter
 add_subdirectory(kollos_core) # shared library
-add_subdirectory(json) # test executable
+add_subdirectory(json) # a sample executable
+add_subdirectory(test) # kollos-wide tests
 
 # vim: expandtab shiftwidth=4:
