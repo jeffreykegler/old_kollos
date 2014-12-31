@@ -256,21 +256,15 @@ of nodes just created:
 * Let the medial dotted rule for `new-node` be
     `new-dr`.
 
-* Let the parent dotted rule for `new-dr`, be `parent-dr`.
+* If `new-dr` is the cause of an effect,
+    let that effect be `effect-dr`.
 
-* If `parent-dr` is a medial dotted rule,
-    we have already created
-    a left subtree node for it.
-    Call this node, `parent-node`.
-    Make `parent-node` the parent of  `new-node`
+* If `effect-dr` does not already have
+    a left subtree node, create one.
+    Call this node, `effect-node`.
+
+* Make `effect-node` a parent of `new-node`
     in the left subtree.
-
-* If `parent-dr` is *not*
-    a medial dotted rule,
-    add the duple `[parent-dr, new-node]`
-    to the "intra-medial worklist".
-    We will use the intra-medial worklist
-    in a later step.
 
 ### Derive split point predictions.
 
