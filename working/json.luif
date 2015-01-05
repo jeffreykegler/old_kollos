@@ -2,7 +2,7 @@
                            | array
             object       ::= [lcurly rcurly]
                            | [lcurly] members [rcurly]
-            members      ::= pair* % comma
+            members      ::= pair+ % comma
             pair         ::= string [colon] value
             value        ::= string
                            | object
