@@ -57,7 +57,14 @@ and can be configurable.
 It's optimum value will be a tradeoff between speed
 and memory consumption.
 
-## A bit of theory
+## Theory: suffix grammars
+
+In what follows, some sections will,
+like this one,
+be marked "Theory".
+It is safe for to skip them.
+They record technical details which are important
+in ensuring the correctness of the algorithm.
 
 Every context-free grammar has a context-free "suffix grammar" --
 a grammar, whose language is the set of suffixes of the first language.
@@ -265,6 +272,16 @@ of nodes just created:
 
 * Make `effect-node` a parent of `new-node`
     in the left subtree.
+
+### Proof: Children of medial rules are pre-split symbols.
+
+*To prove*: At the split point, all children of medial rules in
+the left subtree are pre-split symbols.
+
+*Proof*:
+Split-active symbols occur only as part of split rules.
+
+[ To finish. ]
 
 ### Derive split point predictions.
 
