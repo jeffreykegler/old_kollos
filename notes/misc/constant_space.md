@@ -273,15 +273,38 @@ of nodes just created:
 * Make `effect-node` a parent of `new-node`
     in the left subtree.
 
-### Proof: Children of medial rules are pre-split symbols.
+### Theory: Proofs about pre-split symbols
 
 *To prove*: At the split point, all children of medial rules in
 the left subtree are pre-split symbols.
 
 *Proof*:
 Split-active symbols occur only as part of split rules.
+All medial rules are taken from the Earley sets, which
+only contain rules from the pre-split grammar.
 
-[ To finish. ]
+(Left split rules are added to the left subtree,
+but they are always completions at the split point.
+Right split rules are used in the suffix grammar,
+but they are always joined to a left split rule
+and eliminated when creating a left subtree.)
+
+Since all medial rules are from the pre-split grammar,
+all of its children are symbols in the pre-split grammar.
+*QED*.
+
+*To prove*: No pre-split symbol derives a post-split symbol
+
+*Proof*:
+The only rules with
+post-split symbols on their LHS are the left and right split rules.
+The only rules with
+post-split symbols on their RHS are also left and right split rules.
+So no rule with a pre-split symbol directly derives a
+post-split symbol.
+And therefore, by induction, no rule with a pre-split symbol,
+no pre-split symbol derives a post-split symbol.
+*QED*.
 
 ### Derive split point predictions.
 
