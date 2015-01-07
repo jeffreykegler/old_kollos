@@ -156,7 +156,7 @@ like nucleoside symbols,
 will be defined in right-left pairs.
 Nuclebase symbols
 have the form `b42R`,
-and `b421L`;
+and `b42L`;
 where the initial `b` means "base";
 `R` and `L` indicate, respectively,
 the right and left member of the base pair;
