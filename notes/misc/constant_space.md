@@ -66,18 +66,7 @@ It is safe for to skip them.
 They record technical details which are important
 in ensuring the correctness of the algorithm.
 
-Every context-free grammar has a context-free "suffix grammar" --
-a grammar, whose language is the set of suffixes of the first language.
-That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
-grammar.
-(In parsing theory, "language" is an fancy term for a set of strings.)
-Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
-`L1` will be a subset of `suffixes(L1)`.
-Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
-
-## Creating the split grammar
-
-The "split grammar" here is based on
+The "transcription grammar" here is based on
 the "suffix grammar", whose construction is described in
 Grune & Jacobs, 2nd ed., section 12.1, p. 401.
 Our purpose differs from theirs, in that
@@ -88,41 +77,109 @@ Our purpose differs from theirs, in that
 * we want to be able to create trees from both suffix
     and prefix, and to combine these trees.
 
-In order to accomplish our purposes, we need to define
-a "split grammar".
+Every context-free grammar has a context-free "suffix grammar" --
+a grammar, whose language is the set of suffixes of the first language.
+That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
+grammar.
+(In parsing theory, "language" is an fancy term for a set of strings.)
+Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
+`L1` will be a subset of `suffixes(L1)`.
+Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
+
+## Nucleobases, nucleosides and nucleotides
+
+The mechanism used for spliting and rejoining grammars
+to a certain degree resembles that for replication of DNA --
+enough so that some borrowed terminology might help appeal
+to the intuition.
+
+A DNA molecule consists of two "strands", which are joined
+by "nucleobase pairs".
+DNA uses
+the matching of these nucleobase pairs for transcription
+and replication.
+The biochemical details are not important for our purposes,
+and our analogy will be a loose one in any case.
+But the following may serve as background:
+In DNA, a nucleobase is one of the familiar
+cytosine (C), guanine (G), adenine (A) and thymine (T).
+In DNA, each nucleobase molecule is attached to a sugar to
+form a nucleoside,
+Each nucleoside, in turn, attached to phosphate group
+(or, depending on the text, one or more phosphate groups)
+to form
+a nucleotide.
+
+For our purpose, we'll follow the analogy very loosely,
+and actually distort the meaning of "nucleoside" somewhat.
+What we'll take out of this is
+
+* that the *nucleobases* are
+   where the two "strands" directly touch;
+
+* as we follow
+   the sequence nucleobase, nucleoside and nucleotide,
+   we encounter "stuff" which is further away from where
+   the two "strands" touch;
+
+* nucleotides are a larger group, which include nucleosides
+    and nucleobases.
+
+As a mnemonic, note that "base",
+"side" and "tide" are in alphabetical order.
+
+## Creating the transcription grammar
+
+In order to accomplish our purposes, we define
+a "transcription grammar".
 Let our original grammar be `g1`.
 Ignore, for the moment, the two issues of nullable symbols,
 and of empty rules.
-We need to define, for every rule in `g1`, two 'split rules',
-a `left rule` and a `right rule`.
+We need to define, for every rule in `g1`, two 'nucleotide rules',
+a `left nucleotide` and a `right nucleotide`.
 
 First, we'll need some new symbols.
 For every non-terminal, we will want a left
 and a right version.
+We will call the right and left variants
+that we create for the transcription grammar,
+"nucleoside symbols",
+or just nucleosides.
 For example, for the symbol `A`,
-we want two new symbols, `A-L` and `A-R`.
+we want two nucleoside symbols, `A-L` and `A-R`.
 
-We will also defined a new set of "connector symbols",
-whose purpose will be to tell us how to reconnect
-split rules.
-Connector symbols will be defined in right-left pairs.
-The pairs of connector symbols will have the form `c42R`,
-and `c421L`;
-where the initial `c` means "connector";
+We will also defined a new set of "nucleobase symbols",
+whose purpose will be to tell us where two parses
+should "touch".
+Nucleobase symbols,
+like nucleoside symbols,
+will be defined in right-left pairs.
+Nuclebase symbols
+have the form `b42R`,
+and `b421L`;
+where the initial `b` means "base";
 `R` and `L` indicate, respectively,
-the right and left member of the pair;
+the right and left member of the base pair;
 and `42` represents some arbitrary number,
-chosen to make sure that the pair is unique.
-Every split rule must use a unique pair of connector
+chosen to make sure that every base pair is unique.
+(DNA manages with 4 base pairs, but the typical grammar
+will need many more.)
+Every pair of nucleotide rules must have a unique pair of nucleobase
 symbols.
 
+We will call the original grammar,
+before it has transcription rules and symbols added to it,
+the "pre-transcription grammar".
+Similarly,
+its rules are pre-transcription rules
+and its symbols are pre-transcription symbols.
 
-Let a `g1` rule be
+Let one of `g1`'s pre-transcription rules be
 ```
      X ::= A B C
 ```
 The six pairs of 
-"split rules" that we will need are
+"nucleotide rules" that we will need are
 ```
     1: X-L ::= c1L            X-R ::= c1R A B C
     2: X-L ::= A-L c2L        X-R ::= c2R A-R B C
@@ -132,25 +189,27 @@ The six pairs of
     6: X-L ::= A B C-L c6L    X-R ::= c6R C-R
 ```
 The pairs are numbered 1 to 6, the same number which
-is used in the example to uniquely identify the connector
+is used in the example to uniquely identify the nuclebase
 symbols.
 
 Pairs 1, 3 and 5 represent splits
-between symbols -- these will be called "inter-split pairs".
+at a point between two symbols --
+these nucleotides will be called "inter-nucleotides".
 Pairs 2, 4 and 6 represent splits
-within symbols -- these will be called "intra-split pairs".
-Every pair corresponds to a dotted rule.
+within a single symbol --
+these nucleotides will be called "intra-nucleotides".
+Every nucleotide pair corresponds to a dotted rule.
 A "dotted rule" is the `g1` rule
 with one of its positions marked with a dot.
-Pairs 1 and 2 correspond to the dotted rule
+Nucleotide pairs 1 and 2 correspond to the dotted rule
 ```
     X ::= . A B C
 ```
-Pairs 3 and 4 correspond to the dotted rule
+Nucleotide pairs 3 and 4 correspond to the dotted rule
 ```
     X ::= A . B C
 ```
-Pairs 5 and 6 correspond to the dotted rule
+Nucleotide pairs 5 and 6 correspond to the dotted rule
 ```
     X ::= A B . C
 ```
@@ -162,18 +221,18 @@ In this example, it is
 ```
     X ::= A B C .
 ```
-No split pairs correspond to completions.
+No nucleotides correspond to completions.
 
-The inter-split pair for the dotted rule with the dot
-before the first RHS symbols is called the "prediction split pair".
-In this example, the prediction split pair is pair 1.
+The inter-nucleotide pair for the dotted rule with the dot
+before the first non-nulled RHS symbol is called the "prediction split pair".
+In this example, the prediction nucleotide pair is pair 1.
 
-Every `g1` rule will need `n` pairs of split rules,
+Every pre-transcription rule will need `n` pairs of nucleotide rules,
 where `n` is the number of symbols on the RHS of the
 `g1` rule.
 Empty rules can be ignored.
 
-We need a pair of split rules to represent a "split" before the first
+We need a pair of nucleotide rules to represent a "split" before the first
 symbol of a `g1` rule, but we do not need a pair to represent a
 split after the last symbol.
 In other words, we need to deal with predictions,
@@ -184,10 +243,6 @@ The above rules imply that left split rules can be nulling --
 in fact one of the left split rules must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
-
-For a small grammar, it is not hard to write the above rules by hand.
-For large grammars, there is nothing to prevent the rewrite from
-being automated.
 
 ## Nulling symbols
 
