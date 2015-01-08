@@ -27,8 +27,8 @@ Our purpose differs from theirs, in that
 * we want our parse to contain only those suffixes which
     match a known prefix; and
 
-* we want to be able to create trees from both suffix
-    and prefix, and to combine these trees.
+* we want to be able to create parse forests from both suffix
+    and prefix, and to combine these parse forests.
 
 Every context-free grammar has a context-free "suffix grammar" --
 a grammar, whose language is the set of suffixes of the first language.
@@ -134,12 +134,12 @@ Let one of `g1`'s pre-transcription rules be
 The six pairs of 
 "nucleotide rules" that we will need are
 ```
-    1: X-L ::= c1L            X-R ::= c1R A B C
-    2: X-L ::= A-L c2L        X-R ::= c2R A-R B C
-    3: X-L ::= A c3L          X-R ::= c3R B C
-    4: X-L ::= A B-L c4L      X-R ::= c4R B-R C
-    5: X-L ::= A B c5L        X-R ::= c5R C
-    6: X-L ::= A B C-L c6L    X-R ::= c6R C-R
+    1: X-L ::= b1L            X-R ::= b1R A B C
+    2: X-L ::= A-L b2L        X-R ::= b2R A-R B C
+    3: X-L ::= A b3L          X-R ::= b3R B C
+    4: X-L ::= A B-L b4L      X-R ::= b4R B-R C
+    5: X-L ::= A B b5L        X-R ::= b5R C
+    6: X-L ::= A B C-L b6L    X-R ::= b6R C-R
 ```
 The pairs are numbered 1 to 6, the same number which
 is used in the example to uniquely identify the nuclebase
@@ -209,12 +209,12 @@ make the following adjustments.
 * This implies that the only split pair for
    a nulling rule is the prediction split pair.
 
-## Deriving the left subtree
+## Deriving the left strand
 
 Call the point at which we choose to split the parse,
 the "split point".
 At the split point,
-we must derive a left subtree.
+we must derive a left strand.
 
 The following discussion assumes that we know
 
@@ -244,13 +244,14 @@ We do not continue with the following steps.
 
 If there is completed start rule,
 the parse was a success,
-and we will be able to derive a full tree,
+and we will be able to derive a full parse forest,
 If there is a completion,
 other than of the start rule,
-we will be able to derive a subtree,
-but it will not be a *left* subtree -- it will be the final subtree
+we will be able to derive a parse forest,
+but it will not be a left-active strand -- it will be
+the final parse forest
 and there will be no way of
-joining it up with a subtree to its right.
+joining it up with a parse forest to its right.
 
 ### Medial dotted rules at the split point
 
@@ -262,7 +263,7 @@ For each of these dotted rules:
    Call its parent dotted rule, `parent-dr`.
 
 * Add the corresponding left inter-split rule
-   as a node of the left subtree.
+   as a node of the left strand.
    Call this new node, `new-node`,
 
 Next, for every `new-node` in the list
@@ -275,27 +276,27 @@ of nodes just created:
     let that effect be `effect-dr`.
 
 * If `effect-dr` does not already have
-    a left subtree node, create one.
+    a node in the left strand, create one.
     Call this node, `effect-node`.
 
 * Make `effect-node` a parent of `new-node`
-    in the left subtree.
+    in the left strand.
 
 ### Theory: Proofs about pre-split symbols
 
 *To prove*: At the split point, all children of medial rules in
-the left subtree are pre-split symbols.
+the left strand are pre-split symbols.
 
 *Proof*:
 Split-active symbols occur only as part of split rules.
 All medial rules are taken from the Earley sets, which
 only contain rules from the pre-split grammar.
 
-(Left split rules are added to the left subtree,
+(Left split rules are added to the left strand,
 but they are always completions at the split point.
 Right split rules are used in the suffix grammar,
 but they are always joined to a left split rule
-and eliminated when creating a left subtree.)
+and eliminated when creating a left strand.)
 
 Since all medial rules are from the pre-split grammar,
 all of its children are symbols in the pre-split grammar.
@@ -321,13 +322,13 @@ We use a "prediction work list", of duples of the form:
 To initialize it, for each medial rule from the above step,
 we add `[postdot, medial-node]` to the prediction work list,
 where `postdot` is the medial rule's postdot symbol,
-and `medial-node` is the left subtree node created from it.
+and `medial-node` is the left strand node created from it.
 
 Then, for every `[symbol, parent]` in the prediction work list:
 
 * For every `rule` with `symbol` on its LHS:
 
-    + We find the subtree node for the left predicted split rule,
+    + We find the strand node for the left predicted split rule,
       createing it if it does not already exist.
       Call this node `new-node`.
 
@@ -340,29 +341,13 @@ Then, for every `[symbol, parent]` in the prediction work list:
 
 [ *Corrected to here* ]
 
-[ *From here on out this discussion has problems.*
-The basis idea is correct, I believe, but a lot of the details
-that follow
-are missing or wrong. ]
-
-Our connector grammar, `g-conn`, consists of
-
-* All the rules from `g1`, except for the start rule.
-
-* All the connector suffix rules.
-
-* All the connector start rules.
-   
-The start symbol for `g-conn` is the connector start symbol,
-`Start-C`.
-
-## Connector lexemes
+## Nucleobases
 
 As the name suggests,
-the connector lexemes will play a big role in connecting
-our parses.
+the nucleobase symbols will play a big role in connecting
+our strands.
 For this purpose, we will want to define a notion:
-the *connector lexeme of a dotted rule*.
+the *nucleobase of a dotted rule*.
 Dotted rules, as a reminder, are rules with a
 "current location" marked with a dot.
 For example,
@@ -370,74 +355,13 @@ For example,
     X ::= A . B C
 ```
 Call the symbols after the dot, the "suffix" of a dotted rule.
-The connector lexeme of a dotted rule is the connector lexeme used
-in the connector rule which is derived with the 
+The nucleobase of a dotted rule is the nucleobase
+in the nucleotide rule which is derived with the 
 same original rule, and which has the same suffix.
-For example, the connector lexeme for the dotted rule above
-is `Lex-C2`.
-The reader may be able to see how these could be used to connect
-dotted rules from one parse with connector rules in another.
-
-## The method
-
-Now that we have a connector grammar, we can describe how the method
-works.
-
-* First, parse with the original grammar, `g1`, until we decide we've
-    used enough space.
-
-* At the last location, look at all the dotted rules.
-    Ignore the completions -- those rules with the dot after the last
-    symbol of the RHS.
-    For the other, get the list of connector lexemes.
-
-* Create a subtree from the parse so far.
-    Call this the "prefix subtree".
-    Use the connector lexemes to mark those places where more symbols are
-    expected.
-    We call the locations of the connector lexemes,
-    the "right edge" of the prefix tree.
-
-* Throw away the current Marpa parse, releasing its space.
-
-* Start a new Marpa parse, using the connector grammar, `g-conn`.
-    At its first location, read all the connector lexemes from the
-    previous grammar.  Marpa allows ambiguous lexemes, so this can be done.
-
-* Resume parsing, with the new "connector" parser and the real input.
-
-* When enough memory has been used, stop.
-    Produce a new subtree from the connector parse.
-    Call this the "connector subtree".
-    The connector lexemes in the connector subtree
-    mark its "left edge".
-    Connect these with the "right edge"
-    of the prefix subtree 
-    to join the two subtrees together.
-
-* Throw away the connector parse, releasing its space.
-
-* If the entire input has been read,
-    this newly joined subtree is the full tree for the parse.
-    We are done.
-
-* If there is more input to be read,
-    use the newly joined subtree
-    as the prefix subtree for the next phase.
-    Mark its "right edge".
-
-* Repeatedly do connector parses, and connect the subtrees
-    at their edges,
-    until we reach the end of the input.
+For example, the nucleobase of the dotted rule above
+are `b3L` and `b3R`.
 
 ## Some details
-
-It would be quite possible, for example, to modify Marpa
-so that it monitors memory and, if usage passes a limit,
-switches to a connector grammar,
-creating it on the fly.
-If the subtrees are standard AST's it will be clear
-how to connect them.
 
 It's possible the same connector lexeme can appear more than once
 on the right edge of the prefix subtree,
