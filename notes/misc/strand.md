@@ -15,7 +15,7 @@ from biochemistry.
 In what follows, some sections will,
 like this one,
 be marked "Theory".
-It is safe for to skip them.
+It is safe to skip them.
 They record technical details which are important
 in ensuring the correctness of the algorithm.
 
@@ -54,18 +54,18 @@ In our strand grammars, we will usually need many more
 nucleobases.
 
 In DNA, each nucleobase molecule is attached to a sugar to
-form a nucleoside,
-Biochemists occasionally case this sugar a nucleosugar.
+form a nucleoside.
+Biochemists occasionally call this sugar a nucleosugar.
 In DNA,
 each nucleoside
 is attached to 
-one or more phosphate group
+one or more phosphate groups
 to form
 a nucleotide.
 (Some biochemical texts insist there can be only one
 phosphate group in a nucleotide.
-For our purposes, this does not matter and we gladly
-leave this dispute to the chemists to resolve.)
+For our purposes, the difference is not relevant.
+We will let the chemists argue this out among themselves.)
 
 For our purposes,
 a *nucleobase* is a lexeme
@@ -73,23 +73,33 @@ at which two "strands" touch directly.
 There are left and right nucleobases,
 which occur on the left edge and right
 edge of strands, respectively.
+
 In a RHS containing a nucleobase,
-"inside" means in the direction away from
+a symbol is "inside" another if it is in the direction heading away from
 the edge.
+If the nucleobase on the RHS of a rule is a left nucleobase,
+one symbol is inside another one if it to its left.
+If the nucleobase on the RHS of a rule is a right nucleobase,
+one symbol is inside another one if it to its right.
+
+If symbol `<A>` is inside symbol `<B>`,
+then symbol `<B>` is outside of symbol `<A>`.
+If a RHS does not contain a nucleobase,
+"inside" and "outside" are not defined.
+No RHS contains more than one nucleobase.
 
 A *nucleosugar* is a non-terminal used in
 winding and unwinding strands.
-Nucleosugars always occur in a RHS alongside,
+Nucleosugars always occur in a RHS next to,
 and inside of, a nucleobase.
 
 A *nucleoside*, for our purposes, is a nucleobase
 with its adjacent nucleosugar, if there is one.
 Note that while DNA nucleosides *always* contain
-nucleosugars, for our purposes,
+nucleosugars, in our terminology,
 nucleosugars are optional.
 
-In our terminology,
-nucleotides are rules which contain
+Finally, a *nucleotide* is a rules that contains
 nucleobases.
 
 As a mnemonic, note that "base",
