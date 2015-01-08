@@ -227,7 +227,45 @@ in fact one of the left split rules must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
 
-## Deriving the left strand
+## Dotted rules
+
+Dotted rules are of three kinds:
+
+* predictions, in which the dot is before the first RHS symbol;
+
+* completions, in which the dot is after the last RHS symbol; and
+
+* medials, which are those dotted rules which are neither
+    predictions or completions.
+
+## Active strands
+
+An active strand is one capable of being wound together with
+another active strand.
+An active strand must be left-active or right-active.
+A strand can be *both* left- and right-active.
+An inactive strand is the same as an ordinary
+parse forest.
+
+A strand is right-active if it has nucleobases at its right edge.
+A strand is left-active if it has nucleobases at its left edge.
+If a strand if right-active, we it a left strand.
+If a strand if left-active, we it a right strand.
+This last may seem confused, but the idea is that a left strand is
+wound together with a right one and
+for that to occur,
+the left strand must have an active edge on its right and
+the right strand must have an active edge on its left.
+
+## Creating a left-active strand
+
+To create a left-active strand, we start with
+
+* an Earley parse; and
+
+* a location in that parse, called the "split point"; and
+
+* a set of medial dotted rules at the split point.
 
 Call the point at which we choose to split the parse,
 the "split point".
@@ -245,16 +283,6 @@ Unfortunately, as of this writing, only the dotted rules
 are available at the SLIF level -- not their links.
 
 ### Is the parse exhausted?
-
-First, we look for medial dotted rules at the split point.
-Dotted rules are of three kinds:
-
-* predictions, in which the dot is before the first RHS symbol;
-
-* completions, in which the dot is after the last RHS symbol; and
-
-* medials, which are those dotted rules which are neither
-    predictions or completions.
 
 There may be no medial dotted rules.
 In this case the parse is exhausted -- it can go no further.
