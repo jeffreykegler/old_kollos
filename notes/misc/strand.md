@@ -1,61 +1,14 @@
-# Marpa in constant space
+# Strand parsing
 
-This document describes how Marpa can parse a grammar
-in constant space,
-assuming that Marpa parses that grammar in linear time.
-(The grammars Marpa parses in linear time include those in
-all grammar classes currently in practical use.)
-
-## What's the point?  Evaluation is linear or worse.
-
-In practice, we never just parse a grammar -- we do so as a step
-toward evaluting it, usually into something like a tree.
-A tree takes linear space -- O(n) -- or worse -- O(n log n) --
-depending on how we count.
-Reducing the time from linear to constant in just the parser
-does not affect the overall time complexity of the algorithm.
-So what's the point?
-
-In fact, in many cases, there may be little or no point.
-Compilers incur major space requirements for optimization
-and other purposes, and in their context optimizing the parser
-for space may be pointless.
-
-But there are applications that
-convert huge files into reasonably
-compact formats, and they do that without using
-a lot of space in their intermediate processing.
-Applications that write
-JSON and XML databases can be of this kind.
-Pure JSON, in fact, is a small, lexing-driven language which really does
-not require a parser as powerful as Marpa.
-But bringing Marpa's performance as close as possible to that of custom-written
-JSON parsers is a useful challenge.
-
-In what follows,
-we'll assume that a tree is being built, but we won't count its overhead.
-That makes sense, because tree building will be the same for all parsers.
-
-## The idea
-
-The strategy will be to parse the input until we've used a fixed
-amount of memory, then create a tree-slice from it.
-Once we have the tree-slice, we can throw away the Marpa parse,
-with all its memory, and start fresh on a 2nd tree-slice.
-
-Next, we run the Marpa parser to produce a 2nd tree-slice.
-When we have the 2nd tree-slice,
-we connect it and the first tree-slice.
-We can now throw away the 2nd Marpa parse.
-We repeat this process until we've read the entire input
-and assembled the whole tree.
-
-If we track memory while creating slices,
-we can quarantee that it never gets beyond some fixed size.
-In practice, this size will be quite reasonable
-and can be configurable.
-It's optimum value will be a tradeoff between speed
-and memory consumption.
+This document describes how Marpa's planned
+"strand parsing" facility.
+It allows parsing to do done in pieces,
+which can be "wound" together.
+The technique bears a slight resemblance to
+that for DNA unwinding, rewinding
+and transcription,
+and a lot of the terminology is borrowed
+from biochemistry.
 
 ## Theory: suffix grammars
 
