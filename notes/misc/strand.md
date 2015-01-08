@@ -102,65 +102,63 @@ nucleosugars are optional.
 Finally, a *nucleotide* is a rules that contains
 nucleobases.
 
-As a mnemonic, note that "base",
-"side" and "tide" are in alphabetical order.
+As a mnemonic, note that
+inside to outside order is also
+alphabetical order:
+"base", "side" and "tide".
 
-## Creating the transcription grammar
+## Creating the strand grammar
 
-In order to accomplish our purposes, we define
-a "strand grammar".
 Let our original grammar be `g1`.
-We will call `g1` the pre-strand grammar.
+We also call `g1` the pre-strand grammar.
+We will need to extend `g1` to a
+"strand grammar".
 
 We need to define, for every rule in `g1`, two 'nucleotide rules',
-a `left nucleotide` and a `right nucleotide`.
-Initially,
-we will ignore some of the issues raised
-by nulling symbols and empty rules.
-At the end, we will return to these issues.
+a 'left nucleotide' and a 'right nucleotide'.
 
-First, we'll need some new symbols.
-For every non-terminal, we will want a left
-and a right version.
-We will call the right and left variants
-that we create for the transcription grammar,
-"nucleoside symbols",
-or just nucleosides.
-For example, for the symbol `A`,
-we want two nucleoside symbols, `A-L` and `A-R`.
+First, we define our set of "nucleobase symbols".
+The purpose of nucleobase symbols is similar to the purpose
+of nucleobases in DNA -- they occur where two strand "touch"
+and they occur in pairs.
+The matching of nucleobase pairs indicates where two strands
+should "touch" in order to preserve their information.
 
-We will also defined a new set of "nucleobase symbols",
-whose purpose will be to tell us where two parses
-should "touch".
-Nucleobase symbols,
-like nucleoside symbols,
-will be defined in right-left pairs.
 Nuclebase symbols
 have the form `b42R`,
 and `b42L`;
-where the initial `b` means "base";
+where the initial `b` means "base".
 `R` and `L` indicate, respectively,
-the right and left member of the base pair;
-and `42` represents some arbitrary number,
+the right and left member of the base pair.
+`42` is an arbitrary number,
 chosen to make sure that every base pair is unique.
-(DNA manages with 4 base pairs, but the typical grammar
-will need many more.)
+A nucleobase symbol can occur only once.
+They must occur on the outside of a RHS.
+(Pedantically, their location defines "inside" and "outside".)
+
 Every pair of nucleotide rules must have a unique pair of nucleobase
 symbols.
 
-We will call the original grammar,
-before it has transcription rules and symbols added to it,
-the "pre-transcription grammar".
-Similarly,
-its rules are pre-transcription rules
-and its symbols are pre-transcription symbols.
+Nucleosugar symbols exist to allow non-terminals to be split in half.
+Like nucleobase symbols, nucleosugars come in right and left versions.
+For example, for the symbol `A`,
+the nucleosugars will be `A-L` and `A-R`.
 
-Let one of `g1`'s pre-transcription rules be
+We will call the original grammar,
+before it has strand rules and symbols added to it,
+the "pre-strand grammar".
+The rules of a pre-strand grammar are pre-strand rules
+and the symbols of a pre-strand grammar are pre-strand symbols.
+
+To split rules in half, we use nucleotide rules.
+Let one of `g1`'s pre-strand rules be
 ```
      X ::= A B C
 ```
+Call this rule `rule-X`.
+
 The six pairs of 
-"nucleotide rules" that we will need are
+"nucleotide rules" that we will need for `rule-X` are
 ```
     1: X-L ::= b1L            X-R ::= b1R A B C
     2: X-L ::= A-L b2L        X-R ::= b2R A-R B C
@@ -170,27 +168,34 @@ The six pairs of
     6: X-L ::= A B C-L b6L    X-R ::= b6R C-R
 ```
 The pairs are numbered 1 to 6, the same number which
-is used in the example to uniquely identify the nuclebase
+is used in the example to uniquely identify the nucleobase
 symbols.
+`rule-X` is called the "base rule" of these nucleotides.
 
-Pairs 1, 3 and 5 represent splits
-at a point between two symbols --
-these nucleotides will be called "inter-nucleotides".
-Pairs 2, 4 and 6 represent splits
-within a single symbol --
-these nucleotides will be called "intra-nucleotides".
-Every nucleotide pair corresponds to a dotted rule.
-A "dotted rule" is the `g1` rule
-with one of its positions marked with a dot.
-Nucleotide pairs 1 and 2 correspond to the dotted rule
+Pairs 1, 3 and 5 are
+"inter-nucleotides" --
+nucleotides that split their base rule
+at a point between two symbols.
+Pairs 2, 4 and 6 are
+"intra-nucleotides" --
+nucleotides that split their base rule
+at a point within a single symbol.
+
+Every nucleotide has a "base dotted rule".
+(As a reminder,
+a "dotted rule"
+is a BNF rule with one of its positions marked with a dot.)
+
+The rule of a nucleotide's "base dotted rule" is the nucleotide's base rule.
+The base dotted rule for nucleotide pairs 1 and 2 is
 ```
     X ::= . A B C
 ```
-Nucleotide pairs 3 and 4 correspond to the dotted rule
+The base dotted rule for nucleotide pairs 3 and 4 is
 ```
     X ::= A . B C
 ```
-Nucleotide pairs 5 and 6 correspond to the dotted rule
+The base dotted rule for nucleotide pairs 5 and 6 is
 ```
     X ::= A B . C
 ```
@@ -202,40 +207,25 @@ In this example, it is
 ```
     X ::= A B C .
 ```
-No nucleotides correspond to completions.
+A completion is never the base dotted rule
+of a nucleotide.
 
-The inter-nucleotide pair for the dotted rule with the dot
-before the first non-nulled RHS symbol is called the "prediction split pair".
-In this example, the prediction nucleotide pair is pair 1.
+We can ignore completions,
+but we do need to deal with predictions,
+The inter-nucleotide pair whose base dotted rule has its dot
+before the first non-nulled RHS symbol is called the "prediction nucleotide pair".
+In this example, the prediction nucleotides are pair 1.
 
-Every pre-transcription rule will need `n` pairs of nucleotide rules,
+Each pre-strand rule potentially needs `2*n` pairs of nucleotide rules,
 where `n` is the number of symbols on the RHS of the
 `g1` rule.
 Empty rules can be ignored.
-
-We need a pair of nucleotide rules to represent a "split" before the first
-symbol of a `g1` rule, but we do not need a pair to represent a
-split after the last symbol.
-In other words, we need to deal with predictions,
-but we can ignore completions.
 We can also ignore any splits that occur before nulling symbols.
 
 The above rules imply that left split rules can be nulling --
 in fact one of the left split rules must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
-
-## Nulling symbols
-
-Above, we assumed that no symbols are nulling.
-Where a rule has nulling symbols on its RHS, we
-make the following adjustments.
-
-* There are no split pairs for dotted rules
-    with the dot before a nulling symbol.
-
-* This implies that the only split pair for
-   a nulling rule is the prediction split pair.
 
 ## Deriving the left strand
 
