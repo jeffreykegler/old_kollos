@@ -41,42 +41,56 @@ Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
 
 ## Nucleobases, nucleosides and nucleotides
 
-The mechanism used for spliting and rejoining grammars
-to a certain degree resembles that for replication of DNA --
-enough so that some borrowed terminology might help appeal
-to the intuition.
+In order to make the following algorithm appeal to the intuition more,
+we use an analogy to DNA transcription and winding.
+For this purpose, we borrow some of the specialist terminology
+of biochemistry.
 
 A DNA molecule consists of two "strands", which are joined
 by "nucleobase pairs".
-DNA uses
-the matching of these nucleobase pairs for transcription
-and replication.
-The biochemical details are not important for our purposes,
-and our analogy will be a loose one in any case.
-But the following may serve as background:
-In DNA, a nucleobase is one of the familiar
+In DNA, there are four nucleobases: the familiar
 cytosine (C), guanine (G), adenine (A) and thymine (T).
+In our strand grammars, we will usually need many more
+nucleobases.
+
 In DNA, each nucleobase molecule is attached to a sugar to
 form a nucleoside,
-Each nucleoside, in turn, attached to phosphate group
-(or, depending on the text, one or more phosphate groups)
+Biochemists occasionally case this sugar a nucleosugar.
+In DNA,
+each nucleoside
+is attached to 
+one or more phosphate group
 to form
 a nucleotide.
+(Some biochemical texts insist there can be only one
+phosphate group in a nucleotide.
+For our purposes, this does not matter and we gladly
+leave this dispute to the chemists to resolve.)
 
-For our purpose, we'll follow the analogy very loosely,
-and actually distort the meaning of "nucleoside" somewhat.
-What we'll take out of this is
+For our purposes,
+a *nucleobase* is a lexeme
+at which two "strands" touch directly.
+There are left and right nucleobases,
+which occur on the left edge and right
+edge of strands, respectively.
+In a RHS containing a nucleobase,
+"inside" means in the direction away from
+the edge.
 
-* that the *nucleobases* are
-   where the two "strands" directly touch;
+A *nucleosugar* is a non-terminal used in
+winding and unwinding strands.
+Nucleosugars always occur in a RHS alongside,
+and inside of, a nucleobase.
 
-* as we follow
-   the sequence nucleobase, nucleoside and nucleotide,
-   we encounter "stuff" which is further away from where
-   the two "strands" touch;
+A *nucleoside*, for our purposes, is a nucleobase
+with its adjacent nucleosugar, if there is one.
+Note that while DNA nucleosides *always* contain
+nucleosugars, for our purposes,
+nucleosugars are optional.
 
-* nucleotides are a larger group, which include nucleosides
-    and nucleobases.
+In our terminology,
+nucleotides are rules which contain
+nucleobases.
 
 As a mnemonic, note that "base",
 "side" and "tide" are in alphabetical order.
@@ -84,12 +98,16 @@ As a mnemonic, note that "base",
 ## Creating the transcription grammar
 
 In order to accomplish our purposes, we define
-a "transcription grammar".
+a "strand grammar".
 Let our original grammar be `g1`.
-Ignore, for the moment, the two issues of nullable symbols,
-and of empty rules.
+We will call `g1` the pre-strand grammar.
+
 We need to define, for every rule in `g1`, two 'nucleotide rules',
 a `left nucleotide` and a `right nucleotide`.
+Initially,
+we will ignore some of the issues raised
+by nulling symbols and empty rules.
+At the end, we will return to these issues.
 
 First, we'll need some new symbols.
 For every non-terminal, we will want a left
