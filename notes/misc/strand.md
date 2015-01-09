@@ -243,20 +243,83 @@ Dotted rules are of three kinds:
 An active strand is one capable of being wound together with
 another active strand.
 An active strand must be left-active or right-active.
-A strand can be *both* left- and right-active.
+A strand can be *both* left- and right-active,
+in which case we call it double-active.
+An active strand which is not double-active
+is called single-active.
 An inactive strand is the same as an ordinary
 parse forest.
 
 A strand is right-active if it has nucleobases at its right edge.
 A strand is left-active if it has nucleobases at its left edge.
-If a strand if right-active, we it a left strand.
-If a strand if left-active, we it a right strand.
+
+If a strand is right-active, we call it a left strand.
+If a strand is left-active, we call it a right strand.
 This last may seem confused, but the idea is that a left strand is
 wound together with a right one and
 for that to occur,
 the left strand must have an active edge on its right and
 the right strand must have an active edge on its left.
 
+## Broken nucleotides
+
+Sometimes we want to represent a partial parse
+as a parse forest,
+at a point where the parse is exhausted,
+and where there is no convenient "top rule".
+This will be the case in many parse failures.
+
+To do this, we can use "broken nucleotides".
+A broken nucletide is a nucleotide without the
+nucleobase.
+In this form, the nucleotide represents a partial
+rule but, unlike in the full nucleotide,
+the broken rule cannot be combined with another
+nucleotide.
+
+## Archtypal strand parsing
+
+Before getting into details of the algorithms for forming
+and winding strands,
+it may be helpful to indicate how they are intended to
+be used.
+There are many ways in which strand parsing can be used,
+but 
+The archetypal case is that where we
+are parsing from left-to-right,
+breaking the parse up at arbitrary "split points",
+and winding pairs of strands together as
+we proceed.
+
+In more detail:
+
+* We start by parsing the input until
+    we have an initial single-active left strand.
+
+* We then loop for as long as we can create double-active strands
+    by parsing the remaining input.
+
+    * At the top of the loop,
+        we have a single-active left strand and a double-active strand.
+
+    * We wind our two strands together,
+         leaving a single-active left strand.
+
+* On leaving the loop, we have two single-active strands, one
+    left, one right.
+    We wind these two together to produce an inactive strand.
+    Call this the "final strand".
+
+* If there is completed start rule covering the entire
+    input in the final strand,
+    the parse was a success,
+    The final strand is our completed parse forest.
+    Otherwise, the parse is a failure.
+
+* If the parse is a failure, we can produce a parse
+    forest to help detect the error.
+    To represent the rules in progress at the point of
+    failure, we can use broken left nucleotides.
 ## Creating a left-active strand
 
 To create a left-active strand, we start with
@@ -267,37 +330,28 @@ To create a left-active strand, we start with
 
 * a set of medial dotted rules at the split point.
 
-Call the point at which we choose to split the parse,
-the "split point".
-At the split point,
-we must derive a left strand.
-
-The following discussion assumes that we know
+From the Earley parse, we know
 
 * the dotted rules that apply at the current location; and
 
 * how they link to child rules and symbols.
 
 At the Libmarpa level both these things are known.
-Unfortunately, as of this writing, only the dotted rules
-are available at the SLIF level -- not their links.
+As of this writing, only the dotted rules
+are supported at the SLIF level -- the calls that make
+their links available are currently not documented.
 
-### Is the parse exhausted?
 
-There may be no medial dotted rules.
-In this case the parse is exhausted -- it can go no further.
-We do not continue with the following steps.
+[ Most recent draft done up to here. ]
 
-If there is completed start rule,
-the parse was a success,
-and we will be able to derive a full parse forest,
-If there is a completion,
-other than of the start rule,
-we will be able to derive a parse forest,
 but it will not be a left-active strand -- it will be
 the final parse forest
 and there will be no way of
 joining it up with a parse forest to its right.
+
+There may be no medial dotted rules.
+In this case the parse is exhausted -- it can go no further.
+We do not continue with the following steps.
 
 ### Medial dotted rules at the split point
 
