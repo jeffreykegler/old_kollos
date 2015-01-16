@@ -1,4 +1,4 @@
-# Copyright 2014 Jeffrey Kegler
+# Copyright 2015 Jeffrey Kegler
 # This file is part of Libmarpa.  Libmarpa is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -20,7 +20,7 @@ PROJECT(libmarpa C)
 # ------------------
 # Module search path
 # ------------------
-SET (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/modules")
+SET (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules")
 ENABLE_TESTING()
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -30,7 +30,7 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 # Version bumping utility relies on the exact
 # format of those next 3 lines
 SET(MARPA_LIB_MAJOR_VERSION 7)
-SET(MARPA_LIB_MINOR_VERSION 4)
+SET(MARPA_LIB_MINOR_VERSION 6)
 SET(MARPA_LIB_PATCH_VERSION 0)
 
 SET(MARPA_LIB_VERSION
@@ -77,9 +77,6 @@ SET(libmarpa_src
 # subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
-
-set(${PROJECT_NAME}_ERROR_CODES ${PROJECT_SOURCE_DIR}/error_codes.table
-    CACHE INTERNAL "${PROJECT_NAME}: Error codes table" FORCE)
 
 include_directories(
     "${PROJECT_BINARY_DIR}" \  # for config.h

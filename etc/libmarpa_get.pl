@@ -71,8 +71,11 @@ if (not IPC::Cmd::run(
 # my $deleted_count = File::Path::remove_tree('../read_only');
 # say "$deleted_count files deleted in ../read_only";
 
+# CHIDR into staging dir
+chdir 'cm_dist' || die "Could not chdir";
+
 if (not IPC::Cmd::run(
-        command => [ 'cp', '-R', "cm_dist", '../components/libmarpa' ],
+        command => [ 'cp', '-R', '.', '../../components/libmarpa' ],
         verbose => 1
     )
     )
