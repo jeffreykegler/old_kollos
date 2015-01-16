@@ -18,13 +18,13 @@
 # This script assumes it is run as part of the Kollos
 # build environment.
 
-if [ $# != 1 ] 
+if [ $# != 2 ] 
 then
-	echo "usage: $0 target-directory" 1>&2
+	echo "usage: $0 from-directory target-directory" 1>&2
 	exit 1
 fi
-todir="$1"
-fromdir=cm_dist
+fromdir="$1"
+todir="$2"
 needtobe="you need to be in a Kollos build environment top-level directory to run this command"
 if [ ! -e "$fromdir" ]
 then

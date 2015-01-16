@@ -26,8 +26,8 @@ my $stage = 'libmarpa_stage';
 
 for my $dir_to_clean ($stage, 'libmarpa_build')
 {
-  my $deleted_count = File::Path::remove_tree('../read_only');
-  say "$deleted_count files deleted in ../read_only";
+  my $deleted_count = File::Path::remove_tree($dir_to_clean);
+  say "$deleted_count files deleted in $dir_to_clean";
 }
 
 if (not IPC::Cmd::run(
@@ -68,11 +68,11 @@ if (not IPC::Cmd::run(
     die qq{Could not make dist};
 } ## end if ( not IPC::Cmd::run( command => [ qw(git checkout)...]))
 
-my $deleted_count = File::Path::remove_tree('../read_only');
-say "$deleted_count files deleted in ../read_only";
+# my $deleted_count = File::Path::remove_tree('../read_only');
+# say "$deleted_count files deleted in ../read_only";
 
 if (not IPC::Cmd::run(
-        command => [ qw(sh etc/cp_libmarpa.sh "$stage/cm_dist" components/libmarpa) ],
+        command => [ 'cp', '-R', "cm_dist", '../components/libmarpa' ],
         verbose => 1
     )
     )
