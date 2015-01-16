@@ -15,7 +15,7 @@ from biochemistry.
 In what follows, some sections will,
 like this one,
 be marked "Theory".
-It is safe for to skip them.
+It is safe to skip them.
 They record technical details which are important
 in ensuring the correctness of the algorithm.
 
@@ -54,18 +54,18 @@ In our strand grammars, we will usually need many more
 nucleobases.
 
 In DNA, each nucleobase molecule is attached to a sugar to
-form a nucleoside,
-Biochemists occasionally case this sugar a nucleosugar.
+form a nucleoside.
+Biochemists occasionally call this sugar a nucleosugar.
 In DNA,
 each nucleoside
 is attached to 
-one or more phosphate group
+one or more phosphate groups
 to form
 a nucleotide.
 (Some biochemical texts insist there can be only one
 phosphate group in a nucleotide.
-For our purposes, this does not matter and we gladly
-leave this dispute to the chemists to resolve.)
+For our purposes, the difference is not relevant.
+We will let the chemists argue this out among themselves.)
 
 For our purposes,
 a *nucleobase* is a lexeme
@@ -73,84 +73,92 @@ at which two "strands" touch directly.
 There are left and right nucleobases,
 which occur on the left edge and right
 edge of strands, respectively.
+
 In a RHS containing a nucleobase,
-"inside" means in the direction away from
+a symbol is "inside" another if it is in the direction heading away from
 the edge.
+If the nucleobase on the RHS of a rule is a left nucleobase,
+one symbol is inside another one if it to its left.
+If the nucleobase on the RHS of a rule is a right nucleobase,
+one symbol is inside another one if it to its right.
+
+If symbol `<A>` is inside symbol `<B>`,
+then symbol `<B>` is outside of symbol `<A>`.
+If a RHS does not contain a nucleobase,
+"inside" and "outside" are not defined.
+No RHS contains more than one nucleobase.
 
 A *nucleosugar* is a non-terminal used in
 winding and unwinding strands.
-Nucleosugars always occur in a RHS alongside,
+Nucleosugars always occur in a RHS next to,
 and inside of, a nucleobase.
 
 A *nucleoside*, for our purposes, is a nucleobase
 with its adjacent nucleosugar, if there is one.
 Note that while DNA nucleosides *always* contain
-nucleosugars, for our purposes,
+nucleosugars, in our terminology,
 nucleosugars are optional.
 
-In our terminology,
-nucleotides are rules which contain
+Finally, a *nucleotide* is a rules that contains
 nucleobases.
 
-As a mnemonic, note that "base",
-"side" and "tide" are in alphabetical order.
+As a mnemonic, note that
+inside to outside order is also
+alphabetical order:
+"base", "side" and "tide".
 
-## Creating the transcription grammar
+## Creating the strand grammar
 
-In order to accomplish our purposes, we define
-a "strand grammar".
 Let our original grammar be `g1`.
-We will call `g1` the pre-strand grammar.
+We also call `g1` the pre-strand grammar.
+We will need to extend `g1` to a
+"strand grammar".
 
 We need to define, for every rule in `g1`, two 'nucleotide rules',
-a `left nucleotide` and a `right nucleotide`.
-Initially,
-we will ignore some of the issues raised
-by nulling symbols and empty rules.
-At the end, we will return to these issues.
+a 'left nucleotide' and a 'right nucleotide'.
 
-First, we'll need some new symbols.
-For every non-terminal, we will want a left
-and a right version.
-We will call the right and left variants
-that we create for the transcription grammar,
-"nucleoside symbols",
-or just nucleosides.
-For example, for the symbol `A`,
-we want two nucleoside symbols, `A-L` and `A-R`.
+First, we define our set of "nucleobase symbols".
+The purpose of nucleobase symbols is similar to the purpose
+of nucleobases in DNA -- they occur where two strand "touch"
+and they occur in pairs.
+The matching of nucleobase pairs indicates where two strands
+should "touch" in order to preserve their information.
 
-We will also defined a new set of "nucleobase symbols",
-whose purpose will be to tell us where two parses
-should "touch".
-Nucleobase symbols,
-like nucleoside symbols,
-will be defined in right-left pairs.
 Nuclebase symbols
 have the form `b42R`,
 and `b42L`;
-where the initial `b` means "base";
+where the initial `b` means "base".
 `R` and `L` indicate, respectively,
-the right and left member of the base pair;
-and `42` represents some arbitrary number,
+the right and left member of the base pair.
+`42` is an arbitrary number,
 chosen to make sure that every base pair is unique.
-(DNA manages with 4 base pairs, but the typical grammar
-will need many more.)
+A nucleobase symbol can occur only once.
+They must occur on the outside of a RHS.
+(Pedantically, their location defines "inside" and "outside".)
+
 Every pair of nucleotide rules must have a unique pair of nucleobase
 symbols.
 
-We will call the original grammar,
-before it has transcription rules and symbols added to it,
-the "pre-transcription grammar".
-Similarly,
-its rules are pre-transcription rules
-and its symbols are pre-transcription symbols.
+Nucleosugar symbols exist to allow non-terminals to be split in half.
+Like nucleobase symbols, nucleosugars come in right and left versions.
+For example, for the symbol `A`,
+the nucleosugars will be `A-L` and `A-R`.
 
-Let one of `g1`'s pre-transcription rules be
+We will call the original grammar,
+before it has strand rules and symbols added to it,
+the "pre-strand grammar".
+The rules of a pre-strand grammar are pre-strand rules
+and the symbols of a pre-strand grammar are pre-strand symbols.
+
+To split rules in half, we use nucleotide rules.
+Let one of `g1`'s pre-strand rules be
 ```
      X ::= A B C
 ```
+Call this rule `rule-X`.
+
 The six pairs of 
-"nucleotide rules" that we will need are
+"nucleotide rules" that we will need for `rule-X` are
 ```
     1: X-L ::= b1L            X-R ::= b1R A B C
     2: X-L ::= A-L b2L        X-R ::= b2R A-R B C
@@ -160,27 +168,34 @@ The six pairs of
     6: X-L ::= A B C-L b6L    X-R ::= b6R C-R
 ```
 The pairs are numbered 1 to 6, the same number which
-is used in the example to uniquely identify the nuclebase
+is used in the example to uniquely identify the nucleobase
 symbols.
+`rule-X` is called the "base rule" of these nucleotides.
 
-Pairs 1, 3 and 5 represent splits
-at a point between two symbols --
-these nucleotides will be called "inter-nucleotides".
-Pairs 2, 4 and 6 represent splits
-within a single symbol --
-these nucleotides will be called "intra-nucleotides".
-Every nucleotide pair corresponds to a dotted rule.
-A "dotted rule" is the `g1` rule
-with one of its positions marked with a dot.
-Nucleotide pairs 1 and 2 correspond to the dotted rule
+Pairs 1, 3 and 5 are
+"inter-nucleotides" --
+nucleotides that split their base rule
+at a point between two symbols.
+Pairs 2, 4 and 6 are
+"intra-nucleotides" --
+nucleotides that split their base rule
+at a point within a single symbol.
+
+Every nucleotide has a "base dotted rule".
+(As a reminder,
+a "dotted rule"
+is a BNF rule with one of its positions marked with a dot.)
+
+The rule of a nucleotide's "base dotted rule" is the nucleotide's base rule.
+The base dotted rule for nucleotide pairs 1 and 2 is
 ```
     X ::= . A B C
 ```
-Nucleotide pairs 3 and 4 correspond to the dotted rule
+The base dotted rule for nucleotide pairs 3 and 4 is
 ```
     X ::= A . B C
 ```
-Nucleotide pairs 5 and 6 correspond to the dotted rule
+The base dotted rule for nucleotide pairs 5 and 6 is
 ```
     X ::= A B . C
 ```
@@ -192,22 +207,19 @@ In this example, it is
 ```
     X ::= A B C .
 ```
-No nucleotides correspond to completions.
+A completion is never the base dotted rule
+of a nucleotide.
 
-The inter-nucleotide pair for the dotted rule with the dot
-before the first non-nulled RHS symbol is called the "prediction split pair".
-In this example, the prediction nucleotide pair is pair 1.
+We can ignore completions,
+but we do need to deal with predictions,
+The inter-nucleotide pair whose base dotted rule has its dot
+before the first non-nulled RHS symbol is called the "prediction nucleotide pair".
+In this example, the prediction nucleotides are pair 1.
 
-Every pre-transcription rule will need `n` pairs of nucleotide rules,
+Each pre-strand rule potentially needs `2*n` pairs of nucleotide rules,
 where `n` is the number of symbols on the RHS of the
 `g1` rule.
 Empty rules can be ignored.
-
-We need a pair of nucleotide rules to represent a "split" before the first
-symbol of a `g1` rule, but we do not need a pair to represent a
-split after the last symbol.
-In other words, we need to deal with predictions,
-but we can ignore completions.
 We can also ignore any splits that occur before nulling symbols.
 
 The above rules imply that left split rules can be nulling --
@@ -215,38 +227,8 @@ in fact one of the left split rules must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
 
-## Nulling symbols
+## Dotted rules
 
-Above, we assumed that no symbols are nulling.
-Where a rule has nulling symbols on its RHS, we
-make the following adjustments.
-
-* There are no split pairs for dotted rules
-    with the dot before a nulling symbol.
-
-* This implies that the only split pair for
-   a nulling rule is the prediction split pair.
-
-## Deriving the left strand
-
-Call the point at which we choose to split the parse,
-the "split point".
-At the split point,
-we must derive a left strand.
-
-The following discussion assumes that we know
-
-* the dotted rules that apply at the current location; and
-
-* how they link to child rules and symbols.
-
-At the Libmarpa level both these things are known.
-Unfortunately, as of this writing, only the dotted rules
-are available at the SLIF level -- not their links.
-
-### Is the parse exhausted?
-
-First, we look for medial dotted rules at the split point.
 Dotted rules are of three kinds:
 
 * predictions, in which the dot is before the first RHS symbol;
@@ -256,20 +238,120 @@ Dotted rules are of three kinds:
 * medials, which are those dotted rules which are neither
     predictions or completions.
 
-There may be no medial dotted rules.
-In this case the parse is exhausted -- it can go no further.
-We do not continue with the following steps.
+## Active strands
 
-If there is completed start rule,
-the parse was a success,
-and we will be able to derive a full parse forest,
-If there is a completion,
-other than of the start rule,
-we will be able to derive a parse forest,
+An active strand is one capable of being wound together with
+another active strand.
+An active strand must be left-active or right-active.
+A strand can be *both* left- and right-active,
+in which case we call it double-active.
+An active strand which is not double-active
+is called single-active.
+An inactive strand is the same as an ordinary
+parse forest.
+
+A strand is right-active if it has nucleobases at its right edge.
+A strand is left-active if it has nucleobases at its left edge.
+
+If a strand is right-active, we call it a left strand.
+If a strand is left-active, we call it a right strand.
+This last may seem confused, but the idea is that a left strand is
+wound together with a right one and
+for that to occur,
+the left strand must have an active edge on its right and
+the right strand must have an active edge on its left.
+
+## Broken nucleotides
+
+Sometimes we want to represent a partial parse
+as a parse forest,
+at a point where the parse is exhausted,
+and where there is no convenient "top rule".
+This will be the case in many parse failures.
+
+To do this, we can use "broken nucleotides".
+A broken nucletide is a nucleotide without the
+nucleobase.
+In this form, the nucleotide represents a partial
+rule but, unlike in the full nucleotide,
+the broken rule cannot be combined with another
+nucleotide.
+
+## Archtypal strand parsing
+
+Before getting into details of the algorithms for forming
+and winding strands,
+it may be helpful to indicate how they are intended to
+be used.
+There are many ways in which strand parsing can be used,
+but 
+The archetypal case is that where we
+are parsing from left-to-right,
+breaking the parse up at arbitrary "split points",
+and winding pairs of strands together as
+we proceed.
+
+In more detail:
+
+* We start by parsing the input until
+    we have an initial single-active left strand.
+
+* We then loop for as long as we can create double-active strands
+    by parsing the remaining input.
+
+    * At the top of the loop,
+        we have a single-active left strand and a double-active strand.
+
+    * We wind our two strands together,
+         leaving a single-active left strand.
+
+* On leaving the loop, we have two single-active strands, one
+    left, one right.
+    We wind these two together to produce an inactive strand.
+    Call this the "final strand".
+
+* If there is completed start rule covering the entire
+    input in the final strand,
+    the parse was a success,
+    The final strand is our completed parse forest.
+    Otherwise, the parse is a failure.
+
+* If the parse is a failure, we can produce a parse
+    forest to help detect the error.
+    To represent the rules in progress at the point of
+    failure, we can use broken left nucleotides.
+## Creating a left-active strand
+
+To create a left-active strand, we start with
+
+* an Earley parse; and
+
+* a location in that parse, called the "split point"; and
+
+* a set of medial dotted rules at the split point.
+
+From the Earley parse, we know
+
+* the dotted rules that apply at the current location; and
+
+* how they link to child rules and symbols.
+
+At the Libmarpa level both these things are known.
+As of this writing, only the dotted rules
+are supported at the SLIF level -- the calls that make
+their links available are currently not documented.
+
+
+[ Most recent draft done up to here. ]
+
 but it will not be a left-active strand -- it will be
 the final parse forest
 and there will be no way of
 joining it up with a parse forest to its right.
+
+There may be no medial dotted rules.
+In this case the parse is exhausted -- it can go no further.
+We do not continue with the following steps.
 
 ### Medial dotted rules at the split point
 
