@@ -19,12 +19,13 @@ use strict;
 use warnings;
 use autodie;
 use IPC::Cmd;
+use File::Copy;
 use File::Path;
 
 my $libmarpa_repo = 'git@github.com:jeffreykegler/libmarpa.git';
 my $stage = 'libmarpa_stage';
 
-for my $dir_to_clean ($stage, 'libmarpa_build')
+for my $dir_to_clean ($stage)
 {
   my $deleted_count = File::Path::remove_tree($dir_to_clean);
   say "$deleted_count files deleted in $dir_to_clean";
@@ -83,5 +84,7 @@ if (not IPC::Cmd::run(
 {
     die qq{Could not copy cm_dist to $target_directory};
 }
+
+File::Copy::move('../../LOG_DATA', $target_directory);
 
 exit 0
