@@ -39,7 +39,7 @@ if (not IPC::Cmd::run(
     die "Could not clone";
 } ## end if ( not IPC::Cmd::run( command => [ qw(git clone -n --depth 1)...]))
 
-# CHIDR into staging dir
+# CHDIR into staging dir
 chdir $stage || die "Could not chdir";
 
 my $log_data;
@@ -68,19 +68,20 @@ if (not IPC::Cmd::run(
     die qq{Could not make dist};
 } ## end if ( not IPC::Cmd::run( command => [ qw(git checkout)...]))
 
-# my $deleted_count = File::Path::remove_tree('../read_only');
-# say "$deleted_count files deleted in ../read_only";
+# CHDIR
+chdir 'cm_dist' || die "Could not chdir to cm_dist";
 
-# CHIDR into staging dir
-chdir 'cm_dist' || die "Could not chdir";
+my $target_directory = '../../components/libmarpa';
+my $deleted_count = File::Path::remove_tree($target_directory);
+say "$deleted_count files deleted in $target_directory";
 
 if (not IPC::Cmd::run(
-        command => [ 'cp', '-R', '.', '../../components/libmarpa' ],
+        command => [ 'cp', '-R', '.', $target_directory ],
         verbose => 1
     )
     )
 {
-    die qq{Could not copy cm_dist};
+    die qq{Could not copy cm_dist to $target_directory};
 }
 
 exit 0
