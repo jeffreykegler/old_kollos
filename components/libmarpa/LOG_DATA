@@ -1,3 +1,9 @@
+commit c8a05b94fbc0932f7963a631a6ce1d546ec2a583
+Author: Jeffrey Kegler <JKEGL@cpan.org>
+Date:   Thu Jan 15 21:42:40 2015 -0800
+
+    Packaging
+
 commit 20b1dd92c3a3c3b4a0b655e16f87b0ba4cadc15f
 Author: Jeffrey Kegler <JKEGL@cpan.org>
 Date:   Thu Jan 15 20:18:20 2015 -0800
@@ -26,9 +32,3 @@ Author: Jeffrey Kegler <JKEGL@cpan.org>
 Date:   Mon Jan 12 22:21:26 2015 -0800
 
     Update copyright notices
-
-commit e5bb0753d863e8fe88569519934da4f789859ec0
-Author: Jeffrey Kegler <JKEGL@cpan.org>
-Date:   Mon Jan 12 22:01:08 2015 -0800
-
-    Move SLIF code out of Libmarpa
