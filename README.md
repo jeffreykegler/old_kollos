@@ -11,10 +11,6 @@ Contributing to the Kollos project
 By submitting code to this repository, you are considered to have signed
 off on the Developer's Certificate of Origin, which is given below.
 
-You are also considered to have assigned copyright to the copyright
-holder for Kollos.  As of this writing, Jeffrey Kegler holds the copyright
-for Kollos.
-
 All code contributed must be compatible with the MIT License.
 
 It is imperative that all contributed code be legitimately free software.
