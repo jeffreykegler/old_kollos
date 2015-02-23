@@ -312,7 +312,7 @@ In more detail:
     or the parse has failed.
     If the parse succeeded or failed,
     we have an inactive strand,
-    we proceed as described in the section titled.
+    and we proceed as described in the section titled
     "Producing the ASF".
 
 * We then loop for as long as we can create double-active strands,
