@@ -1,13 +1,15 @@
 # Strand parsing
 
-This document describes how Marpa's planned
+This document describes Marpa's planned
 "strand parsing" facility.
-It allows parsing to do done in pieces,
-which can be "wound" together.
+Strand parsing allows parsing to do done in pieces,
+pieces which can then be "wound" together.
 The technique bears a slight resemblance to
 that for DNA unwinding, rewinding
 and transcription,
-and a lot of the terminology is borrowed
+and a lot of the terminology
+for strand parsing
+is borrowed
 from biochemistry.
 
 ## Theory: suffix grammars
@@ -16,8 +18,9 @@ In what follows, some sections will,
 like this one,
 be marked "Theory".
 It is safe to skip them.
-They record technical details which are important
-in ensuring the correctness of the algorithm.
+They record mathematical details,
+some of which are important
+for ensuring the correctness of the algorithm.
 
 The "transcription grammar" here is based on
 the "suffix grammar", whose construction is described in
@@ -36,8 +39,9 @@ That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
 grammar.
 (In parsing theory, "language" is an fancy term for a set of strings.)
 Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
-`L1` will be a subset of `suffixes(L1)`.
-Then there is a context-free grammar `g2`, whose language is `suffixes(L1)`.
+`L1` will always be a subset of `suffixes(L1)`.
+It can be shown that there is always some context-free grammar `g2`,
+whose language is `suffixes(L1)`.
 
 ## Nucleobases, nucleosides and nucleotides
 
@@ -64,8 +68,8 @@ to form
 a nucleotide.
 (Some biochemical texts insist there can be only one
 phosphate group in a nucleotide.
-For our purposes, the difference is not relevant.
-We will let the chemists argue this out among themselves.)
+For our purposes, the difference is not relevant,
+and we will let the chemists argue this out among themselves.)
 
 For our purposes,
 a *nucleobase* is a lexeme
@@ -73,6 +77,12 @@ at which two "strands" touch directly.
 There are left and right nucleobases,
 which occur on the left edge and right
 edge of strands, respectively.
+
+The RHS of a rule contains at most one nucleobase.
+If it is a right nucleobase, it will always be
+the first symbol of the RHS.
+If it is a left nucleobase, it will always be
+the last symbol of the RHS.
 
 In a RHS containing a nucleobase,
 a symbol is "inside" another if it is in the direction heading away from
@@ -86,7 +96,6 @@ If symbol `<A>` is inside symbol `<B>`,
 then symbol `<B>` is outside of symbol `<A>`.
 If a RHS does not contain a nucleobase,
 "inside" and "outside" are not defined.
-No RHS contains more than one nucleobase.
 
 A *nucleosugar* is a non-terminal used in
 winding and unwinding strands.
@@ -99,13 +108,26 @@ Note that while DNA nucleosides *always* contain
 nucleosugars, in our terminology,
 nucleosugars are optional.
 
-Finally, a *nucleotide* is a rules that contains
+Finally, a *nucleotide* is a rule that contains
 nucleobases.
 
 As a mnemonic, note that
-inside to outside order is also
-alphabetical order:
+the order from inside to outside,
+and the order from smallest to largest,
+is the same as the alphabetical order of the terms:
 "base", "side" and "tide".
+
+## Dotted rules
+
+As a reminder,
+dotted rules are of three kinds:
+
+* predictions, in which the dot is before the first RHS symbol;
+
+* completions, in which the dot is after the last RHS symbol; and
+
+* medials, which are those dotted rules which are neither
+    predictions or completions.
 
 ## Creating the strand grammar
 
@@ -222,21 +244,12 @@ where `n` is the number of symbols on the RHS of the
 Empty rules can be ignored.
 We can also ignore any splits that occur before nulling symbols.
 
-The above rules imply that left split rules can be nulling --
-in fact one of the left split rules must be nulling.
+The above rules imply that left split rules can be nulling.
+In fact,
+for every pre-strand rule,
+one of the left split rules derived from it must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
-
-## Dotted rules
-
-Dotted rules are of three kinds:
-
-* predictions, in which the dot is before the first RHS symbol;
-
-* completions, in which the dot is after the last RHS symbol; and
-
-* medials, which are those dotted rules which are neither
-    predictions or completions.
 
 ## Active strands
 
@@ -255,7 +268,7 @@ A strand is left-active if it has nucleobases at its left edge.
 
 If a strand is right-active, we call it a left strand.
 If a strand is left-active, we call it a right strand.
-This last may seem confused, but the idea is that a left strand is
+This may seem confused, but the idea is that a left strand is
 wound together with a right one and
 for that to occur,
 the left strand must have an active edge on its right and
@@ -285,7 +298,7 @@ it may be helpful to indicate how they are intended to
 be used.
 There are many ways in which strand parsing can be used,
 but 
-The archetypal case is that where we
+the archetypal case is that where we
 are parsing from left-to-right,
 breaking the parse up at arbitrary "split points",
 and winding pairs of strands together as
@@ -294,32 +307,52 @@ we proceed.
 In more detail:
 
 * We start by parsing the input until
-    we have an initial single-active left strand.
+    we have an initial single-active left strand,
+    or the parse has succeeded,
+    or the parse has failed.
+    If the parse succeeded or failed,
+    we have an inactive strand,
+    we proceed as described in the section titled.
+    "Producing the ASF".
 
-* We then loop for as long as we can create double-active strands
+* We then loop for as long as we can create double-active strands,
     by parsing the remaining input.
 
-    * At the top of the loop,
+    * We parse the remaining input to create a new strand.
+
+    * If this new strand is not double-active, we end the loop.
+
+    * At this point,
         we have a single-active left strand and a double-active strand.
 
     * We wind our two strands together,
-         leaving a single-active left strand.
+         leaving a single-active left strand,
+         and continue the loop.
 
 * On leaving the loop, we have two single-active strands, one
     left, one right.
     We wind these two together to produce an inactive strand.
     Call this the "final strand".
+    We proceed as described in the section titled
+    "Producing the ASF".
 
-* If there is completed start rule covering the entire
-    input in the final strand,
-    the parse was a success,
-    The final strand is our completed parse forest.
-    Otherwise, the parse is a failure.
+## Producing the ASF
 
-* If the parse is a failure, we can produce a parse
-    forest to help detect the error.
-    To represent the rules in progress at the point of
-    failure, we can use broken left nucleotides.
+To produce an ASF from an inactive strand,
+we must determine if the parse succeeded
+or failed.
+If there is completed start rule covering the entire
+input in the inactive strand,
+the parse succeeded.
+Otherwise, the parse is a failure.
+
+On success,
+the final strand is our completed parse forest.
+If the parse is a failure, we can produce a parse
+forest to help detect the error.
+To represent the rules in progress at the point of
+failure, we can use broken left nucleotides.
+
 ## Creating a left-active strand
 
 To create a left-active strand, we start with
@@ -438,8 +471,6 @@ Then, for every `[symbol, parent]` in the prediction work list:
       add `[rule-postdot, new-node]` to the prediction work list.
 
 ### Intra-split nodes at the split point.
-
-[ *Corrected to here* ]
 
 ## Nucleobases
 
