@@ -129,6 +129,18 @@ dotted rules are of three kinds:
 * medials, which are those dotted rules which are neither
     predictions or completions.
 
+If a dotted rule has the dot after a RHS symbol instance,
+the predecessor of that dotted rule is the dotted rule
+with the dot before that symbol instance --
+in
+other words, with the dot one position earlier.
+If a dotted rule has the dot before a RHS symbol instance,
+the predecessor of that dotted rule is the dotted rule
+with the dot after that symbol instance --
+other words, with the dot one position later.
+Predictions do not have predecessors
+and completions do not have successors.
+
 ## Creating the strand grammar
 
 Let our original grammar be `g1`.
@@ -335,6 +347,147 @@ In more detail:
     Call this the "final strand".
     We proceed as described in the section titled
     "Producing the ASF".
+
+## The structure of an ASF
+
+Marpa::R2 has two ASF formats.
+The one
+[externally documented](https://metacpan.org/pod/distribution/Marpa-R2/pod/ASF.pod)
+as its ASF interface
+is for advanced uses,
+and is an upper layer to the undocumented
+"bocage" interface.
+The bocage interface (which is essentially
+the same as Elizabeth Scott's SPFF format)
+is the one which will be described here.
+An Marpa::R2 ASF can be built from the bocage,
+when and if desired.
+
+A bocage consists of nodes.
+All nodes are either terminal nodes
+or non-terminal nodes.
+A terminal node is a 4-tuple of
+
+=over 4
+
+=item *
+
+A symbol ID, which is one of the symbols
+of the grammar.
+
+=item *
+
+A node value, which may be anything
+meaningful to the application,
+or which may be undefined.
+
+=item *
+
+A start position, which is a G1 location.
+
+=item *
+
+An end position, which is a G1 location
+at or after the start position.
+
+=back
+
+The start position and end position may be
+the same, in which case the terminal node
+is a nulling node.
+The length of the node is the difference
+between end position and start position,
+which must be a non-negative integer.
+A node is nulling if and only if the length is zero.
+In normal applications,
+the length
+of non-nulling terminal nodes
+will be one.
+
+A non-terminal node is a 3-tuple of
+
+=over 4
+
+=item *
+
+Dotted rule.
+As a reminder, a dotted rule is
+a rule of the grammar with one of its
+positions distinguished as the "dot position".
+
+=item *
+
+Origin, that is, the G1 location at which
+the dotted rule starts.
+
+=item *
+
+Dot location, which
+is the G1 location of
+the dotted rule's dot position.
+
+=back
+
+It is convenient to use the same terminology for G1 locations
+in both terminal and non-terminal nodes, so that the
+start and end position of a terminal node are often
+called,respectively, its origin and dot location.
+
+A non-terminal nodes is called a prediction,
+a medial and or a completion,
+based on their dotted rules.
+A prediction node whose dotted rule
+is a nucleotide,
+will only occur on the active edge of
+a strand,
+and is called an
+active prediction node.
+All other prediction nodes
+are called inactive prediction nodes.
+The information in
+inactive prediction nodes
+can usually be deduced from the other nodes,
+so that inactive prediction nodes are not physically represented
+in the bocage.
+
+Every non-terminal node has zero or more "source links",
+which describe why the node exists.
+If the node is a prediction,
+its source is not tracked,
+and it will have zero links.
+Otherwise, a non-terminal node has one or more links.
+
+Every link is a duple,
+consisting of
+a predecessor and
+a successor.
+The predecessor and successor
+are called children of the node that their
+link belongs to.
+If node A is a child of node B,
+then node B is a parent of node A.
+
+Conceptually, the links indicate how the node
+was formed,
+with the predecessor describing a
+dotted rule with its dot one symbol
+earlier in the rule,
+and the successor describing the source
+of the symbol which allowed the dot
+to be moved forward.
+
+The successor may be either a terminal node
+or a non-terminal node.
+If the successor is a non-terminal node,
+that node must be a completion.
+
+The predecessor is always
+a non-terminal node,
+and is never a completion.
+It may be a prediction,
+in which case the node the link points
+to will not be physically represented in
+the bocage unless it is an active prediction node.
 
 ## Producing the ASF
 
