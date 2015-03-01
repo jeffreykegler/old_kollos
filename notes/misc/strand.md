@@ -489,6 +489,104 @@ in which case the node the link points
 to will not be physically represented in
 the bocage unless it is an active prediction node.
 
+In creating or extending a bocage,
+no node is ever added twice.
+If a node has more than one source,
+the node with, if appropriate, a link
+is added by the first source.
+Subsequent sources add links,
+when appropriate,
+to original node.
+Also, no link is ever added twice.
+
+### Expanding a partial bocage
+
+In what follows,
+we will refer to "expanding the pre-strand symbols"
+of an initial set of nodes in a bocage,
+relative to a series of Earley sets.
+We first create a working set of bocage nodes,
+starting with the initial set.
+We then do the following
+until the working set is empty.
+
+* We remove a node from the 
+  working set.
+  We call this the working node.
+  If it is a terminal node,
+  we do nothing further with it.
+  Otherwise we continue with the following
+  steps.
+
+*  If pre-dot symbol of the working
+  node's dotted rule is
+ not a pre-strand symbol,
+ we do nothing further with the working node.
+ Otherwise we continue with the following
+ steps.
+
+* We produce a list of duples from the
+  Earley sets and the input, where each duples
+  is such that
+
+    - the first element is an Earley item
+      whose origin
+      is the same as the origin of the node.
+
+    - the 2nd element is an input token
+      whose end location is the same
+      is as the
+      dot location of the node;
+      or the 2nd element is an Earley item whose
+      dot location is the same as
+      the dot location of the node.
+
+    - if the 2nd element of the duple is an
+      input token, the token symbol is
+      the same as the pre-dot symbol
+      of the working node;
+
+    - if the 2nd element of the duple is an
+      Earley item, it is a completion
+      and the dotted rule's LHS symbol is
+      the same as the pre-dot symbol
+      of the working node;
+
+    - the dot location of the 1st element
+      is the same as the
+      origin of the 2nd element.
+
+* For each of the duples,
+   we add a link to the working node
+   such that
+
+   - the predecessor of the link
+   is a new node which
+   takes its dotted rule, origin,
+   and dot location from the 1st element
+   of the pair;
+
+   - if the 2nd element is an input token,
+   the successor is a terminal node
+   which takes its start and end
+   locations from the start and end
+   location of the input token,
+   and its symbol and value
+   from the token symbol and value;
+   and
+
+   - if the 2nd element is an Earley item,
+   the successor is a new node which
+   takes its dotted rule, origin,
+   and dot location from the 2nd element
+   of the pair;
+
+* For each link added in the previous step,
+  we add the predecessor node and,
+  if the successor is a non-terminal node,
+  the successor node,
+  to the working set.
+
 ## Producing the ASF
 
 To produce an ASF from an inactive strand,
