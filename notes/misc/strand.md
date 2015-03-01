@@ -368,29 +368,17 @@ All nodes are either terminal nodes
 or non-terminal nodes.
 A terminal node is a 4-tuple of
 
-=over 4
+* A symbol ID, which is one of the symbols
+ of the grammar.
 
-=item *
+* A node value, which may be anything
+ meaningful to the application,
+ or which may be undefined.
 
-A symbol ID, which is one of the symbols
-of the grammar.
+* A start position, which is a G1 location.
 
-=item *
-
-A node value, which may be anything
-meaningful to the application,
-or which may be undefined.
-
-=item *
-
-A start position, which is a G1 location.
-
-=item *
-
-An end position, which is a G1 location
-at or after the start position.
-
-=back
+* An end position, which is a G1 location
+ at or after the start position.
 
 The start position and end position may be
 the same, in which case the terminal node
@@ -406,27 +394,17 @@ will be one.
 
 A non-terminal node is a 3-tuple of
 
-=over 4
+* Dotted rule.
+ As a reminder, a dotted rule is
+ a rule of the grammar with one of its
+ positions distinguished as the "dot position".
 
-=item *
+* Origin, that is, the G1 location at which
+ the dotted rule starts.
 
-Dotted rule.
-As a reminder, a dotted rule is
-a rule of the grammar with one of its
-positions distinguished as the "dot position".
-
-=item *
-
-Origin, that is, the G1 location at which
-the dotted rule starts.
-
-=item *
-
-Dot location, which
-is the G1 location of
-the dotted rule's dot position.
-
-=back
+* Dot location, which
+ is the G1 location of
+ the dotted rule's dot position.
 
 It is convenient to use the same terminology for G1 locations
 in both terminal and non-terminal nodes, so that the
