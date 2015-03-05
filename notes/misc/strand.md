@@ -141,6 +141,21 @@ other words, with the dot one position later.
 Predictions do not have predecessors
 and completions do not have successors.
 
+## Earley items
+
+As a reminder, an
+Earley item, *eim*, consists of
+
+* A dotted rule, *DR(eim)*.
+
+* An origin, *Orig(eim)*, which is the number
+  of the Earley set where *eim* starts.
+
+* An current location, *Dot(eim)*, which is the number
+  of the Earley set that contains *eim*,
+  and which corresponds to the position of the
+  dot in the dotted rule.
+
 ## Creating the strand grammar
 
 Let our original grammar be `g1`.
@@ -477,95 +492,114 @@ when appropriate,
 to original node.
 Also, no link is ever added twice.
 
-### Expanding a partial bocage
+### Expanding a input token into a bocage node
 
-In what follows,
-we will refer to "expanding the pre-strand symbols"
-of an initial set of nodes in a bocage,
-relative to a series of Earley sets.
-We first create a working set of bocage nodes,
-starting with the initial set.
-We then do the following
-until the working set is empty.
+If we have an input token, *tok*,
+whose symbol is *sym*,
+whose value is *v*,
+whose start location is *start*,
+and whose end location is *end,
+we expand it into the terminal bocage node
+```
+    Top(tok) = [ sym, v, start, end ]
+```
+It will have no links.
+Top(tok) is considered to be the top node of the bocage,
+starting from *tok*.
 
-* We remove a node from the 
-  working set.
-  We call this the working node.
-  If it is a terminal node,
-  we do nothing further with it.
-  Otherwise we continue with the following
-  steps.
+### Expanding an pre-strand Earley item into a bocage node
 
-*  If pre-dot symbol of the working
-  node's dotted rule is
- not a pre-strand symbol,
- we do nothing further with the working node.
- Otherwise we continue with the following
- steps.
+If the Earley item, *eim*, is
+```
+    [ Dotted(eim), Orig(eim), Current(eim) ]
+```
+we create the bocage node
+```
+    Top(eim) = [ Dotted(eim), Orig(eim), Current(eim) ].
+```
+We call Top(eim) the top node of the bocage,
+starting from *eim*.
+If Dotted(eim) is a prediction,
+the bocage node will have no links.
+Otherwise, let *predot* be the pre-dot symbol 
+of Dotted(eim).
+The links will be the set of all
+```
+    [ pred, succ ]
+```
+such that
 
-* We produce a list of duples from the
-  Earley sets and the input, where each duples
-  is such that
+* *pred* is Top(pred-eim)
 
-    - the first element is an Earley item
-      whose origin
-      is the same as the origin of the node.
+* *pred-eim* == Pred(eim)
 
-    - the 2nd element is an input token
-      whose end location is the same
-      is as the
-      dot location of the node;
-      or the 2nd element is an Earley item whose
-      dot location is the same as
-      the dot location of the node.
+* *succ* is either
 
-    - if the 2nd element of the duple is an
-      input token, the token symbol is
-      the same as the pre-dot symbol
-      of the working node;
+    - Top(tok), where *predot* is the token
+      symbol of *tok*, or
 
-    - if the 2nd element of the duple is an
-      Earley item, it is a completion
-      and the dotted rule's LHS symbol is
-      the same as the pre-dot symbol
-      of the working node;
+    - Top(cause-eim), where *predot* is the LHS
+      of Dotted(eim)
 
-    - the dot location of the 1st element
-      is the same as the
-      origin of the 2nd element.
+* Origin(pred-eim) == Origin(eim)
 
-* For each of the duples,
-   we add a link to the working node
-   such that
+* Current(succ) == Current(eim)
 
-   - the predecessor of the link
-   is a new node which
-   takes its dotted rule, origin,
-   and dot location from the 1st element
-   of the pair;
+* Current(pred-eim) == Origin(succ)
 
-   - if the 2nd element is an input token,
-   the successor is a terminal node
-   which takes its start and end
-   locations from the start and end
-   location of the input token,
-   and its symbol and value
-   from the token symbol and value;
-   and
+Note that links already exist in the Earley sets
+to make finding *pred-eim*, *tok* and *cause-eim*
+efficient.
+It is assumed that the grammar is cycle-free.
+For simplicity, the above description was in terms
+of a recursion.
+A recursion is NOT an acceptable implementation.
+The implementation will require
 
-   - if the 2nd element is an Earley item,
-   the successor is a new node which
-   takes its dotted rule, origin,
-   and dot location from the 2nd element
-   of the pair;
+* A stack of Earley items to be processed.  Since the number of Earley items in a strand is known,
+  either a fixed size stack or a dynamicly sized one could be used.
 
-* For each link added in the previous step,
-  we add the predecessor node and,
-  if the successor is a non-terminal node,
-  the successor node,
-  to the working set.
+* An AVL (or a hash) from input tokens and Earley
+  items to bocage nodes, to be prevent an Earley item from being pushed on the stack twice.
 
-## Producing the ASF
+The algorithm then proceeds as follows:
+
+* We initialize the stack of Earley items with *eim*.
+
+* LOOP: While the stack of Earley item is not empty,
+
+    - Call the current top of stack Earley item, *work-eim*.
+
+    - We examine the top of stack, to determine if bocage nodes exist to
+      create all the links.  Input tokens and Earley items are looked up in the AVL,
+      and the bocage node found in the AVL is used if it exists.
+
+    - Any terminal bocage node that does not exist is created and
+      added to the AVL.
+
+    - If a Earley item need for a link is not in the AVL,
+      that Earley item is pushed on top of the stack.
+
+    - If Earley items were pushed,
+      so *work-eim* is no longer on top of the stack,
+      we continue with LOOP, and do not perform the following
+      steps.
+
+    - If *work-eim* is still on top of the stack,
+      We pop *work-eim* from the top of the stack.
+
+    - We create the bocage node, *new-node*,
+      *work-eim*,
+      adding all necessary links.
+      (Because no Earley items were pushed onto the stack,
+      we know that all the bocage nodes necessary for the links
+      can be found in the AVL.)
+
+    - We add to the AVL, an entry with *work-eim* as the key,
+      and *new-node* as the value,
+      and continue with LOOP.
+
+## Producing the ASF from inactive strands
 
 To produce an ASF from an inactive strand,
 we must determine if the parse succeeded
@@ -573,16 +607,22 @@ or failed.
 If there is completed start rule covering the entire
 input in the inactive strand,
 the parse succeeded.
-Otherwise, the parse is a failure.
+The completed start rule is an Earley item,
+which we can call
+*success-eim*.
+We expand *success-eim* to a bocage node,
+as described above.
+In the process, we will have created our
+parse forest.
 
-On success,
-the final strand is our completed parse forest.
-If the parse is a failure, we can produce a parse
-forest to help detect the error.
-To represent the rules in progress at the point of
-failure, we can use broken left nucleotides.
+If there is no completed start rule,
+the parse is a failure.
+To diagnose the failure,
+we can produce a parse
+forest
+using broken left nucleotides.
 
-## Creating a left-active strand
+## Producing an ASF from a left-active strand
 
 To create a left-active strand, we start with
 
