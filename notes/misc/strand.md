@@ -144,15 +144,15 @@ and completions do not have successors.
 ## Earley items
 
 As a reminder, an
-Earley item, *eim*, consists of
+Earley item, `eim`, consists of
 
-* A dotted rule, *DR(eim)*.
+* A dotted rule, `DR(eim)`.
 
-* An origin, *Orig(eim)*, which is the number
-  of the Earley set where *eim* starts.
+* An origin, `Orig(eim)`, which is the number
+  of the Earley set where `eim` starts.
 
-* An current location, *Dot(eim)*, which is the number
-  of the Earley set that contains *eim*,
+* An current location, `Dot(eim)`, which is the number
+  of the Earley set that contains `eim`,
   and which corresponds to the position of the
   dot in the dotted rule.
 
@@ -494,22 +494,22 @@ Also, no link is ever added twice.
 
 ### Expanding a input token into a bocage node
 
-If we have an input token, *tok*,
-whose symbol is *sym*,
-whose value is *v*,
-whose start location is *start*,
-and whose end location is *end,
+If we have an input token, `tok`,
+whose symbol is `sym`,
+whose value is `v`,
+whose start location is `start`n`,
+and whose end location is `end,
 we expand it into the terminal bocage node
 ```
     Top(tok) = [ sym, v, start, end ]
 ```
 It will have no links.
 Top(tok) is considered to be the top node of the bocage,
-starting from *tok*.
+starting from `tok`.
 
-### Expanding an pre-strand Earley item into a bocage node
+### Expanding an Earley item into a bocage node
 
-If the Earley item, *eim*, is
+If the Earley item, `eim`, is
 ```
     [ Dotted(eim), Orig(eim), Current(eim) ]
 ```
@@ -518,10 +518,10 @@ we create the bocage node
     Top(eim) = [ Dotted(eim), Orig(eim), Current(eim) ].
 ```
 We call Top(eim) the top node of the bocage,
-starting from *eim*.
+starting from `eim`.
 If Dotted(eim) is a prediction,
 the bocage node will have no links.
-Otherwise, let *predot* be the pre-dot symbol 
+Otherwise, let `predot` be the pre-dot symbol 
 of Dotted(eim).
 The links will be the set of all
 ```
@@ -529,26 +529,26 @@ The links will be the set of all
 ```
 such that
 
-* *pred* is Top(pred-eim)
+* `pred == Top(pred-eim)`
 
-* *pred-eim* == Pred(eim)
+* `pred-eim == Pred(eim)`
 
-* *succ* is either
+* Either
 
-    - Top(tok), where *predot* is the token
-      symbol of *tok*, or
+    - `succ == Top(tok)`, where `predot` is the token
+      symbol of `tok`, or
 
-    - Top(cause-eim), where *predot* is the LHS
-      of Dotted(eim)
+    - `succ == Top(cause-eim)`, where `predot` is the LHS
+      of `Dotted(eim)`
 
-* Origin(pred-eim) == Origin(eim)
+* `Origin(pred-eim) == Origin(eim)`
 
-* Current(succ) == Current(eim)
+* `Current(succ) == Current(eim)`
 
-* Current(pred-eim) == Origin(succ)
+* `Current(pred-eim) == Origin(succ)`
 
 Note that links already exist in the Earley sets
-to make finding *pred-eim*, *tok* and *cause-eim*
+to make finding `pred-eim`, `tok` and `cause-eim`
 efficient.
 It is assumed that the grammar is cycle-free.
 For simplicity, the above description was in terms
@@ -564,11 +564,11 @@ The implementation will require
 
 The algorithm then proceeds as follows:
 
-* We initialize the stack of Earley items with *eim*.
+* We initialize the stack of Earley items with `eim`.
 
 * LOOP: While the stack of Earley item is not empty,
 
-    - Call the current top of stack Earley item, *work-eim*.
+    - Call the current top of stack Earley item, `work-eim`.
 
     - We examine the top of stack, to determine if bocage nodes exist to
       create all the links.  Input tokens and Earley items are looked up in the AVL,
@@ -581,22 +581,22 @@ The algorithm then proceeds as follows:
       that Earley item is pushed on top of the stack.
 
     - If Earley items were pushed,
-      so *work-eim* is no longer on top of the stack,
+      so `work-eim` is no longer on top of the stack,
       we continue with LOOP, and do not perform the following
       steps.
 
-    - If *work-eim* is still on top of the stack,
-      We pop *work-eim* from the top of the stack.
+    - If `work-eim` is still on top of the stack,
+      We pop `work-eim` from the top of the stack.
 
-    - We create the bocage node, *new-node*,
-      *work-eim*,
+    - We create the bocage node, `new-node`,
+      `work-eim`,
       adding all necessary links.
       (Because no Earley items were pushed onto the stack,
       we know that all the bocage nodes necessary for the links
       can be found in the AVL.)
 
-    - We add to the AVL, an entry with *work-eim* as the key,
-      and *new-node* as the value,
+    - We add to the AVL, an entry with `work-eim` as the key,
+      and `new-node` as the value,
       and continue with LOOP.
 
 ## Producing the ASF from inactive strands
@@ -609,8 +609,8 @@ input in the inactive strand,
 the parse succeeded.
 The completed start rule is an Earley item,
 which we can call
-*success-eim*.
-We expand *success-eim* to a bocage node,
+`success-eim`.
+We expand `success-eim` to a bocage node,
 as described above.
 In the process, we will have created our
 parse forest.
@@ -636,7 +636,7 @@ at a point where
 
 * you wish to continue the parse.
 
-Call this location the split point, *split*.
+Call this location the split point, `split`.
 At the split point,
 a parse may be successful in the technical sense
 that there is a completed start rule, so
@@ -645,15 +645,36 @@ if the application chose to do so.
 
 To produce a left-active strand:
 
-* For every medial Earley item in the Earley set at *split*
+* For every medial Earley item in the Earley set at `split`
 
-    - Let that medial Earley item be `[ dr, orig, split ]`.
+    - Let that medial Earley item be
+      `medial-eim == [ dr, orig, split ]`.
 
     - Let the left inter-nucleotide for `dr` be `lent`.
+      For instance, using the example above,
+      if `dr` is the dotted rule
+      `X ::= A B . C`, then
+      `lent` is the rule `X-L ::= A B b5L`.
 
-    - Add the non-terminal bocage node `[lent, orig, split ]`
-      to the bocage.
-      Call it `new-node`.
+    - Let the `lent-dr` be the nucleotide rule `lent`,
+      with the dot just before the nucleobase.
+      For instance, using the example above,
+      if `lent` is the rule `X-L ::= A B b5L`,
+      then `lent-dr` is the rule `X-L ::= A B . b5L`,
+
+    - Let `lent-eim` be the virtual Earley item
+      `[lent-dr, orig, split ]`.
+      (This Earley item is "virtual"
+      in the sense that it does
+      not actually occur in the Libmarpa's Earley sets.)
+      Expand `lent-eim` into the bocage node, `lent-node`,
+      and add it to the bocage,
+      as described under
+      "Expanding an pre-strand Earley item into a bocage node" 
+      above.
+      For efficient implementation of the expansion,
+      the links of `medial-eim` can be used --
+      they will be exactly the same as the links of `lent-eim`.
 
 [ Under construction ]
 
