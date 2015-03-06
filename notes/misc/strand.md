@@ -622,126 +622,42 @@ we can produce a parse
 forest
 using broken left nucleotides.
 
-## Producing an ASF from a left-active strand
+## Producing an ASF from an incomplete parse
 
-To create a left-active strand, we start with
+Producing ASFs from incomplete parses is crucial
+to the intended main use of strand parsing --
+to allow parsing to proceed in fixed size pieces.
 
-* an Earley parse; and
+In the following,
+I assume that you have stopped a Marpa parse
+at a point where 
 
-* a location in that parse, called the "split point"; and
+* it has not failed:
 
-* a set of medial dotted rules at the split point.
+* you wish to continue the parse.
 
-From the Earley parse, we know
+Call this location the split point, *split*.
+At the split point,
+a parse may be successful in the technical sense
+that there is a completed start rule, so
+and the strand could be treated as an left-inactive strand
+if the application chose to do so.
 
-* the dotted rules that apply at the current location; and
+To produce a left-active strand:
 
-* how they link to child rules and symbols.
+* For every medial Earley item in the Earley set at *split*
 
-At the Libmarpa level both these things are known.
-As of this writing, only the dotted rules
-are supported at the SLIF level -- the calls that make
-their links available are currently not documented.
+    - Let that medial Earley item be `[ dr, orig, split ]`.
 
+    - Let the left inter-nucleotide for `dr` be `lent`.
 
-[ Most recent draft done up to here. ]
+    - Add the non-terminal bocage node `[lent, orig, split ]`
+      to the bocage.
+      Call it `new-node`.
 
-but it will not be a left-active strand -- it will be
-the final parse forest
-and there will be no way of
-joining it up with a parse forest to its right.
+[ Under construction ]
 
-There may be no medial dotted rules.
-In this case the parse is exhausted -- it can go no further.
-We do not continue with the following steps.
-
-### Medial dotted rules at the split point
-
-At the split point, we look at each of the medial
-dotted rules.
-For each of these dotted rules:
-
-* Call the LHS of its dotted rule, `medial-LHS`.
-   Call its parent dotted rule, `parent-dr`.
-
-* Add the corresponding left inter-split rule
-   as a node of the left strand.
-   Call this new node, `new-node`,
-
-Next, for every `new-node` in the list
-of nodes just created:
-
-* Let the medial dotted rule for `new-node` be
-    `new-dr`.
-
-* If `new-dr` is the cause of an effect,
-    let that effect be `effect-dr`.
-
-* If `effect-dr` does not already have
-    a node in the left strand, create one.
-    Call this node, `effect-node`.
-
-* Make `effect-node` a parent of `new-node`
-    in the left strand.
-
-### Theory: Proofs about pre-split symbols
-
-*To prove*: At the split point, all children of medial rules in
-the left strand are pre-split symbols.
-
-*Proof*:
-Split-active symbols occur only as part of split rules.
-All medial rules are taken from the Earley sets, which
-only contain rules from the pre-split grammar.
-
-(Left split rules are added to the left strand,
-but they are always completions at the split point.
-Right split rules are used in the suffix grammar,
-but they are always joined to a left split rule
-and eliminated when creating a left strand.)
-
-Since all medial rules are from the pre-split grammar,
-all of its children are symbols in the pre-split grammar.
-*QED*.
-
-*To prove*: No pre-split symbol derives a post-split symbol
-
-*Proof*:
-The only rules with
-post-split symbols on their LHS are the left and right split rules.
-The only rules with
-post-split symbols on their RHS are also left and right split rules.
-So no rule with a pre-split symbol directly derives a
-post-split symbol.
-And therefore, by induction, no rule with a pre-split symbol,
-no pre-split symbol derives a post-split symbol.
-*QED*.
-
-### Derive split point predictions.
-
-We use a "prediction work list", of duples of the form:
-`[symbol, parent]`.
-To initialize it, for each medial rule from the above step,
-we add `[postdot, medial-node]` to the prediction work list,
-where `postdot` is the medial rule's postdot symbol,
-and `medial-node` is the left strand node created from it.
-
-Then, for every `[symbol, parent]` in the prediction work list:
-
-* For every `rule` with `symbol` on its LHS:
-
-    + We find the strand node for the left predicted split rule,
-      createing it if it does not already exist.
-      Call this node `new-node`.
-
-    + Link `new-node` to `parent`.
-
-    + Where `rule-postdot` is the postdot symbol of `rule`,
-      add `[rule-postdot, new-node]` to the prediction work list.
-
-### Intra-split nodes at the split point.
-
-## Nucleobases
+## Nucleobases [ Under construction ]
 
 As the name suggests,
 the nucleobase symbols will play a big role in connecting
@@ -761,7 +677,7 @@ same original rule, and which has the same suffix.
 For example, the nucleobase of the dotted rule above
 are `b3L` and `b3R`.
 
-## Some details
+## Some details [ Under construction ]
 
 It's possible the same connector lexeme can appear more than once
 on the right edge of the prefix subtree,
