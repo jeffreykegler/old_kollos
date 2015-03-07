@@ -645,7 +645,8 @@ if the application chose to do so.
 
 To produce a left-active strand:
 
-* For every medial Earley item in the Earley set at `split`
+* INTER-NUCLEOTIDE LOPP:
+  For every medial Earley item in the Earley set at `split`
 
     - Let that medial Earley item be
       `medial-eim == [ dr, orig, split ]`.
@@ -670,11 +671,78 @@ To produce a left-active strand:
       Expand `lent-eim` into the bocage node, `lent-node`,
       and add it to the bocage,
       as described under
-      "Expanding an pre-strand Earley item into a bocage node" 
+      "Expanding an Earley item into a bocage node" 
       above.
       For efficient implementation of the expansion,
       the links of `medial-eim` can be used --
       they will be exactly the same as the links of `lent-eim`.
+
+* PREDICTION LOOP:
+  For every medial Earley item in the Earley set at `split`
+
+    - Let that medial Earley item be
+      `medial-eim == [ dr, orig, split ]`.
+
+    - Let the postdot symbol in `dr` be `postdot`
+
+    - For every rule with `postdot` as its LHS.
+
+         + Call that rule, `r`.
+
+         + Let `dr` be the prediction dotted rule
+           of `r`.
+
+         + Let `lent` be the left inter-nucleotide
+           rule of `dr`.
+
+         + Let `lent-eim` be the virtual Earley item
+           `[lent-dr, orig, split ]`.
+           Expand `lent-eim` into the bocage node, `lent-node`,
+           and add it to the bocage,
+           as described under
+           "Expanding an Earley item into a bocage node" 
+           above.
+           `lent-node` will have no links.
+
+* INTRA-NUCLEOTIDE LOPP:
+  For every node whose dotted rule is a left nucleotide.
+
+    - Call the node `node == [ dr, orig, split ]`.
+      `node` will have been added in the INTER-NUCLEOTIDE LOOP.
+      For, instance,
+      `lent-dr` might be the rule `X-L ::= A B . b5L`,
+
+[ Under construction ]
+
+## Nucleobases [ Under construction ]
+
+As the name suggests,
+the nucleobase symbols will play a big role in connecting
+our strands.
+For this purpose, we will want to define a notion:
+the *nucleobase of a dotted rule*.
+Dotted rules, as a reminder, are rules with a
+"current location" marked with a dot.
+For example,
+```
+    X ::= A . B C
+```
+Call the symbols after the dot, the "suffix" of a dotted rule.
+The nucleobase of a dotted rule is the nucleobase
+in the nucleotide rule which is derived with the 
+same original rule, and which has the same suffix.
+For example, the nucleobase of the dotted rule above
+are `b3L` and `b3R`.
+
+## Some details [ Under construction ]
+
+It's possible the same connector lexeme can appear more than once
+on the right edge of the prefix subtree,
+as well as on left edge of the connector subtree.
+In these cases, the general solution is to make *all* possible connections.
+
+<!---
+vim: expandtab shiftwidth=4
 
 [ Under construction ]
 
