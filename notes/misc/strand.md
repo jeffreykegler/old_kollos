@@ -119,8 +119,7 @@ is the same as the alphabetical order of the terms:
 
 ## Dotted rules
 
-As a reminder,
-dotted rules are of three kinds:
+Dotted rules are of several kinds:
 
 * predictions, in which the dot is before the first RHS symbol;
 
@@ -128,6 +127,9 @@ dotted rules are of three kinds:
 
 * medials, which are those dotted rules which are neither
     predictions or completions.
+
+* penults, which are a special kind of medial,
+  in which the dot is just before the last RHS symbol.
 
 If a dotted rule has the dot after a RHS symbol instance,
 the predecessor of that dotted rule is the dotted rule
@@ -192,6 +194,8 @@ Nucleosugar symbols exist to allow non-terminals to be split in half.
 Like nucleobase symbols, nucleosugars come in right and left versions.
 For example, for the symbol `A`,
 the nucleosugars will be `A-L` and `A-R`.
+The symbol `A` is called by *base symbol*
+of the nucleosugars `A-L` and `A-R`.
 
 We will call the original grammar,
 before it has strand rules and symbols added to it,
@@ -704,13 +708,79 @@ To produce a left-active strand:
            above.
            `lent-node` will have no links.
 
-* INTRA-NUCLEOTIDE LOPP:
-  For every node whose dotted rule is a left nucleotide.
+* INTRA-NUCLEOTIDE LOOP:
+  Loop once over every node whose dotted rule is a left nucleotide.
+  This is done by initializing a stack (the "working stack")
+  to those "left nucleotide nodes"
+  that were added in the INTER-NUCLEOTIDE LOOP.
+  This loop is guaranteed to terminate, because the grammar
+  is cycle-free, any node added this loop is the parent
+  ("effect") of the node
+  that was most recently popped from the stack
+  (its "cause")
+  and every cause-effect chain will
+  eventually reach a effect node that
+  is the left nucleotide of the start rule,
+  which will not be the cause of any effect node.
 
-    - Call the node `node == [ dr, orig, split ]`.
-      `node` will have been added in the INTER-NUCLEOTIDE LOOP.
-      For, instance,
-      `lent-dr` might be the rule `X-L ::= A B . b5L`,
+    - If the working stack is empty,
+      exit INTRA-NUCLEOTIDE LOOP.
+
+    - Pop a node from the working stack.
+      Call the current node `cause-node == [ dr, orig, split ]`.
+      `dr` will be a left nucleotide penult.
+      For instance, `dr` might be the dotted
+      rule `X-L ::= A B . b5L`
+      from the above example.
+      
+    - Let `cause-symbol` be the LHS of `dr`.
+      The cause symbol will be a nucleosugar.
+      In our example, this symbol would be `X-L`.
+
+    - Let `base-symbol` be the base symbol
+      of `cause-symbol`.
+      In our example, this symbol would be `X`.
+
+    - If `X` is the start symbol, do not execute
+      the following steps.
+      Restart INTRA-NUCLEOTIDE LOOP from the beginning.
+
+    - For every Earley item in the Earley set `orig`
+      whose postdot symbol is `base-symbol`
+
+      + Let that Earley item be
+        `pred-eim = [pred-dr, pred-orig, orig]`.  The
+        Earley sets index Earley items by postdot symbol,
+        so that `pred-eim` can be found efficiently.
+       In our example, `pred-dr` might be
+       `U ::= V W . X Y`.
+
+     + Let the dotted rule of `pred-eim` be `pred-dr`.
+
+     * Let `effect-rule` be the left intra-nucleotide
+       rule of `pred-eim`.
+       In our example, 
+       `effect-rule` might be
+       `U-L ::= V W X-L b42L`.
+
+     * Let `effect-dr` be the penult of `effect-rule`.
+       In our example, 
+       `effect-dr` would be
+       `U-L ::= V W X-L . b42L`.
+
+      + Expand `pred-eim` into the bocage node `pred-node`
+        as described under
+        "Expanding an Earley item into a bocage node" 
+        above.
+
+      + Create the bocage node `[ effect-dr, pred-orig, split ]`.
+        Call this `new-node`.
+
+      + Add `[pred-node, cause-node]` as a link of `new-node`.
+
+      + Push `new-node` onto the working stack.
+
+      + Restart INTRA-NUCLEOTIDE LOOP from the beginning.
 
 [ Under construction ]
 
