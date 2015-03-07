@@ -108,6 +108,8 @@ Note that while DNA nucleosides *always* contain
 nucleosugars, in our terminology,
 nucleosugars are optional.
 
+A *nucleosymbol* is either a nucleobase or a nucleosugar.
+
 Finally, a *nucleotide* is a rule that contains
 nucleobases.
 
@@ -116,6 +118,7 @@ the order from inside to outside,
 and the order from smallest to largest,
 is the same as the alphabetical order of the terms:
 "base", "side" and "tide".
+
 
 ## Dotted rules
 
@@ -286,24 +289,16 @@ Informally, a right split rule must represent "something".
 
 An active strand is one capable of being wound together with
 another active strand.
-An active strand must be left-active or right-active.
-A strand can be *both* left- and right-active,
-in which case we call it double-active.
-An active strand which is not double-active
+An active strand must be forward-active or reverse-active.
+A strand can be *both* forward- and reverse-active,
+in which case we call it bi-active.
+An active strand which is not bi-active
 is called single-active.
 An inactive strand is the same as an ordinary
 parse forest.
 
-A strand is right-active if it has nucleobases at its right edge.
-A strand is left-active if it has nucleobases at its left edge.
-
-If a strand is right-active, we call it a left strand.
-If a strand is left-active, we call it a right strand.
-This may seem confused, but the idea is that a left strand is
-wound together with a right one and
-for that to occur,
-the left strand must have an active edge on its right and
-the right strand must have an active edge on its left.
+A strand is forward-active if it has nucleobases at its right edge.
+A strand is reverse-active if it has nucleobases at its left edge.
 
 ## Broken nucleotides
 
@@ -338,7 +333,7 @@ we proceed.
 In more detail:
 
 * We start by parsing the input until
-    we have an initial single-active left strand,
+    we have an initial single-active forward-active strand,
     or the parse has succeeded,
     or the parse has failed.
     If the parse succeeded or failed,
@@ -346,22 +341,23 @@ In more detail:
     and we proceed as described in the section titled
     "Producing the ASF".
 
-* We then loop for as long as we can create double-active strands,
+* We then loop for as long as we can create bi-active strands,
     by parsing the remaining input.
 
     * We parse the remaining input to create a new strand.
 
-    * If this new strand is not double-active, we end the loop.
+    * If this new strand is not bi-active, we end the loop.
 
     * At this point,
-        we have a single-active left strand and a double-active strand.
+        we have a single-active forward-active strand
+        and a bi-active strand.
 
     * We wind our two strands together,
-         leaving a single-active left strand,
+         leaving a single-active forward-active strand,
          and continue the loop.
 
 * On leaving the loop, we have two single-active strands, one
-    left, one right.
+    forward-active, one reverse-active.
     We wind these two together to produce an inactive strand.
     Call this the "final strand".
     We proceed as described in the section titled
@@ -511,6 +507,15 @@ It will have no links.
 Top(tok) is considered to be the top node of the bocage,
 starting from `tok`.
 
+### Expanding nucleosymbols into a bocage node
+
+If in the expansion of a strand,
+right nucleosugars and nucleobases are
+encountered at its reverse edge,
+they are left unexpanded.
+They will be dealt with when the strand is
+wound together with another one.
+
 ### Expanding an Earley item into a bocage node
 
 If the Earley item, `eim`, is
@@ -647,7 +652,7 @@ that there is a completed start rule, so
 and the strand could be treated as an left-inactive strand
 if the application chose to do so.
 
-To produce a left-active strand:
+To produce a forward-active strand:
 
 * INTER-NUCLEOTIDE LOOP:
   For every medial Earley item in the Earley set at `split`
@@ -782,59 +787,93 @@ To produce a left-active strand:
 
       + Restart INTRA-NUCLEOTIDE LOOP from the beginning.
 
+## Starting a suffix parse
+
+A suffix parse is a reverse-active strand which continues
+another forward-active strand.
+The intent will usually be to wind the two strands
+together.
+
+### The forward nucleobases
+
+The forward nucleobases are the set of left nucleobases
+from the forward-active strand.
+The reverse nucleobases are the set of right nucleobases
+corresponding to the left nucleobases.
+As a reminder, the corresponding right nucleobase
+of the left nucleobase `b42L` would be `b42R`,
+and vice versa.
+
+### The suffix grammar
+
+To create a suffix parse, we use a special suffix grammar,
+created from the pre-strand grammar.
+The suffix grammar is the pre-strand grammar with these changes.
+
+* The pre-strand start symbol is deleted.
+
+* The pre-strand start rule is deleted.
+
+* The right nucleosymbols (nucleosugars and nucleobases)
+  are added.
+
+* The right nucleotide rules are added.
+
+* The start rule of the suffix grammar is the right
+  intra-nucleotide rule whose base dotted rule
+  is the prediction start rule of the pre-strand
+  grammar.
+
+The suffix grammar described above will be several
+times the size of the pre-strand grammar.
+Alternatively, a suffix grammar could be created
+on a per-parse basis, adding only
+
+* The forward nucleobase symbols
+
+* The right nucleotide rules which contain forward
+  nucleobase symbols.
+
+* The right nucleosugars contained in right nucleotide
+  rule with contain forward nucleobase symbols.
+
+All pre-strand rules and symbols made inaccessible
+could then deleted.
+This grammar would be considerably smaller.
+
+### Create Earley set 0
+
+Earley set 0 in the suffix parse
+should consist of all the Earley items
+of the form `[ nucleo-dr, 0, 0 ]`,
+where `nucleo-dr` is prediction of one
+of the suffix grammar's nucleotide rules.
+Predictions have no links.
+
+### Create Earley set 1
+
+All the Earley items in Earley set 0
+will have a right nucleobase as their
+postdot symbol.
+Earley set 1 is created by reading all
+the nucleobase symbols as tokens
+with start location 0 and start location 1.
+This makes use of Marpa's ambiguous lexing
+capability.
+
+### Continuing the suffix parse
+
+The suffix parse then continues in the standard
+way.
+If the original input has been read up to input
+location `i`, then tokens from the original input
+at location `j`
+are read into the suffix parse as if they
+were at location `j-(i+1)`.
+
+## Winding strands together
+
 [ Under construction ]
-
-## Nucleobases [ Under construction ]
-
-As the name suggests,
-the nucleobase symbols will play a big role in connecting
-our strands.
-For this purpose, we will want to define a notion:
-the *nucleobase of a dotted rule*.
-Dotted rules, as a reminder, are rules with a
-"current location" marked with a dot.
-For example,
-```
-    X ::= A . B C
-```
-Call the symbols after the dot, the "suffix" of a dotted rule.
-The nucleobase of a dotted rule is the nucleobase
-in the nucleotide rule which is derived with the 
-same original rule, and which has the same suffix.
-For example, the nucleobase of the dotted rule above
-are `b3L` and `b3R`.
-
-## Some details [ Under construction ]
-
-It's possible the same connector lexeme can appear more than once
-on the right edge of the prefix subtree,
-as well as on left edge of the connector subtree.
-In these cases, the general solution is to make *all* possible connections.
-
-<!---
-vim: expandtab shiftwidth=4
-
-[ Under construction ]
-
-## Nucleobases [ Under construction ]
-
-As the name suggests,
-the nucleobase symbols will play a big role in connecting
-our strands.
-For this purpose, we will want to define a notion:
-the *nucleobase of a dotted rule*.
-Dotted rules, as a reminder, are rules with a
-"current location" marked with a dot.
-For example,
-```
-    X ::= A . B C
-```
-Call the symbols after the dot, the "suffix" of a dotted rule.
-The nucleobase of a dotted rule is the nucleobase
-in the nucleotide rule which is derived with the 
-same original rule, and which has the same suffix.
-For example, the nucleobase of the dotted rule above
-are `b3L` and `b3R`.
 
 ## Some details [ Under construction ]
 
