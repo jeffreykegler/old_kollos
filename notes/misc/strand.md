@@ -649,7 +649,7 @@ if the application chose to do so.
 
 To produce a left-active strand:
 
-* INTER-NUCLEOTIDE LOPP:
+* INTER-NUCLEOTIDE LOOP:
   For every medial Earley item in the Earley set at `split`
 
     - Let that medial Earley item be
