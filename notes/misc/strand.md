@@ -161,6 +161,41 @@ Earley item, `eim`, consists of
   and which corresponds to the position of the
   dot in the dotted rule.
 
+## Locations
+
+In this document, we will assume there is
+one Earley set per input
+location.
+Usually location is represented by a non-negative
+integer.
+Because strand parsing uses multiple parses,
+our idea of location has to be more complex:
+Location is a duple of two non-negative
+integers: `[offset, loc]`.
+Here `offset` is the first input location
+parsed in the relevant strand,
+and `loc` is location within the parse.
+
+Absolute location, `abs` is calculated as
+```
+    abs = offset > 0 ? (offset+loc)-1 : loc
+```
+Comparison of locations always uses absolute
+locations.
+In the location duple `[0, loc-x]`,
+`loc-x` is equal to the absolute location.
+
+As implemented, locations will often be
+stored as absolute locations.
+Locations in the bocage and in its
+AVL index are always absolute locations.
+
+The necessary conversions are obvious
+and would clutter the pseudo-code, they are
+usually omitted.
+An implementation, of course, would have to
+perform them.
+
 ## Creating the strand grammar
 
 Let our original grammar be `g1`.
@@ -873,14 +908,85 @@ were at location `j-(i+1)`.
 
 ## Winding strands together
 
-[ Under construction ]
+### Expanding into nodes across the split point
 
-## Some details [ Under construction ]
+The function `Expand-across(prefix-node, yim)`
+returns a new bocage node.
+`prefix-node` is a bocage node which must
+be on the prefix side of the split.
+`yim` is an Earley item which must be on
+the suffix side of the split.
 
-It's possible the same connector lexeme can appear more than once
-on the right edge of the prefix subtree,
-as well as on left edge of the connector subtree.
-In these cases, the general solution is to make *all* possible connections.
+`Expand-across()`
+is far from a pure function.
+Among its many side effects,
+is the creation of many other bocage nodes.
+
+* Let `predot` be the predot symbol of `yim`.
+
+* Let `current` be the dot location of `yim`.
+
+* If `predot` is a token, end the `Expand-across()`
+  function.  Return `Expand-token(predot)` as
+  its value.
+
+* Let `new-node = [ EQV(yim), Orig(prefix-node), current ]`
+
+* If `predot` is not a nucleosymbol
+
+    + For every `[pred, succ]` in `Sources(yim)`
+
+        - Let `link` be `[Expand-across(prefix-node, pred), Expand-within(succ)]`
+
+        - `Add-link(new-node, link)`
+
+    + `Add-node(new-node)`
+
+    + End the `Expand-across()` function.
+      Return `new-node` as its value.
+
+* If `predot` is a nucleosugar
+
+    + LINK_LOOP: For every `[pred, l-cause]` in the links of `prefix-node`
+
+        - RIGHT_CAUSE_LOOP:
+          For every completion whose current location
+          is `current`.
+
+            * Call that completion `r-cause-eim`.
+
+            * Call its rule `r-cause-rule`.
+
+            * If `r-cause-rule` is not a right
+              nucleotide,
+              end this iteration of RIGHT_CAUSE_LOOP.
+
+            * Let `r-nucleobase` be the right nucleobase
+              of `r-cause-rule`.
+
+            * If the right nucleobase of `l-cause` does
+              not correspond to `r-nucleobase`,
+              end this iteration of RIGHT_CAUSE_LOOP.
+          
+            * Let `r-cause-eim` be `[r-cause-dr, 0, current]`
+
+            * Let `link`
+              be `[Expand-within(pred), Expand-across(l-cause, r-cause-eim)]`.
+
+            * `Add-link(new-node, link)`
+
+            * Continue RIGHT_CAUSE_LOOP.
+
+        - Continue LINK_LOOP.
+
+    + `Add-node(new-node)`
+
+    + End the `Expand-across()` function.
+      Return `new-node` as its value.
+
+* If `predot` is a nucleobase
+
+[ Under construction from here. ]
 
 <!---
 vim: expandtab shiftwidth=4
