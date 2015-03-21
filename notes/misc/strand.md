@@ -43,6 +43,16 @@ Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
 It can be shown that there is always some context-free grammar `g2`,
 whose language is `suffixes(L1)`.
 
+## Notation
+
+Hypenated names are very convenient in what follows,
+while subtraction is rare.
+In this document,
+to avoid confusion,
+subtraction will always be
+shown as the addition of a negative number.
+For example `4+(-1) = 3`.
+
 ## Nucleobases, nucleosides and nucleotides
 
 In order to make the following algorithm appeal to the intuition more,
@@ -171,19 +181,30 @@ integer.
 Because strand parsing uses multiple parses,
 our idea of location has to be more complex:
 Location is a duple of two non-negative
-integers: `[offset, loc]`.
+integers: `Loc(offset, loc)`.
 Here `offset` is the first input location
 parsed in the relevant strand,
 and `loc` is location within the parse.
 
 Absolute location, `abs` is calculated as
 ```
-    abs = offset > 0 ? (offset+loc)-1 : loc
+    abs = offset > 0 ? offset+loc+(-1) : loc
 ```
 Comparison of locations always uses absolute
 locations.
-In the location duple `[0, loc-x]`,
-`loc-x` is equal to the absolute location.
+In the location `Loc(0, abs-loc)`,
+`abs-loc` is equal to the absolute location.
+
+When `offset` is not
+zero in `Loc(offset, pos)`,
+the location `pos` is somewhat special --
+it is reserved for the pseudo-lexeme
+in suffix parses.
+`Loc(offset, 0)` "disappears" when strands
+are wound together, but in the meantime
+caution must be exercised
+The absolute location of `Loc(offset, 0)`
+is undefined when `offset` is non-zero.
 
 As implemented, locations will often be
 stored as absolute locations.
@@ -908,6 +929,22 @@ were at location `j-(i+1)`.
 
 ## Winding strands together
 
+### Offsets
+
+In winding strands together,
+we actually wind a forward-only strand
+with a suffix parse.
+As implemented, each of these will keep
+locations in its own terms,
+and these terms will be different.
+Locations in the forward-only strand
+will be absolute, and may be represented
+as `Loc(0, forw-loc)` or simply `forw-loc`.
+Locations in the suffix parse will be
+represented as `Loc(split-offset, suffix-loc)`,
+where `split-offset` is the absolute location 
+of the split point.
+
 ### The straddling dotted rule
 
 For winding strands together, it will be convenient
@@ -974,7 +1011,7 @@ is the creation of many other bocage nodes.
 
 * Let `predot` be the predot symbol of `yim`.
 
-* Let `current` be the dot location of `yim`.
+* Let `current = Loc(split-offset, current)` be the dot location of `yim`.
 
 * Let `dr` be the dotted rule of `yim`.
 
@@ -982,7 +1019,8 @@ is the creation of many other bocage nodes.
   function.  Return `Token-node-create(predot)` as
   its value.
 
-* Let `new-node = [ Straddle(dr), Orig(prefix-node), current ]`
+* Let `new-node = [ Straddle(dr), Orig(prefix-node),
+  current ]`
 
 * If `predot` is not a nucleosymbol
 
@@ -1002,31 +1040,28 @@ is the creation of many other bocage nodes.
 
 * If `predot` is a nucleosugar
 
-    + LINK_LOOP: For every `[pred, l-cause]` in the links of `prefix-node`
+    + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
         - RIGHT_CAUSE_LOOP:
           For every completion whose current location
           is `current`.
 
-            * Call that completion `r-cause-eim`.
+            * Call that completion `rev-cause-eim`.
 
-            * Call its rule `r-cause-rule`.
+            * Call its dotted rule `rev-cause-dr`.
 
-            * If `r-cause-rule` is not a right
+            * If `Rule(rev-cause-dr)` is not a right
               nucleotide,
               end this iteration of RIGHT_CAUSE_LOOP.
 
-            * Let `r-nucleobase` be the right nucleobase
-              of `r-cause-rule`.
-
-            * If the right nucleobase of `l-cause` does
-              not correspond to `r-nucleobase`,
+            * If the forward nucleobase of `forw-cause` does
+              the reverse nucleobase of `Rule(rev-cause-dr)`.
               end this iteration of RIGHT_CAUSE_LOOP.
 
-            * Let `r-cause-eim` be `[r-cause-dr, 0, current]`
+            * Let `rev-cause-eim` be `[rev-cause-dr, Loc(split-loc, 0), 1), current]`
 
             * Let `link`
-              be `[In-node-create(pred), Straddle-node-create(l-cause, r-cause-eim)]`.
+              be `[In-node-create(pred), Straddle-node-create(forw-cause, r-cause-eim)]`.
 
             * `Link-add(new-node, link)`
 
