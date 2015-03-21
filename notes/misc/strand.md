@@ -62,7 +62,7 @@ form a nucleoside.
 Biochemists occasionally call this sugar a nucleosugar.
 In DNA,
 each nucleoside
-is attached to 
+is attached to
 one or more phosphate groups
 to form
 a nucleotide.
@@ -248,7 +248,7 @@ Let one of `g1`'s pre-strand rules be
 ```
 Call this rule `rule-X`.
 
-The six pairs of 
+The six pairs of
 "nucleotide rules" that we will need for `rule-X` are
 ```
     1: X-L ::= b1L            X-R ::= b1R A B C
@@ -291,7 +291,7 @@ The base dotted rule for nucleotide pairs 5 and 6 is
     X ::= A B . C
 ```
 
-A completion is 
+A completion is
 a dotted rule with the dot
 after the last RHS symbol.
 In this example, it is
@@ -358,7 +358,7 @@ and winding strands,
 it may be helpful to indicate how they are intended to
 be used.
 There are many ways in which strand parsing can be used,
-but 
+but
 the archetypal case is that where we
 are parsing from left-to-right,
 breaking the parse up at arbitrary "split points",
@@ -565,7 +565,7 @@ We call Top(eim) the top node of the bocage,
 starting from `eim`.
 If Dotted(eim) is a prediction,
 the bocage node will have no links.
-Otherwise, let `predot` be the pre-dot symbol 
+Otherwise, let `predot` be the pre-dot symbol
 of Dotted(eim).
 The links will be the set of all
 ```
@@ -674,7 +674,7 @@ to allow parsing to proceed in fixed size pieces.
 
 In the following,
 I assume that you have stopped a Marpa parse
-at a point where 
+at a point where
 
 * it has not failed:
 
@@ -715,7 +715,7 @@ To produce a forward-active strand:
       Expand `lent-eim` into the bocage node, `lent-node`,
       and add it to the bocage,
       as described under
-      "Expanding an Earley item into a bocage node" 
+      "Expanding an Earley item into a bocage node"
       above.
       For efficient implementation of the expansion,
       the links of `medial-eim` can be used --
@@ -744,7 +744,7 @@ To produce a forward-active strand:
            Expand `lent-eim` into the bocage node, `lent-node`,
            and add it to the bocage,
            as described under
-           "Expanding an Earley item into a bocage node" 
+           "Expanding an Earley item into a bocage node"
            above.
            `lent-node` will have no links.
 
@@ -772,7 +772,7 @@ To produce a forward-active strand:
       For instance, `dr` might be the dotted
       rule `X-L ::= A B . b5L`
       from the above example.
-      
+
     - Let `cause-symbol` be the LHS of `dr`.
       The cause symbol will be a nucleosugar.
       In our example, this symbol would be `X-L`.
@@ -799,18 +799,18 @@ To produce a forward-active strand:
 
      * Let `effect-rule` be the left intra-nucleotide
        rule of `pred-eim`.
-       In our example, 
+       In our example,
        `effect-rule` might be
        `U-L ::= V W X-L b42L`.
 
      * Let `effect-dr` be the penult of `effect-rule`.
-       In our example, 
+       In our example,
        `effect-dr` would be
        `U-L ::= V W X-L . b42L`.
 
       + Expand `pred-eim` into the bocage node `pred-node`
         as described under
-        "Expanding an Earley item into a bocage node" 
+        "Expanding an Earley item into a bocage node"
         above.
 
       + Create the bocage node `[ effect-dr, pred-orig, split ]`.
@@ -908,16 +908,66 @@ were at location `j-(i+1)`.
 
 ## Winding strands together
 
-### Expanding into nodes across the split point
+### The straddling dotted rule
 
-The function `Expand-across(prefix-node, yim)`
+For winding strands together, it will be convenient
+to define the *straddling dotted rule*,
+`Straddle(dr)` of a dotted rule `dr`.
+Intuitively, let the `Rule(dr)` be a reverse nucleotide,
+so that `dr` represents the parse on one side of a side.
+`Straddle(dr)` is an equivalent dotted rule the represents
+that parse on both sides of the split point.
+If `Rule(dr)` is not a reverse nucleotide,
+`Straddle(dr)` is undefined.
+
+More precisely,
+in the dotted rule
+`Straddle(dr)`, the rule
+is the base rule of `Rule(dr)`,
+and its dot position is the same as the dot
+position of `dr`, counted relative to the end
+of the RHS.
+For example, the `dr` be the dotted rule
+```
+    X-R ::= b4R B-R . C`,
+```
+Note that `Rule(dr)` is a reverse nucleotide,
+as required.
+Call the base dotted rule of `Rule(dr)`,
+`base-dr`.
+We have
+```
+    base-dr = [X ::= A . B C]
+```
+Then, `Straddle(dr)` will be `Rule(dr)`,
+with its dot position the same as `dr`,
+counted relative to the end of the RHS.
+In `dr`, the dot is 1 position before the end,
+so that
+```
+    Straddle(dr) = [X ::= A B . C]
+```
+
+`Straddle(dr)` is sometimes the same as
+the base dotted rule, but not always.
+They always have the same rule,
+but do *not* always have the same dot position.
+For instance,
+in the example above, the base dotted rule
+and the straddling dotted rule,
+have different dot positions.
+
+### Expanding nodes that straddle the split point
+
+The function `Straddle-node-create(prefix-node, yim)`
 returns a new bocage node.
 `prefix-node` is a bocage node which must
 be on the prefix side of the split.
 `yim` is an Earley item which must be on
 the suffix side of the split.
+`Rule(yim)` must be a reverse nucleotide.
 
-`Expand-across()`
+`Straddle-node-create()`
 is far from a pure function.
 Among its many side effects,
 is the creation of many other bocage nodes.
@@ -926,23 +976,28 @@ is the creation of many other bocage nodes.
 
 * Let `current` be the dot location of `yim`.
 
-* If `predot` is a token, end the `Expand-across()`
-  function.  Return `Expand-token(predot)` as
+* Let `dr` be the dotted rule of `yim`.
+
+* If `predot` is a token, end the `Straddle-node-create()`
+  function.  Return `Token-node-create(predot)` as
   its value.
 
-* Let `new-node = [ EQV(yim), Orig(prefix-node), current ]`
+* Let `new-node = [ Straddle(dr), Orig(prefix-node), current ]`
 
 * If `predot` is not a nucleosymbol
 
     + For every `[pred, succ]` in `Sources(yim)`
 
-        - Let `link` be `[Expand-across(prefix-node, pred), Expand-within(succ)]`
+        - Let `link` be `[Straddle-node-create(prefix-node, pred), In-node-create(succ)]`
 
-        - `Add-link(new-node, link)`
+        - In the previous step, note that `succ` is after all the reverse nucleosymbols,
+          so that we know that `succ` do not straddle the split point.
 
-    + `Add-node(new-node)`
+        - `Link-add(new-node, link)`
 
-    + End the `Expand-across()` function.
+    + `Node-add(new-node)`
+
+    + End the `Straddle-node-create()` function.
       Return `new-node` as its value.
 
 * If `predot` is a nucleosugar
@@ -967,21 +1022,21 @@ is the creation of many other bocage nodes.
             * If the right nucleobase of `l-cause` does
               not correspond to `r-nucleobase`,
               end this iteration of RIGHT_CAUSE_LOOP.
-          
+
             * Let `r-cause-eim` be `[r-cause-dr, 0, current]`
 
             * Let `link`
-              be `[Expand-within(pred), Expand-across(l-cause, r-cause-eim)]`.
+              be `[In-node-create(pred), Straddle-node-create(l-cause, r-cause-eim)]`.
 
-            * `Add-link(new-node, link)`
+            * `Link-add(new-node, link)`
 
             * Continue RIGHT_CAUSE_LOOP.
 
         - Continue LINK_LOOP.
 
-    + `Add-node(new-node)`
+    + `Node-add(new-node)`
 
-    + End the `Expand-across()` function.
+    + End the `Straddle-node-create()` function.
       Return `new-node` as its value.
 
 * If `predot` is a nucleobase
