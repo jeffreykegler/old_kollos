@@ -998,42 +998,53 @@ have different dot positions.
 
 The function `Straddle-node-create(prefix-node, yim)`
 returns a new bocage node.
+The new node will not
+have been added to the bocage.
+
 `prefix-node` is a bocage node which must
 be on the prefix side of the split.
 `yim` is an Earley item which must be on
 the suffix side of the split.
 `Rule(yim)` must be a reverse nucleotide.
 
-`Straddle-node-create()`
-is far from a pure function.
-Among its many side effects,
-is the creation of many other bocage nodes.
+While
+`Straddle-node-create()` does not add
+the node it returns to the bocage,
+it is far from a pure function.
+It potentially has many side effects,
+including the creation and
+addition other nodes to the bocage.
 
 * Let `predot` be the predot symbol of `yim`.
-
-* Let `current = Loc(split-offset, current)` be the dot location of `yim`.
-
-* Let `dr` be the dotted rule of `yim`.
 
 * If `predot` is a token, end the `Straddle-node-create()`
   function.  Return `Token-node-create(predot)` as
   its value.
 
-* Let `new-node = [ Straddle(dr), Orig(prefix-node),
-  current ]`
+* Let
+
+         current = Loc(split-offset, current)
+
+  be the dot location of `yim`.
+
+* Let `dr` be the dotted rule of `yim`.
+
+* Let `new-node` be
+
+          [ Straddle(dr), Orig(prefix-node), current ]
 
 * If `predot` is not a nucleosymbol
 
     + For every `[pred, succ]` in `Sources(yim)`
 
-        - Let `link` be `[Straddle-node-create(prefix-node, pred), In-node-create(succ)]`
+        - Let `link` be
 
-        - In the previous step, note that `succ` is after all the reverse nucleosymbols,
-          so that we know that `succ` do not straddle the split point.
+                 [Straddle-node-add(prefix-node, pred), In-node-add(succ)]
+
+          In the previous step, note that `succ` is after all the reverse nucleosymbols,
+          so that we know that the split point in is `pred`.
 
         - `Link-add(new-node, link)`
-
-    + `Node-add(new-node)`
 
     + End the `Straddle-node-create()` function.
       Return `new-node` as its value.
@@ -1042,7 +1053,7 @@ is the creation of many other bocage nodes.
 
     + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
-        - RIGHT_CAUSE_LOOP:
+        - REVERSE_CAUSE_LOOP:
           For every completion whose current location
           is `current`.
 
@@ -1050,31 +1061,68 @@ is the creation of many other bocage nodes.
 
             * Call its dotted rule `rev-cause-dr`.
 
-            * If `Rule(rev-cause-dr)` is not a right
+            * If `Rule(rev-cause-dr)` is not a reverse
               nucleotide,
-              end this iteration of RIGHT_CAUSE_LOOP.
+              end this iteration
+              and start the next iteration
+              of RIGHT_CAUSE_LOOP.
 
             * If the forward nucleobase of `forw-cause` does
-              the reverse nucleobase of `Rule(rev-cause-dr)`.
-              end this iteration of RIGHT_CAUSE_LOOP.
+              not match
+              the reverse nucleobase of `Rule(rev-cause-dr)`,
+              end this iteration
+              and start the next iteration
+              of RIGHT_CAUSE_LOOP.
 
-            * Let `rev-cause-eim` be `[rev-cause-dr, Loc(split-loc, 0), 1), current]`
+            * Let `rev-cause-eim` be
 
-            * Let `link`
-              be `[In-node-create(pred), Straddle-node-create(forw-cause, r-cause-eim)]`.
+                     [rev-cause-dr, Loc(split-loc, 0), 1), current]
+
+            * Let `link` be `[new-pred, new_cause]` where
+
+                     new-pred = In-node-add(pred)
+                     new-cause = Straddle-node-add(forw-cause, rev-cause-eim)]
+
+              Here the `new-cause` will 
+              never need to be converted into
+              a forward nucleotide, because it must be a completion.
+              Completions do not need to be continued,
+              and therefore have no nucleotides.
 
             * `Link-add(new-node, link)`
 
-            * Continue RIGHT_CAUSE_LOOP.
+            * Start the next iteration of RIGHT_CAUSE_LOOP.
 
         - Continue LINK_LOOP.
-
-    + `Node-add(new-node)`
 
     + End the `Straddle-node-create()` function.
       Return `new-node` as its value.
 
-* If `predot` is a nucleobase
+* If we are at this point, `predot` must be a nucleobase.
+  In this case:
+
+    + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
+
+      * Let `link` be `[new-pred, new_cause]` where
+
+               new-pred = In-node-add(pred)
+               new-cause = In-node-add(forw-cause)
+
+        Here the `new-cause` will 
+        never need to be converted into
+        a forward nucleotide, because it must be a completion.
+        Completions do not need to be continued,
+        and therefore have no nucleotides.
+        `pred` will never need tobe converted into a forward
+        nucleotide, because it does not reach
+        to the forward edge.
+
+        * `Link-add(new-node, link)`
+
+      - Continue LINK_LOOP.
+
+    + End the `Straddle-node-create()` function.
+      Return `new-node` as its value.
 
 [ Under construction from here. ]
 
