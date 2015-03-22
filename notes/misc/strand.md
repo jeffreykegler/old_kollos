@@ -601,54 +601,6 @@ Note that links already exist in the Earley sets
 to make finding `pred-eim`, `tok` and `cause-eim`
 efficient.
 It is assumed that the grammar is cycle-free.
-For simplicity, the above description was in terms
-of a recursion.
-A recursion is NOT an acceptable implementation.
-The implementation will require
-
-* A stack of Earley items to be processed.  Since the number of Earley items in a strand is known,
-  either a fixed size stack or a dynamicly sized one could be used.
-
-* An AVL (or a hash) from input tokens and Earley
-  items to bocage nodes, to be prevent an Earley item from being pushed on the stack twice.
-
-The algorithm then proceeds as follows:
-
-* We initialize the stack of Earley items with `eim`.
-
-* LOOP: While the stack of Earley item is not empty,
-
-    - Call the current top of stack Earley item, `work-eim`.
-
-    - We examine the top of stack, to determine if bocage nodes exist to
-      create all the links.  Input tokens and Earley items are looked up in the AVL,
-      and the bocage node found in the AVL is used if it exists.
-
-    - Any terminal bocage node that does not exist is created and
-      added to the AVL.
-
-    - If a Earley item need for a link is not in the AVL,
-      that Earley item is pushed on top of the stack.
-
-    - If Earley items were pushed,
-      so `work-eim` is no longer on top of the stack,
-      we continue with LOOP, and do not perform the following
-      steps.
-
-    - If `work-eim` is still on top of the stack,
-      We pop `work-eim` from the top of the stack.
-
-    - We create the bocage node, `new-node`,
-      `work-eim`,
-      adding all necessary links.
-      (Because no Earley items were pushed onto the stack,
-      we know that all the bocage nodes necessary for the links
-      can be found in the AVL.)
-
-    - We add to the AVL, an entry with `work-eim` as the key,
-      and `new-node` as the value,
-      and continue with LOOP.
-
 ## Producing the ASF from inactive strands
 
 To produce an ASF from an inactive strand,
@@ -1129,7 +1081,92 @@ addition other nodes to the bocage.
     + End the `Straddle-node-create()` function.
       Return `new-node` as its value.
 
-[ Under construction from here. ]
+## Implementation
+
+For simplicity, the algorithms have been described
+in terms of a recursion,
+and without some details necessary
+for an implementation of acceptable efficiency.
+
+### Memoization
+
+A recursive implementation might have acceptable
+speed, but only if the bocage nodes are memoized.
+The memoization can be either a hash or an AVL.
+
+The key for a bocage node must consist of
+
+* Type: Terminal or non-terminal
+
+* Dotted rule
+
+* Origin, as an absolute location
+
+* Dot location, as an absolute location
+
+The value of the key-value pair must consist of:
+
+* Type: "Bocage node" or "Actual evalution".
+
+* Actual value if the value type is "Actual evaluation".
+  An actual value can be any first-class value
+  in the language of the implementation.
+
+* A pointer to bocage node,
+  if the value type is "Bocage node".
+
+In the value of the key-value pair,
+only one of 
+The value of the bocage node can be either the node itself,
+or an arbitrary value
+
+### Non-recursive implementation
+
+The implementation will require
+
+* A stack of Earley items to be processed.  Since the number of Earley items in a strand is known,
+  either a fixed size stack or a dynamicly sized one could be used.
+
+* An AVL (or a hash) from input tokens and Earley
+  items to bocage nodes, to be prevent an Earley item from being pushed on the stack twice.
+
+The algorithm then proceeds as follows:
+
+* We initialize the stack of Earley items with `eim`.
+
+* LOOP: While the stack of Earley item is not empty,
+
+    - Call the current top of stack Earley item, `work-eim`.
+
+    - We examine the top of stack, to determine if bocage nodes exist to
+      create all the links.  Input tokens and Earley items are looked up in the AVL,
+      and the bocage node found in the AVL is used if it exists.
+
+    - Any terminal bocage node that does not exist is created and
+      added to the AVL.
+
+    - If a Earley item need for a link is not in the AVL,
+      that Earley item is pushed on top of the stack.
+
+    - If Earley items were pushed,
+      so `work-eim` is no longer on top of the stack,
+      we continue with LOOP, and do not perform the following
+      steps.
+
+    - If `work-eim` is still on top of the stack,
+      We pop `work-eim` from the top of the stack.
+
+    - We create the bocage node, `new-node`,
+      `work-eim`,
+      adding all necessary links.
+      (Because no Earley items were pushed onto the stack,
+      we know that all the bocage nodes necessary for the links
+      can be found in the AVL.)
+
+    - We add to the AVL, an entry with `work-eim` as the key,
+      and `new-node` as the value,
+      and continue with LOOP.
+
 
 <!---
 vim: expandtab shiftwidth=4
