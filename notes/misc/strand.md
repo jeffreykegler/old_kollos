@@ -356,23 +356,7 @@ parse forest.
 A strand is forward-active if it has nucleobases at its right edge.
 A strand is reverse-active if it has nucleobases at its left edge.
 
-## Broken nucleotides
-
-Sometimes we want to represent a partial parse
-as a parse forest,
-at a point where the parse is exhausted,
-and where there is no convenient "top rule".
-This will be the case in many parse failures.
-
-To do this, we can use "broken nucleotides".
-A broken nucletide is a nucleotide without the
-nucleobase.
-In this form, the nucleotide represents a partial
-rule but, unlike in the full nucleotide,
-the broken rule cannot be combined with another
-nucleotide.
-
-## Archtypal strand parsing
+## Archetypal strand parsing
 
 Before getting into details of the algorithms for forming
 and winding strands,
@@ -419,19 +403,20 @@ In more detail:
     We proceed as described in the section titled
     "Producing the ASF".
 
-## The structure of an ASF
+## The structure of an Bocage
 
-Marpa::R2 has two ASF formats.
+Marpa::R2 has two format for abstract syntax forests.
 The one
 [externally documented](https://metacpan.org/pod/distribution/Marpa-R2/pod/ASF.pod)
-as its ASF interface
+as its `Marpa::R2::ASF` interface
 is for advanced uses,
 and is an upper layer to the undocumented
 "bocage" interface.
 The bocage interface (which is essentially
 the same as Elizabeth Scott's SPFF format)
 is the one which will be described here.
-An Marpa::R2 ASF can be built from the bocage,
+An forest for the `Marpa::R2::ASF` interface
+can be built from the bocage,
 when and if desired.
 
 A bocage consists of nodes.
@@ -994,12 +979,32 @@ in the example above, the base dotted rule
 and the straddling dotted rule,
 have different dot positions.
 
-### Expanding nodes that straddle the split point
+### Adding nodes that straddle the split point
 
 The function `Straddle-node-create(prefix-node, yim)`
-returns a new bocage node.
+creates a new bocage node,
+and adds it to the bocage.
+
+`prefix-node` is a bocage node which must
+be on the prefix side of the split.
+`yim` is an Earley item which must be on
+the suffix side of the split.
+`Rule(yim)` must be a reverse nucleotide.
+
+`Straddle-node-add(prefix-node, yim)`
+is equivalent to the following:
+
+        Node-add(Straddle-node-create(prefix-node, yim))
+
+### Creating nodes that straddle the split point
+
+The function `Straddle-node-create(prefix-node, yim)`
 The new node will not
 have been added to the bocage.
+Creating of straddling nodes
+is factored into a separate function,
+to allow last-minute
+changes to the bocage node.
 
 `prefix-node` is a bocage node which must
 be on the prefix side of the split.
@@ -1039,7 +1044,7 @@ addition other nodes to the bocage.
 
         - Let `link` be
 
-                 [Straddle-node-add(prefix-node, pred), In-node-add(succ)]
+                 [Straddle-node-add(prefix-node, pred), Suffix-node-add(succ)]
 
           In the previous step, note that `succ` is after all the reverse nucleosymbols,
           so that we know that the split point in is `pred`.
@@ -1080,7 +1085,7 @@ addition other nodes to the bocage.
 
             * Let `link` be `[new-pred, new_cause]` where
 
-                     new-pred = In-node-add(pred)
+                     new-pred = Bocage-node-add(pred)
                      new-cause = Straddle-node-add(forw-cause, rev-cause-eim)]
 
               Here the `new-cause` will 
@@ -1105,8 +1110,8 @@ addition other nodes to the bocage.
 
       * Let `link` be `[new-pred, new_cause]` where
 
-               new-pred = In-node-add(pred)
-               new-cause = In-node-add(forw-cause)
+               new-pred = Bocage-node-add(pred)
+               new-cause = Bocage-node-add(forw-cause)
 
         Here the `new-cause` will 
         never need to be converted into
