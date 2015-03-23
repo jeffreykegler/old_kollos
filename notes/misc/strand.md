@@ -129,6 +129,29 @@ and the order from smallest to largest,
 is the same as the alphabetical order of the terms:
 "base", "side" and "tide".
 
+## Grammars
+
+The grammars considered here are Marpa internal
+grammars.
+Externally, Marpa handles arbitrary grammars,
+which it rewrites into internal grammars which
+observe a number of restrictions.
+The restrictions that are relevant here are
+
+* No cycles.
+
+* No nulling grammars or zero-length parses.
+  These are handled as special cases.
+
+* No empty rules and no properly nullable symbols.
+  These are eliminated using a rewrite suggested
+  by Aycock and Horspool.
+
+* No nulling symbols.  A non-nullable
+  grammar parses exactly
+  the same input strings with and without nulling symbols,
+  so that nulling symbols can be eliminated before
+  parsing and restored afterward.
 
 ## Dotted rules
 
