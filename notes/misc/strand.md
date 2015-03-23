@@ -647,28 +647,19 @@ we can produce a parse
 forest
 using broken left nucleotides.
 
-## Producing an ASF from an incomplete parse
-
-Producing ASFs from incomplete parses is crucial
-to the intended main use of strand parsing --
-to allow parsing to proceed in fixed size pieces.
+## Winding together a prefix bocage and a suffix parse
 
 In the following,
-I assume that you have stopped a Marpa parse
-at a point where
+we assume that you have stopped the suffix parse
+at a point called the split point.
+We assume that, at the split point,
+the parse has not failed.
+This implies that there is at least
+one medial Earley item at the split point.
 
-* it has not failed:
-
-* you wish to continue the parse.
-
-Call this location the split point, `split`.
-At the split point,
-a parse may be successful in the technical sense
-that there is a completed start rule, so
-and the strand could be treated as an left-inactive strand
-if the application chose to do so.
-
-To produce a forward-active strand:
+Call the split point, `split`.
+To produce a bocage from the prefix bocage and
+the suffix parse, we do the following:
 
 * INTER-NUCLEOTIDE LOOP:
   For every medial Earley item in the Earley set at `split`
@@ -693,7 +684,8 @@ To produce a forward-active strand:
       (This Earley item is "virtual"
       in the sense that it does
       not actually occur in the Libmarpa's Earley sets.)
-      Expand `lent-eim` into the bocage node, `lent-node`,
+
+    - Expand `lent-eim` into the bocage node, `lent-node`,
       and add it to the bocage,
       as described under
       "Expanding an Earley item into a bocage node"
@@ -1245,6 +1237,10 @@ The algorithm then proceeds as follows:
 
     - We add `new-node` to the bocage,
       and continue with LOOP.
+
+## Saving space [TO DO]
+
+## Incremental evaluation [TO DO]
 
 <!---
 vim: expandtab shiftwidth=4
