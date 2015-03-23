@@ -1124,49 +1124,70 @@ or an arbitrary value
 
 The implementation will require
 
-* A stack of Earley items to be processed.  Since the number of Earley items in a strand is known,
+* A stack of "work items" to be processed.
+  Work items are either Earley items in the suffix,
+  or bocage nodes in the prefix.
+  Since the number of Earley items in a strand,
+  and the number nodes in the bocage, are both know,
   either a fixed size stack or a dynamicly sized one could be used.
 
-* An AVL (or a hash) from input tokens and Earley
-  items to bocage nodes, to be prevent an Earley item from being pushed on the stack twice.
+* The memoization of the bocage nodes,
+  discussed above.
+
+* A "stack memoization"
+  that keeps track of work items
+  already pushed to the stack.
+  This prevents a work item from being pushed onto
+  the stack twice.
 
 The algorithm then proceeds as follows:
 
-* We initialize the stack of Earley items with `eim`.
+* We initialize the stack of work items with a single item.
 
-* LOOP: While the stack of Earley item is not empty,
+* LOOP: While the stack of work items is not empty,
 
-    - Call the current top of stack Earley item, `work-eim`.
+    - We initialize a `ready` flag to `TRUE`.
 
-    - We examine the top of stack, to determine if bocage nodes exist to
-      create all the links.  Input tokens and Earley items are looked up in the AVL,
-      and the bocage node found in the AVL is used if it exists.
+    - Call the current top of stack work item, `work-item`.
+
+    - We examine `work-item`, to determine if bocage nodes exist to
+      create all the necessary links.
 
     - Any terminal bocage node that does not exist is created and
       added to the AVL.
 
-    - If a Earley item need for a link is not in the AVL,
-      that Earley item is pushed on top of the stack.
+    - LINK_LOOP:
+      For every bocage node needed for a link:
 
-    - If Earley items were pushed,
-      so `work-eim` is no longer on top of the stack,
-      we continue with LOOP, and do not perform the following
-      steps.
+      * Let `needed-node` be that bocage node.
 
-    - If `work-eim` is still on top of the stack,
+      * If `link-node` is not already in the
+        bocage,
+
+        - We set the `ready` flag to `FALSE`.
+
+        - We push a work item for `link-node`
+          on top of the stack,
+          if it is not on the stack already.
+          We use the stack memoization to track this.
+
+    - If the `ready` flag is `FALSE`,
+      we start a new iteration of LOOP.
+      We do not perform the following steps.
+
+    - If we are here,
+      then `work-item` is still on top of the stack,
       We pop `work-eim` from the top of the stack.
 
-    - We create the bocage node, `new-node`,
-      `work-eim`,
-      adding all necessary links.
-      (Because no Earley items were pushed onto the stack,
-      we know that all the bocage nodes necessary for the links
-      can be found in the AVL.)
+    - We create the new bocage node,
+      call it `new-node`.
 
-    - We add to the AVL, an entry with `work-eim` as the key,
-      and `new-node` as the value,
+    - We all the necessary links.
+      In the previous steps, we make sure that all the
+      bocage nodes necessary will be found in the memoization.
+
+    - We add `new-node` to the bocage,
       and continue with LOOP.
-
 
 <!---
 vim: expandtab shiftwidth=4
