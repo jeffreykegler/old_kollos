@@ -1054,7 +1054,7 @@ base rule.
 
         - `Link-add(new-node, link)`
 
-    + End the `Straddle-node-create()` function.
+    + End the `Node-add()` function.
       Return `new-node` as its value.
 
 * If `predot` is a nucleosugar
@@ -1063,47 +1063,31 @@ base rule.
 
         - REVERSE_CAUSE_LOOP:
           For every completion whose current location
-          is `current`.
+          is `current`,
+          and whose LHS is `predot`
 
             * Call that completion `rev-cause-eim`.
+              It must be a nucleotide, because `predot`, it LHS,
+              is a nucleosugar.
 
             * Call its dotted rule `rev-cause-dr`.
 
-            * If `Rule(rev-cause-dr)` is not a reverse
-              nucleotide,
+            * If Nucleobases-match(forw-cause, rev-cause_eim)`
+              is `FALSE`,
               end this iteration
               and start the next iteration
               of RIGHT_CAUSE_LOOP.
 
-            * If the forward nucleobase of `forw-cause` does
-              not match
-              the reverse nucleobase of `Rule(rev-cause-dr)`,
-              end this iteration
-              and start the next iteration
-              of RIGHT_CAUSE_LOOP.
+            * `Link-add(new-node, [new-pred, new-cause])` where
 
-            * Let `rev-cause-eim` be
-
-                     [rev-cause-dr, Loc(split-loc, 0), 1), current]
-
-            * Let `link` be `[new-pred, new_cause]` where
-
-                     new-pred = Bocage-node-add(pred)
-                     new-cause = Straddle-node-add(forw-cause, rev-cause-eim)]
-
-              Here the `new-cause` will 
-              never need to be converted into
-              a forward nucleotide, because it must be a completion.
-              Completions do not need to be continued,
-              and therefore have no nucleotides.
-
-            * `Link-add(new-node, link)`
+                     new-pred = Node-revise(pred, rule)
+                     new-cause = Node-add(forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
 
             * Start the next iteration of RIGHT_CAUSE_LOOP.
 
-        - Continue LINK_LOOP.
+        - Start the next iteration of LINK_LOOP.
 
-    + End the `Straddle-node-create()` function.
+    + End the `Node-add()` function.
       Return `new-node` as its value.
 
 * If we are at this point, `predot` must be a nucleobase.
