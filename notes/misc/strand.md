@@ -53,7 +53,7 @@ subtraction will always be
 shown as the addition of a negative number.
 For example `4+(-1) = 3`.
 
-## Nucleobases, nucleosides and nucleotides
+## Nucleobases, nucleosugars and nucleotides
 
 In order to make the following algorithm appeal to the intuition more,
 we use an analogy to DNA transcription and winding.
@@ -112,16 +112,9 @@ winding and unwinding strands.
 Nucleosugars always occur in a RHS next to,
 and inside of, a nucleobase.
 
-A *nucleoside*, for our purposes, is a nucleobase
-with its adjacent nucleosugar, if there is one.
-Note that while DNA nucleosides *always* contain
-nucleosugars, in our terminology,
-nucleosugars are optional.
-
 A *nucleosymbol* is either a nucleobase or a nucleosugar.
-
 Finally, a *nucleotide* is a rule that contains
-nucleobases.
+a nucleobase.
 
 As a mnemonic, note that
 the order from inside to outside,
@@ -999,45 +992,50 @@ is equivalent to the following:
 
 ### Creating nodes that straddle the split point
 
-The function `Straddle-node-create(prefix-node, yim)`
-The new node will not
-have been added to the bocage.
-Creating of straddling nodes
-is factored into a separate function,
-to allow last-minute
-changes to the bocage node.
+The function `Node-add(prefix-node, yim, rule)`
+creates a new node from the Earley item
+`yim` and adds it to the bocage,
+along with all its links
+and memoizations.
+This may require the addition of many other
+child nodes to the bocage,
+in which case
+`Node-add` is called recursively.
+
+The description describes a recursion,
+because that is easiest conceptually.
+In practice,
+a non-recursive implementation
+is likely to be preferable.
 
 `prefix-node` is a bocage node which must
-be on the prefix side of the split.
-`yim` is an Earley item which must be on
-the suffix side of the split.
-`Rule(yim)` must be a reverse nucleotide.
-
-While
-`Straddle-node-create()` does not add
-the node it returns to the bocage,
-it is far from a pure function.
-It potentially has many side effects,
-including the creation and
-addition other nodes to the bocage.
+be on the prefix side of the split point.
+`prefix-node` will be undefined if and only 
+if `Rule(yim)` is not
+a nucleotide.
+`yim`, `rule` and, if defined, `prefix-node`
+must all share the same
+base rule.
 
 * Let `predot` be the predot symbol of `yim`.
 
-* If `predot` is a token, end the `Straddle-node-create()`
-  function.  Return `Token-node-create(predot)` as
+* If `predot` is a token, end the `Node-add()`
+  function.  Return `Token-node-add(predot)` as
   its value.
 
-* Let
-
-         current = Loc(split-offset, current)
-
+* Let `Loc(split-offset, current)`.
   be the dot location of `yim`.
+  Call this location, `current`, for short.
 
-* Let `dr` be the dotted rule of `yim`.
+* Let `new-dr` be `Clone-dot(rule, yim)`.
 
 * Let `new-node` be
 
-          [ Straddle(dr), Orig(prefix-node), current ]
+          [ new-dr, orig, current ]
+
+  where `orig` is `Orig(prefix-node)` if
+  `Rule(yim)` is a nucleotide,
+  and is `Orig(yim)` otherwise.
 
 * If `predot` is not a nucleosymbol
 
@@ -1045,10 +1043,14 @@ addition other nodes to the bocage.
 
         - Let `link` be
 
-                 [Straddle-node-add(prefix-node, pred), Suffix-node-add(succ)]
+                 [
+                   Node-add(prefix-node, pred, rule),
+                   Node-add(undef, succ, Rule(succ))
+                 ]
 
           In the previous step, note that `succ` is after all the reverse nucleosymbols,
-          so that we know that the split point in is `pred`.
+          and therefore is after the split point and entirely inside the suffix parse.
+          `Rule(succ)` will be a non-nucleotide rule.
 
         - `Link-add(new-node, link)`
 
