@@ -723,39 +723,43 @@ To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
 * INTER-NUCLEOTIDE LOOP:
-  For every medial Earley item in the Earley set at `split`
+  For every medial Earley item, call it `medial-eim,
+  which is in the Earley set at `split`
 
     - Let that medial Earley item be
       `medial-eim == [ dr, orig, split ]`.
 
-    - Let the left inter-nucleotide for `dr` be `lent`.
+    - Let
+      
+               base-rule = Base-rule(medial-eim)
+               straddle-rule = Straddle(dr)
+               new-rule = Forward-inter-nucleotide(straddle-rule)
+               new-dr = Completion(new-rule)
+
       For instance, using the example above,
       if `dr` is the dotted rule
       `X ::= A B . C`, then
-      `lent` is the rule `X-L ::= A B b5L`.
+      `new-dr` is the dotted rule `X-L ::= A B b5L .`.
 
-    - Let the `lent-dr` be the nucleotide rule `lent`,
-      with the dot just before the nucleobase.
-      For instance, using the example above,
-      if `lent` is the rule `X-L ::= A B b5L`,
-      then `lent-dr` is the rule `X-L ::= A B . b5L`,
+    - PREFIX-NODE-LOOP:
+      For every `prefix-node` in `Prefix-nodes(medial-eim)`
 
-    - Let `lent-eim` be the virtual Earley item
-      `[lent-dr, orig, split ]`.
-      (This Earley item is "virtual"
-      in the sense that it does
-      not actually occur in the Libmarpa's Earley sets.)
+      * Let `orig` be `Orig(prefix-node)` if prefix-node is defined,
+        otherwise let `orig = Orig(medial-eim)`.
 
-    - Expand `lent-eim` into the bocage node, `lent-node`,
-      and add it to the bocage,
-      as described under
-      "Expanding an Earley item into a bocage node"
-      above.
-      For efficient implementation of the expansion,
-      the links of `medial-eim` can be used --
-      they will be exactly the same as the links of `lent-eim`.
+      * Let `new-node = [new-dr, orig, split]`
 
-* PREDICTION LOOP:
+      * LINK-LOOP:
+        For every link, `[pred, succ]` of `medial-eim`:
+
+                Add-link(new-node, [
+                   Recursive-node-add(prefix-node, pred, new-rule),
+                   Recursive-node-add(undef, succ, Rule(succ)),
+                ])
+
+    - `Node-to-bocage-add(new-node)`
+
+  * PREDICTION LOOP:
   For every medial Earley item in the Earley set at `split`
 
     - Let that medial Earley item be
@@ -960,9 +964,11 @@ of the split point.
 
 ### Creating nodes that straddle the split point
 
-The function `Recursive-node-add(prefix-node, yim, rule)`
-creates a new node from the Earley item
-`yim` and adds it to the bocage,
+The function `Recursive-node-add(prefix-node, suffix-node, rule)`
+creates a new node from `suffix-node`,
+which may be either an Earley item
+or a token,
+and adds it to the bocage,
 along with all its links
 and memoizations.
 This may require the addition of many other
@@ -976,12 +982,17 @@ is likely to be preferable.
 
 `prefix-node` is a bocage node which must
 be on the prefix side of the split point.
-`prefix-node` will be undefined if and only 
-if `Rule(yim)` is not
+`prefix-node` may be undefined if 
+`suffix-node` is a token, or if
+`Rule(suffix-node)` is not
 a nucleotide.
-`yim`, `rule` and, if defined, `prefix-node`
+`suffix-node`, `rule` and, if defined, `prefix-node`
 must all share the same
 base rule.
+
+* If `suffix-node` is a token, end the `Recursive-node-add()`
+  function.  Return `Token-node-add(predot)` as
+  its value.
 
 * Let `predot` be the predot symbol of `yim`.
 
@@ -1003,16 +1014,25 @@ base rule.
   `Rule(yim)` is a nucleotide,
   and is `Orig(yim)` otherwise.
 
-* If `predot` is not a nucleosymbol
+* If `predot` is a token
 
-    + For every `[pred, succ]` in `Sources(yim)`
+  + For every `[pred, succ]` in `Sources(yim)`
 
-        - Let `link` be
+    - Let `link` be
 
                  [
                    Recursive-node-add(prefix-node, pred, rule),
-                   Recursive-node-add(undef, succ, Rule(succ))
+                   Token-node-add(predot)
                  ]
+
+  + `Node-to-bocage-add(new-node)`
+
+  + End the `Recursive-node-add()` function.
+    Return `new-node` as its value.
+
+* If `predot` is not a nucleosymbol
+
+    + For every `[pred, succ]` in `Sources(yim)`
 
           In the previous step, note that `succ` is after all the reverse nucleosymbols,
           and therefore is after the split point and entirely inside the suffix parse.
