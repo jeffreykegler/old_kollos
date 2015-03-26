@@ -1027,7 +1027,7 @@ base rule.
   be the dot location of `yim`.
   Call this location, `current`, for short.
 
-* Let `new-dr` be `Clone-dot(rule, yim)`.
+* Let `new-dr` be `Rule-dot(rule, yim)`.
 
 * Let `new-node` be
 
@@ -1053,6 +1053,8 @@ base rule.
           `Rule(succ)` will be a non-nucleotide rule.
 
         - `Link-add(new-node, link)`
+
+    + `Node-to-bocage-add(new-node)`
 
     + End the `Node-add()` function.
       Return `new-node` as its value.
@@ -1087,6 +1089,8 @@ base rule.
 
         - Start the next iteration of LINK_LOOP.
 
+    + `Node-to-bocage-add(new-node)`
+
     + End the `Node-add()` function.
       Return `new-node` as its value.
 
@@ -1095,25 +1099,17 @@ base rule.
 
     + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
-      * Let `link` be `[new-pred, new_cause]` where
+      * Let `link` be `[new-pred, forw-cause]` where
 
-               new-pred = Bocage-node-add(pred)
-               new-cause = Bocage-node-add(forw-cause)
+               new-pred = Node-revise(pred, rule)
 
-        Here the `new-cause` will 
-        never need to be converted into
-        a forward nucleotide, because it must be a completion.
-        Completions do not need to be continued,
-        and therefore have no nucleotides.
-        `pred` will never need tobe converted into a forward
-        nucleotide, because it does not reach
-        to the forward edge.
+      * `Link-add(new-node, link)`
 
-        * `Link-add(new-node, link)`
+      * Start the next iteration of LINK_LOOP.
 
-      - Continue LINK_LOOP.
+    + `Node-to-bocage-add(new-node)`
 
-    + End the `Straddle-node-create()` function.
+    + End the `Node-add()` function.
       Return `new-node` as its value.
 
 ## Implementation
