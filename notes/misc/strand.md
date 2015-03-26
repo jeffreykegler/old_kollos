@@ -564,59 +564,6 @@ It will have no links.
 Top(tok) is considered to be the top node of the bocage,
 starting from `tok`.
 
-### Expanding nucleosymbols into a bocage node
-
-If in the expansion of a strand,
-right nucleosugars and nucleobases are
-encountered at its reverse edge,
-they are left unexpanded.
-They will be dealt with when the strand is
-wound together with another one.
-
-### Expanding an Earley item into a bocage node
-
-If the Earley item, `eim`, is
-```
-    [ Dotted(eim), Orig(eim), Current(eim) ]
-```
-we create the bocage node
-```
-    Top(eim) = [ Dotted(eim), Orig(eim), Current(eim) ].
-```
-We call Top(eim) the top node of the bocage,
-starting from `eim`.
-If Dotted(eim) is a prediction,
-the bocage node will have no links.
-Otherwise, let `predot` be the pre-dot symbol
-of Dotted(eim).
-The links will be the set of all
-```
-    [ pred, succ ]
-```
-such that
-
-* `pred == Top(pred-eim)`
-
-* `pred-eim == Pred(eim)`
-
-* Either
-
-    - `succ == Top(tok)`, where `predot` is the token
-      symbol of `tok`, or
-
-    - `succ == Top(cause-eim)`, where `predot` is the LHS
-      of `Dotted(eim)`
-
-* `Origin(pred-eim) == Origin(eim)`
-
-* `Current(succ) == Current(eim)`
-
-* `Current(pred-eim) == Origin(succ)`
-
-Note that links already exist in the Earley sets
-to make finding `pred-eim`, `tok` and `cause-eim`
-efficient.
-It is assumed that the grammar is cycle-free.
 ## Producing the ASF from inactive strands
 
 To produce an ASF from an inactive strand,
@@ -973,34 +920,15 @@ The straddling dotted rule is
     Straddle(dr-forw) = [X ::= A B . C]
 ```
 
-### Adding nodes that straddle the split point
-
-The function `Straddle-node-create(prefix-node, yim)`
-creates a new bocage node,
-and adds it to the bocage.
-
-`prefix-node` is a bocage node which must
-be on the prefix side of the split.
-`yim` is an Earley item which must be on
-the suffix side of the split.
-`Rule(yim)` must be a reverse nucleotide.
-
-`Straddle-node-add(prefix-node, yim)`
-is equivalent to the following:
-
-        Node-add(Straddle-node-create(prefix-node, yim))
-
 ### Creating nodes that straddle the split point
 
-The function `Node-add(prefix-node, yim, rule)`
+The function `Recursive-node-add(prefix-node, yim, rule)`
 creates a new node from the Earley item
 `yim` and adds it to the bocage,
 along with all its links
 and memoizations.
 This may require the addition of many other
-child nodes to the bocage,
-in which case
-`Node-add` is called recursively.
+child nodes to the bocage.
 
 The description describes a recursion,
 because that is easiest conceptually.
@@ -1019,7 +947,7 @@ base rule.
 
 * Let `predot` be the predot symbol of `yim`.
 
-* If `predot` is a token, end the `Node-add()`
+* If `predot` is a token, end the `Recursive-node-add()`
   function.  Return `Token-node-add(predot)` as
   its value.
 
@@ -1044,8 +972,8 @@ base rule.
         - Let `link` be
 
                  [
-                   Node-add(prefix-node, pred, rule),
-                   Node-add(undef, succ, Rule(succ))
+                   Recursive-node-add(prefix-node, pred, rule),
+                   Recursive-node-add(undef, succ, Rule(succ))
                  ]
 
           In the previous step, note that `succ` is after all the reverse nucleosymbols,
@@ -1056,7 +984,7 @@ base rule.
 
     + `Node-to-bocage-add(new-node)`
 
-    + End the `Node-add()` function.
+    + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
 * If `predot` is a nucleosugar
@@ -1083,7 +1011,7 @@ base rule.
             * `Link-add(new-node, [new-pred, new-cause])` where
 
                      new-pred = Node-revise(pred, rule)
-                     new-cause = Node-add(forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
+                     new-cause = Recursive-node-add(forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
 
             * Start the next iteration of RIGHT_CAUSE_LOOP.
 
@@ -1091,7 +1019,7 @@ base rule.
 
     + `Node-to-bocage-add(new-node)`
 
-    + End the `Node-add()` function.
+    + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
 * If we are at this point, `predot` must be a nucleobase.
@@ -1109,7 +1037,7 @@ base rule.
 
     + `Node-to-bocage-add(new-node)`
 
-    + End the `Node-add()` function.
+    + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
 ## Implementation
