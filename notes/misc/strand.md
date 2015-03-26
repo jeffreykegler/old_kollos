@@ -1011,7 +1011,8 @@ base rule.
             * `Link-add(new-node, [new-pred, new-cause])` where
 
                      new-pred = Node-revise(pred, rule)
-                     new-cause = Recursive-node-add(forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
+                     new-cause = Recursive-node-add(
+                         forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
 
             * Start the next iteration of RIGHT_CAUSE_LOOP.
 
