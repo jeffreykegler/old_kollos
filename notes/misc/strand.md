@@ -549,6 +549,127 @@ when appropriate,
 to original node.
 Also, no link is ever added twice.
 
+### The straddling dotted rule
+
+For winding a prefix and
+a suffix together, it will be convenient
+to define the *straddling dotted rule*.
+Intuitively, the straddling dotted rule of another
+dotted rule, call it `dr`,
+is a dotted rule whose rule is the base rule
+of `Rule(dr)`,
+and which has the dot in the corresponding position.
+
+More precisely,
+if `Rule(dr)` is not a nucleotide,
+then 
+```
+    Straddle(dr) = dr
+```
+If `Rule(dr)` is a nucleotide,
+then
+```
+    Rule(Straddle(dr)) = Base-rule(dr)
+```
+and the dot position
+of `Straddle(dr)`
+is the same,
+relative to the outside of `dr`,
+as the dot
+position of `dr`.
+
+For instance,
+from the example above,
+let `dr` be the dotted rule
+```
+    X-R ::= b4R B-R . C`
+```
+Call the base dotted rule of `Rule(dr)`,
+`base-dr`.
+We have
+```
+    base-dr = [X ::= A . B C]
+```
+Then, `Straddle(dr)` will be `Rule(dr)`,
+with its dot position the same as `dr`,
+counted from the outside.
+Since `Rule(dr)` is a reverse
+nucleotide, its nucleobase is the first
+symbol of its RHS.
+The nucleobase is always considered
+the "inside",
+so that
+position relative to the outside
+is position relative
+to the last symbol of the RHS.
+
+In `dr`, the dot is just before
+the last symbol of the RHS.
+To create the straddling dotted rule,
+we start with the base rule,
+and put the dot just before
+the last symbol of its RHS.
+The result is
+```
+    Straddle(dr) = [X ::= A B . C]
+```
+
+`Straddle(dr)` will sometimes be the same as
+the base dotted rule,
+but often that is not the base.
+On one hand,
+the stradding dotted rule
+and the base dotted rule
+will always have the same rule.
+But the
+the stradding dotted rule
+and the base dotted rule
+often have
+have different dot positions.
+For instance,
+this is true in the example just given.
+
+As another example, let `dr-forw`
+be the dotted rule
+```
+    X-L ::= A . B-L b4L
+```
+This time `Rule(dr-forw)` is a forward
+nucleotide, so that the nuclebase is at
+the right end of the RHS,
+and
+the "inside" of the RHS is its last symbol.
+Therefore the outside of the RHS
+is its last symbol.
+The dot in `dr-forw` is just after its first
+symbol so that,
+putting the dot in the same position
+in the straddling dotted rule,
+we have
+```
+    Straddle(dr-forw) = [X ::= A . B C]
+```
+
+For some more examples let
+```
+    X-L ::= A B b42L
+    X-R ::= b42R C D
+```
+be forward and reverse inter-nucleotides.
+Their base dotted rule is
+```
+    X ::= A B . C D
+```
+In that case
+```
+    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
+    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
+    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
+    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
+```
+
 ### Expanding a input token into a bocage node
 
 If we have an input token, `tok`,
@@ -836,89 +957,6 @@ Locations in the suffix parse will be
 represented as `Loc(split-offset, suffix-loc)`,
 where `split-offset` is the absolute location 
 of the split point.
-
-### The straddling dotted rule
-
-For winding strands together, it will be convenient
-to define the *straddling dotted rule*,
-`Straddle(dr)` of a dotted rule `dr`.
-Intuitively, let the `Rule(dr)` be a reverse nucleotide,
-so that `dr` represents the parse on one side of a side.
-`Straddle(dr)` is an equivalent dotted rule the represents
-that parse on both sides of the split point.
-If `Rule(dr)` is not a reverse nucleotide,
-`Straddle(dr)` is undefined.
-
-More precisely,
-in the dotted rule
-`Straddle(dr)`, the rule
-is the base rule of `Rule(dr)`,
-and its dot position is the same as the dot
-position of `dr`, counted 
-from the outside to the inside
-of the RHS.
-For example, the `dr` be the dotted rule
-```
-    X-R ::= b4R B-R . C`,
-```
-Note that `Rule(dr)` is a reverse nucleotide,
-as required.
-Call the base dotted rule of `Rule(dr)`,
-`base-dr`.
-We have
-```
-    base-dr = [X ::= A . B C]
-```
-Then, `Straddle(dr)` will be `Rule(dr)`,
-with its dot position the same as `dr`,
-counted from the outside.
-
-The nucleobase defines the "inside"
-of a rule.
-The nucleobase of `Rule(dr)` is `b4R`
-and it is at the left end of the rule's
-RHS.
-Therefore,
-the "outside" of the RHS
-of `Rule(dr)` is its right end.
-In `dr`, the dot is 1 position away
-from the right end of the RHS.
-
-To create the straddling dotted rule,
-we start with the base rule,
-and put the dot 1 position away from
-the right end of its RHS.
-The result is
-```
-    Straddle(dr) = [X ::= A B . C]
-```
-
-`Straddle(dr)` is sometimes the same as
-the base dotted rule, but not always.
-The stradding dotted rule
-and the base dotted rule
-will always have the same rule,
-but they will
-*not* always have the same dot position.
-For instance,
-in the example above, the base dotted rule
-and the straddling dotted rule,
-have different dot positions.
-
-As another example, let `dr-forw`
-be the dotted rule
-```
-    X-L ::= A B-L . b4L
-```
-This time `Rule(dr-forw)` is a forward
-nucleotide, so that the nuclebase is at
-the right end of the RHS,
-and therefore the outside of the RHS
-is its left end.
-The straddling dotted rule is
-```
-    Straddle(dr-forw) = [X ::= A B . C]
-```
 
 ### Creating nodes that straddle the split point
 
