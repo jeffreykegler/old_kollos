@@ -540,11 +540,15 @@ that node must be a completion.
 The predecessor is always
 a non-terminal node,
 and is never a completion.
-It may be a prediction,
-in which case the node the link points
-to will not be physically represented in
-the bocage unless it is an active prediction node.
+A successor can be a terminal node or
+a non-terminal node.
 
+[ Add section about what successors (causes)
+are allowed to be:
+penult vs. completions.
+Also, describe causes of predictions. ]
+
+[ Move this into section describing `Add-node-to-bocage()`.
 In creating or extending a bocage,
 no node is ever added twice.
 If a node has more than one source,
@@ -737,36 +741,20 @@ the suffix parse, we do the following:
   For every medial Earley item, call it `medial-eim,
   which is in the Earley set at `split`
 
-    - Let that medial Earley item be
-      `medial-eim == [ dr, orig, split ]`.
-
     - Let
       
                base-rule = Base-rule(medial-eim)
-               straddle-rule = Straddle(dr)
+               straddle-rule = Straddle(DR(medial-eim))
                new-rule = Forward-inter-nucleotide(straddle-rule)
-               new-dr = Completion(new-rule)
 
       For instance, using the example above,
       if `dr` is the dotted rule
       `X ::= A B . C`, then
       `new-dr` is the dotted rule `X-L ::= A B b5L .`.
 
-    - PREFIX-NODE-LOOP:
-      For every `prefix-node` in `Prefix-nodes(medial-eim)`
+    - For every `prefix-node` in `Prefix-nodes(medial-eim)`
 
-      * Let `orig` be `Orig(prefix-node)` if prefix-node is defined,
-        otherwise let `orig = Orig(medial-eim)`.
-
-      * Let `new-node = [new-dr, orig, split]`
-
-      * LINK-LOOP:
-        For every link, `[pred, succ]` of `medial-eim`:
-
-                Add-link(new-node, [
-                   Recursive-node-add(prefix-node, pred, new-rule),
-                   Recursive-node-add(undef, succ, Rule(succ))
-                ])
+                Recursive-node-add(prefix-node, medial-eim, new-rule)
 
     - `Node-to-bocage-add(new-node)`
 
