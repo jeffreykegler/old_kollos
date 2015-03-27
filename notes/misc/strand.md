@@ -765,7 +765,7 @@ the suffix parse, we do the following:
 
                 Add-link(new-node, [
                    Recursive-node-add(prefix-node, pred, new-rule),
-                   Recursive-node-add(undef, succ, Rule(succ)),
+                   Recursive-node-add(undef, succ, Rule(succ))
                 ])
 
     - `Node-to-bocage-add(new-node)`
