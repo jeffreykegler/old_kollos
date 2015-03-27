@@ -172,6 +172,12 @@ other words, with the dot one position later.
 Predictions do not have predecessors
 and completions do not have successors.
 
+If `rule` is a rule then
+
+* Prediction(rule) is the dotted rule which is its prediction; and
+
+* Completion(rule) is the dotted rule which is its completion.
+
 ## Earley items
 
 As a reminder, an
@@ -650,7 +656,7 @@ we have
     Straddle(dr-forw) = [X ::= A . B C]
 ```
 
-For some more examples let
+For some more examples, let
 ```
     X-L ::= A B b42L
     X-R ::= b42R C D
@@ -668,6 +674,11 @@ In that case
     Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
     Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
     Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
+    Straddle([X ::= . A B C D])    = [X ::= . A B C D]
+    Straddle([X ::= A . B C D])    = [X ::= A . B C D]
+    Straddle([X ::= A B . C D])    = [X ::= A B . C D]
+    Straddle([X ::= A B C . D])    = [X ::= A B C . D]
+    Straddle([X ::= A B C D .])    = [X ::= A B C D .]
 ```
 
 ### Expanding a input token into a bocage node
@@ -722,7 +733,7 @@ Call the split point, `split`.
 To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
-* INTER-NUCLEOTIDE LOOP:
+* INTER-NUCLEOTIDE-LOOP:
   For every medial Earley item, call it `medial-eim,
   which is in the Earley set at `split`
 
@@ -759,32 +770,24 @@ the suffix parse, we do the following:
 
     - `Node-to-bocage-add(new-node)`
 
-  * PREDICTION LOOP:
-  For every medial Earley item in the Earley set at `split`
+* PREDICTION LOOP:
+  For every bocage node,
+  call it `inter-node`,
+  added in INTER-NUCLEOTIDE LOOP,
 
-    - Let that medial Earley item be
-      `medial-eim == [ dr, orig, split ]`.
+  - Let the postdot symbol in `DR(inter-node)` be `postdot`
 
-    - Let the postdot symbol in `dr` be `postdot`
+  - For every rule, call it `r`, with `postdot` as its LHS.
 
-    - For every rule with `postdot` as its LHS.
+    + Let `new-rule` be the left inter-nucleotide
+      rule of `Prediction(r)`.
 
-         + Call that rule, `r`.
+    + Let `new-node` be the virtual Earley item
+      `[Prediction(new-rule), orig, split ]`.
 
-         + Let `dr` be the prediction dotted rule
-           of `r`.
+    + `Add-link(new-node, [undef, inter-node])`
 
-         + Let `lent` be the left inter-nucleotide
-           rule of `dr`.
-
-         + Let `lent-eim` be the virtual Earley item
-           `[lent-dr, orig, split ]`.
-           Expand `lent-eim` into the bocage node, `lent-node`,
-           and add it to the bocage,
-           as described under
-           "Expanding an Earley item into a bocage node"
-           above.
-           `lent-node` will have no links.
+    - `Node-to-bocage-add(new-node)`
 
 * INTRA-NUCLEOTIDE LOOP:
   Loop once over every node whose dotted rule is a left nucleotide.
