@@ -172,11 +172,58 @@ other words, with the dot one position later.
 Predictions do not have predecessors
 and completions do not have successors.
 
-If `rule` is a rule then
+If `rule` is a rule, then
 
-* Prediction(rule) is the dotted rule which is its prediction; and
+* `Prediction(rule)` is the dotted rule which is its prediction; and
 
-* Completion(rule) is the dotted rule which is its completion.
+* `Completion(rule)` is the dotted rule which is its completion.
+
+If `dr` is a dotted rule, then
+
+* `Rule(dr)` is its rule
+
+* `Dot(dr)` is its zero-based dot position, in lexical order,
+  so that 0 is the position before the first symbol of the RHS.
+  and 0 is the position immediately after the first symbol of the RHS.
+
+* `Reverse-dot(dr)` is its zero-based dot position,
+  in reverse lexical order.
+  so that 0 is the position after the last symbol of the RHS.
+  and 0 is the position immediately before the last symbol of the RHS.
+
+* `Directed-dot(dr, direction)` is its zero-based dot position,
+  in the order indicated by direction.
+
+        Directed-dot(dr, direction) == (direction == 'forward') ? Dot(dr) : Reverse-dot(dr)
+
+* When `Rule(dr)` is a nucleotide, a single argument form of `Directed-dot(dr)`
+  can be used:
+
+        Directed-dot(dr) == Directed-dot(dr, Direction(Rule(dr)))
+
+As we will see when we define forward and reverse nucleotides,
+it is most convenient to count positions in
+the traditional left-to-right, "forward",
+lexical direction when dealing with forward nucleotides.
+It also turns to be most convenient to count positions in
+reverse lexical order, right-to-left,
+when dealing with reverse nucleotides.
+This is a pleasant and useful coincidence.
+
+We will find it necessarily to
+translate dotted rules from one rule to
+another, related rule,
+but preserving the idea of dot location
+in the translation.
+For this, the following will be useful.
+
+* `dr = Place-dot(rule. dot)` is the dotted rule
+  such that `Rule(dr) == rule` and
+  `Dot(dr) == dot`.
+
+* `dr = Place-reverse-dot(rule. rdot)` is the dotted rule
+  such that `Rule(dr) == rule` and
+  `Reverse-dot(dr) == rdot`.
 
 ## Earley items
 
@@ -306,6 +353,18 @@ is used in the example to uniquely identify the nucleobase
 symbols.
 `rule-X` is called the "base rule" of these nucleotides.
 
+Each numbered pair of nucleotide contains a forward
+and a reverse nucleotide.
+The forward nucleotide is so-called because its nucleobase
+is on its right, so that it can to be combined
+with its partner in the "forward" direction of the parse.
+The reverse nucleotide has its nucleobase on its left,
+and it can be combined
+with another nucleotide
+looking backward,
+in a direction that is the reverse
+of the direction that the parse is proceeding in.
+
 Pairs 1, 3 and 5 are
 "inter-nucleotides" --
 nucleotides that split their base rule
@@ -362,6 +421,14 @@ for every pre-strand rule,
 one of the left split rules derived from it must be nulling.
 But no right split rule can be nulling.
 Informally, a right split rule must represent "something".
+
+If `rule` is a nucleotide rule,
+the `Direction(rule)` is its direction,
+`forward` or `reverse` as described above.
+`Direction(rule)` is not defined if `rule` is
+not a nucleotide.
+
+[ Talk about the start rule nucleotides. ]
 
 ## Active strands
 
@@ -559,6 +626,35 @@ when appropriate,
 to original node.
 Also, no link is ever added twice.
 
+### The "outside" dot position
+
+Recall that, in a nucleotide rule,
+there were "inside" and "outside" directions,
+as defined by the position of the nucleobase.
+The nucleobase is always either the first
+or the last symbol of the RHS of a nucleotide,
+and is the symbol furthest "inside".
+
+Positions are numbered zero-based
+from outside to inside.
+Position zero is before the first symbol,
+if it is a nucleobase.
+Otherwise, position zero is after last symbol.
+Note that, by this definition, if the nucleotide
+has a RHS length of 1,
+then position zero is before the first symbol.
+Prediction forward nucleotides are only one symbol
+in RHS length.
+
+We will find "outside-relative" dot positions very
+useful.
+We define `Outside-dot(dr)` to be `Dot-reverse(dr)`
+if `Rule(dr)` is a forward nucleotide.
+We define `Outside-dot(dr)` to be `Dot(dr)`
+if `Rule(dr)` is a reverse nucleotide.
+(A nucleobase is the first symbol of a
+nucleotide if and only if it is a reverse nucleotide.)
+
 ### The straddling dotted rule
 
 For winding a prefix and
@@ -574,19 +670,14 @@ More precisely,
 if `Rule(dr)` is not a nucleotide,
 then 
 ```
-    Straddle(dr) = dr
+    Straddle(dr) == dr
 ```
 If `Rule(dr)` is a nucleotide,
 then
 ```
-    Rule(Straddle(dr)) = Base-rule(dr)
+    Rule(Straddle(dr)) == Base-rule(dr) and
+    Directed-dot(Straddle(dr), Direction(rule)) == Outside-dot(dr)
 ```
-and the dot position
-of `Straddle(dr)`
-is the same,
-relative to the outside of `dr`,
-as the dot
-position of `dr`.
 
 For instance,
 from the example above,
@@ -601,17 +692,7 @@ We have
     base-dr = [X ::= A . B C]
 ```
 Then, `Straddle(dr)` will be `Rule(dr)`,
-with its dot position the same as `dr`,
-counted from the outside.
-Since `Rule(dr)` is a reverse
-nucleotide, its nucleobase is the first
-symbol of its RHS.
-The nucleobase is always considered
-the "inside",
-so that
-position relative to the outside
-is position relative
-to the last symbol of the RHS.
+and its dot position will be `Outside-dot(dr)`.
 
 In `dr`, the dot is just before
 the last symbol of the RHS.
@@ -683,6 +764,31 @@ In that case
     Straddle([X ::= A B . C D])    = [X ::= A B . C D]
     Straddle([X ::= A B C . D])    = [X ::= A B C . D]
     Straddle([X ::= A B C D .])    = [X ::= A B C D .]
+```
+
+### Moving the dot when changing rules
+
+In winding together a prefix bocage and
+a suffix parse,
+it is often necessary to translate back and forth
+between nucleotide rules and base rules,
+while keeping the dot in the "corresponding" position
+in terms of the base rule.
+The "corresponding" position
+will remain stable through any number
+of translations back and forth between
+nucleotide and base rules.
+The function `Rule-dot(rule, dr)` returns
+a dotted rule where `Rule(Rule-dot(dr)) = rule`,
+and whose dot position corresponds to the
+one in `dr` in that sense.
+
+More precisely, we define `Rule-dot(rule, dr)` via
+the following shallow recursion:
+```
+    Rule-dot(rule, dr) = Straddle(dr), if Base-rule(rule) == rule
+    [ Finish this ]
+    Rule-dot(rule, dr) = Rule-dot(rule, Rule-dot(Base-rule(dr), dr)), otherwise
 ```
 
 ### Expanding a input token into a bocage node
