@@ -840,6 +840,10 @@ This implies that there is at least
 one medial Earley item at the split point.
 
 Call the split point, `split`.
+Initializa a stack of bocage nodes,
+call it `working-stack`
+to empty.
+
 To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
@@ -853,16 +857,13 @@ the suffix parse, we do the following:
                straddle-rule = Straddle(DR(medial-eim))
                new-rule = Forward-inter-nucleotide(straddle-rule)
 
-      For instance, using the example above,
-      if `dr` is the dotted rule
-      `X ::= A B . C`, then
-      `new-dr` is the dotted rule `X-L ::= A B b5L .`.
-
     - For every `prefix-node` in `Prefix-nodes(medial-eim)`
 
                 Recursive-node-add(prefix-node, medial-eim, new-rule)
 
     - `Node-to-bocage-add(new-node)`
+
+    - Push new-node onto `working-stack`.
 
 * PREDICTION LOOP:
   For every bocage node,
@@ -873,89 +874,58 @@ the suffix parse, we do the following:
 
   - For every rule, call it `r`, with `postdot` as its LHS.
 
-    + Let `new-rule` be the left inter-nucleotide
-      rule of `Prediction(r)`.
-
-    + Let `new-node` be the virtual Earley item
-      `[Prediction(new-rule), orig, split ]`.
+    + Let
+              new-rule = Forward-inter-nucleotide(Prediction(r))
+              new-node = [Prediction(new-rule), split, split]
 
     + `Add-link(new-node, [undef, inter-node])`
 
-    - `Node-to-bocage-add(new-node)`
+  - `Node-to-bocage-add(new-node)`
 
 * INTRA-NUCLEOTIDE LOOP:
-  Loop once over every node whose dotted rule is a left nucleotide.
-  This is done by initializing a stack (the "working stack")
-  to those "left nucleotide nodes"
-  that were added in the INTER-NUCLEOTIDE LOOP.
-  This loop is guaranteed to terminate, because the grammar
-  is cycle-free, any node added this loop is the parent
-  ("effect") of the node
-  that was most recently popped from the stack
-  (its "cause")
-  and every cause-effect chain will
-  eventually reach a effect node that
-  is the left nucleotide of the start rule,
-  which will not be the cause of any effect node.
+  While `working-stack` is not empty:
 
-    - If the working stack is empty,
-      exit INTRA-NUCLEOTIDE LOOP.
+     - This loop is guaranteed to terminate, because the grammar
+       is cycle-free, any node added this loop is the parent
+       ("effect") of the node
+       that was most recently popped from the stack
+       (its "cause")
+       and every cause-effect chain will
+       eventually reach a effect node that
+       is the left nucleotide of the start rule,
+       which will not be the cause of any effect node.
 
     - Pop a node from the working stack.
       Call the current node `cause-node == [ dr, orig, split ]`.
-      `dr` will be a left nucleotide penult.
-      For instance, `dr` might be the dotted
-      rule `X-L ::= A B . b5L`
-      from the above example.
 
-    - Let `cause-symbol` be the LHS of `dr`.
-      The cause symbol will be a nucleosugar.
-      In our example, this symbol would be `X-L`.
-
-    - Let `base-symbol` be the base symbol
-      of `cause-symbol`.
-      In our example, this symbol would be `X`.
-
-    - If `X` is the start symbol, do not execute
+    - If `Rule(dr)` is a start rule, do not execute
       the following steps.
-      Restart INTRA-NUCLEOTIDE LOOP from the beginning.
+      Restart INTRA-NUCLEOTIDE-LOOP from the beginning.
 
-    - For every Earley item in the Earley set `orig`
-      whose postdot symbol is `base-symbol`
+    - Follow the predecessors of `cause-node` back to
+      its prediction.  Let the links for that predictions
+      be the set `prediction-links`.
 
-      + Let that Earley item be
-        `pred-eim = [pred-dr, pred-orig, orig]`.  The
-        Earley sets index Earley items by postdot symbol,
-        so that `pred-eim` can be found efficiently.
-       In our example, `pred-dr` might be
-       `U ::= V W . X Y`.
+    - PREDICTION-LINK-LOOP:
+      For each link, call it `pred-link`,
+      in `predictions-links`.
 
-     + Let the dotted rule of `pred-eim` be `pred-dr`.
+      + Let `pred-link = [undef, pred-node]`.
+        `pred-node` must be a medial,
+        and its postdot symbol must be the base symbol
+        of `LHS(dr)`.
 
-     * Let `effect-rule` be the left intra-nucleotide
-       rule of `pred-eim`.
-       In our example,
-       `effect-rule` might be
-       `U-L ::= V W X-L b42L`.
+               new-rule = Forward-intra-nucleotide(Rule(pred-node))
+               new-node = [
+                   DR-convert(new-rule, DR(pred-node)),
+                   Orig(pred-node), split
+               ]
 
-     * Let `effect-dr` be the penult of `effect-rule`.
-       In our example,
-       `effect-dr` would be
-       `U-L ::= V W X-L . b42L`.
+      + `Add-link(new-node, [Clone-node(pred-node, new-rule), cause-node])`
+      
+      + `Node-to-bocage-add(new-node)`
 
-      + Expand `pred-eim` into the bocage node `pred-node`
-        as described under
-        "Expanding an Earley item into a bocage node"
-        above.
-
-      + Create the bocage node `[ effect-dr, pred-orig, split ]`.
-        Call this `new-node`.
-
-      + Add `[pred-node, cause-node]` as a link of `new-node`.
-
-      + Push `new-node` onto the working stack.
-
-      + Restart INTRA-NUCLEOTIDE LOOP from the beginning.
+  - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
 
 ## Starting a suffix parse
 
@@ -1165,7 +1135,7 @@ base rule.
 
             * `Link-add(new-node, [new-pred, new-cause])` where
 
-                     new-pred = Node-revise(pred, rule)
+                     new-pred = Node-clone(pred, rule)
                      new-cause = Recursive-node-add(
                          forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
 
@@ -1185,7 +1155,7 @@ base rule.
 
       * Let `link` be `[new-pred, forw-cause]` where
 
-               new-pred = Node-revise(pred, rule)
+               new-pred = Node-clone(pred, rule)
 
       * `Link-add(new-node, link)`
 
