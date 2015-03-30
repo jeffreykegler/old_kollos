@@ -240,52 +240,6 @@ Earley item, `eim`, consists of
   and which corresponds to the position of the
   dot in the dotted rule.
 
-## Locations
-
-In this document, we will assume there is
-one Earley set per input
-location.
-Usually location is represented by a non-negative
-integer.
-Because strand parsing uses multiple parses,
-our idea of location has to be more complex:
-Location is a duple of two non-negative
-integers: `Loc(offset, loc)`.
-Here `offset` is the first input location
-parsed in the relevant strand,
-and `loc` is location within the parse.
-
-Absolute location, `abs` is calculated as
-```
-    abs = offset > 0 ? offset+loc+(-1) : loc
-```
-Comparison of locations always uses absolute
-locations.
-In the location `Loc(0, abs-loc)`,
-`abs-loc` is equal to the absolute location.
-
-When `offset` is not
-zero in `Loc(offset, pos)`,
-the location `pos` is somewhat special --
-it is reserved for the pseudo-lexeme
-in suffix parses.
-`Loc(offset, 0)` "disappears" when strands
-are wound together, but in the meantime
-caution must be exercised
-The absolute location of `Loc(offset, 0)`
-is undefined when `offset` is non-zero.
-
-As implemented, locations will often be
-stored as absolute locations.
-Locations in the bocage and in its
-AVL index are always absolute locations.
-
-The necessary conversions are obvious
-and would clutter the pseudo-code, they are
-usually omitted.
-An implementation, of course, would have to
-perform them.
-
 ## Creating the strand grammar
 
 Let our original grammar be `g1`.
@@ -778,33 +732,18 @@ The "corresponding" position
 will remain stable through any number
 of translations back and forth between
 nucleotide and base rules.
-The function `Rule-dot(rule, dr)` returns
-a dotted rule where `Rule(Rule-dot(dr)) = rule`,
+The function `DR-convert(rule, dr)` returns
+a dotted rule where `Rule(DR-convert(dr)) = rule`,
 and whose dot position corresponds to the
 one in `dr` in that sense.
 
-More precisely, we define `Rule-dot(rule, dr)` via
+More precisely, we define `DR-convert(rule, dr)` via
 the following shallow recursion:
 ```
-    Rule-dot(rule, dr) = Straddle(dr), if Base-rule(rule) == rule
+    DR-convert(rule, dr) = Straddle(dr), if Base-rule(rule) == rule
     [ Finish this ]
-    Rule-dot(rule, dr) = Rule-dot(rule, Rule-dot(Base-rule(dr), dr)), otherwise
+    DR-convert(rule, dr) = DR-convert(rule, DR-convert(Base-rule(dr), dr)), otherwise
 ```
-
-### Expanding a input token into a bocage node
-
-If we have an input token, `tok`,
-whose symbol is `sym`,
-whose value is `v`,
-whose start location is `start`n`,
-and whose end location is `end,
-we expand it into the terminal bocage node
-```
-    Top(tok) = [ sym, v, start, end ]
-```
-It will have no links.
-Top(tok) is considered to be the top node of the bocage,
-starting from `tok`.
 
 ## Producing the ASF from inactive strands
 
@@ -1029,6 +968,27 @@ represented as `Loc(split-offset, suffix-loc)`,
 where `split-offset` is the absolute location 
 of the split point.
 
+Absolute location, `abs` is calculated as
+```
+    abs = offset > 0 ? offset+loc+(-1) : loc
+```
+Comparison of locations always uses absolute
+locations.
+In the location `Loc(0, abs-loc)`,
+`abs-loc` is equal to the absolute location.
+The absolute location of `Loc(offset, 0)`
+is undefined when `offset` is non-zero.
+
+The necessary conversions are obvious
+and would clutter the pseudo-code, they are
+usually omitted.
+An implementation, of course, would have to
+perform them.
+As implemented, locations will often be
+stored as absolute locations.
+Locations in the bocage and in its
+AVL index are always absolute locations.
+
 ### Creating nodes that straddle the split point
 
 The function `Recursive-node-add(prefix-node, suffix-node, rule)`
@@ -1071,7 +1031,7 @@ base rule.
   be the dot location of `yim`.
   Call this location, `current`, for short.
 
-* Let `new-dr` be `Rule-dot(rule, yim)`.
+* Let `new-dr` be `DR-convert(rule, yim)`.
 
 * Let `new-node` be
 
@@ -1165,6 +1125,29 @@ base rule.
 
     + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
+
+### Expanding a input token into a bocage node
+
+The pseudo-code function `Token-node-add(tok)`
+does the following
+
+- We assume that `tok` is a token from the suffix parse,
+  whose symbol is `sym`,
+  whose value is `v`,
+  whose start location is `start-n`,
+  and whose end location is `end.
+
+- We create a new node, call it `new-node`,
+  of type "Token", where
+
+        new-node = [ sym, v, start, end ]
+
+- `new-node` will have no links.
+
+- `Node-to-bocage-add(new-node)`.
+
+-  End the `Token-node-add()` functions, returning
+   `new-node` as it value.
 
 ## Implementation
 
