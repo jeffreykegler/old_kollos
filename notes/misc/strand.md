@@ -768,104 +768,6 @@ we can produce a parse
 forest
 using broken left nucleotides.
 
-## Winding together a prefix bocage and a suffix parse
-
-In the following,
-we assume that you have stopped the suffix parse
-at a point called the split point.
-We assume that, at the split point,
-the parse has not failed.
-This implies that there is at least
-one medial Earley item at the split point.
-
-Call the split point, `split`.
-Initializa a stack of bocage nodes,
-call it `working-stack`
-to empty.
-
-To produce a bocage from the prefix bocage and
-the suffix parse, we do the following:
-
-* INTER-NUCLEOTIDE-LOOP:
-  For every medial Earley item, call it `medial-eim,
-  which is in the Earley set at `split`
-
-    - Let
-      
-               base-rule = Base-rule(medial-eim)
-               straddle-rule = Straddle(DR(medial-eim))
-               new-rule = Forward-inter-nucleotide(straddle-rule)
-
-    - For every `prefix-node` in `Prefix-nodes(medial-eim)`
-
-                Recursive-node-add(prefix-node, medial-eim, new-rule)
-
-    - `Node-to-bocage-add(new-node)`
-
-    - Push new-node onto `working-stack`.
-
-* PREDICTION LOOP:
-  For every bocage node,
-  call it `inter-node`,
-  added in INTER-NUCLEOTIDE LOOP,
-
-  - Let the postdot symbol in `DR(inter-node)` be `postdot`
-
-  - For every rule, call it `r`, with `postdot` as its LHS.
-
-    + Let
-              new-rule = Forward-inter-nucleotide(Prediction(r))
-              new-node = [Prediction(new-rule), split, split]
-
-    + `Add-link(new-node, [undef, inter-node])`
-
-  - `Node-to-bocage-add(new-node)`
-
-* INTRA-NUCLEOTIDE LOOP:
-  While `working-stack` is not empty:
-
-     - This loop is guaranteed to terminate, because the grammar
-       is cycle-free, any node added this loop is the parent
-       ("effect") of the node
-       that was most recently popped from the stack
-       (its "cause")
-       and every cause-effect chain will
-       eventually reach a effect node that
-       is the left nucleotide of the start rule,
-       which will not be the cause of any effect node.
-
-    - Pop a node from the working stack.
-      Call the current node `cause-node == [ dr, orig, split ]`.
-
-    - If `Rule(dr)` is a start rule, do not execute
-      the following steps.
-      Restart INTRA-NUCLEOTIDE-LOOP from the beginning.
-
-    - Follow the predecessors of `cause-node` back to
-      its prediction.  Let the links for that predictions
-      be the set `prediction-links`.
-
-    - PREDICTION-LINK-LOOP:
-      For each link, call it `pred-link`,
-      in `predictions-links`.
-
-      + Let `pred-link = [undef, pred-node]`.
-        `pred-node` must be a medial,
-        and its postdot symbol must be the base symbol
-        of `LHS(dr)`.
-
-               new-rule = Forward-intra-nucleotide(Rule(pred-node))
-               new-node = [
-                   DR-convert(new-rule, DR(pred-node)),
-                   Orig(pred-node), split
-               ]
-
-      + `Add-link(new-node, [Clone-node(pred-node, new-rule), cause-node])`
-      
-      + `Node-to-bocage-add(new-node)`
-
-  - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
-
 ## Starting a suffix parse
 
 A suffix parse is a reverse-active strand which continues
@@ -927,7 +829,6 @@ should consist of all the Earley items
 of the form `[ nucleo-dr, 0, 0 ]`,
 where `nucleo-dr` is prediction of one
 of the suffix grammar's nucleotide rules.
-Predictions have no links.
 
 ### Create Earley set 1
 
@@ -989,6 +890,107 @@ stored as absolute locations.
 Locations in the bocage and in its
 AVL index are always absolute locations.
 
+## Winding together a prefix bocage and a suffix parse
+
+In the following,
+we assume that we have stopped the suffix parse
+at a point called the split point.
+We assume that, at the split point,
+the parse has not failed.
+This implies that there is at least
+one medial Earley item at the split point.
+
+Call the split point, `split`.
+Initializa a stack of bocage nodes,
+call it `working-stack`
+to empty.
+
+To produce a bocage from the prefix bocage and
+the suffix parse, we do the following:
+
+* INTER-NUCLEOTIDE-LOOP:
+  For every medial Earley item, call it `medial-eim,
+  which is in the Earley set at `split`
+
+    - Let
+      
+               base-rule = Base-rule(medial-eim)
+               straddle-rule = Straddle(DR(medial-eim))
+               new-rule = Forward-inter-nucleotide(straddle-rule)
+
+    - For every `prefix-node` in `Prefix-nodes(medial-eim)`
+
+                Recursive-node-add(prefix-node, medial-eim, new-rule)
+
+    - `Node-to-bocage-add(new-node)`
+
+    - Push new-node onto `working-stack`.
+
+* PREDICTION LOOP:
+  For every bocage node,
+  call it `inter-node`,
+  added in INTER-NUCLEOTIDE LOOP,
+
+  - Let the postdot symbol in `DR(inter-node)` be `postdot`
+
+  - For every rule, call it `r`, with `postdot` as its LHS.
+
+    + Let
+
+              new-rule = Forward-inter-nucleotide(Prediction(r))
+              new-node = [Prediction(new-rule), split, split]
+
+    + `Add-link(new-node, [undef, inter-node])`
+
+  - `Node-to-bocage-add(new-node)`
+
+* INTRA-NUCLEOTIDE LOOP:
+  While `working-stack` is not empty:
+
+  - This loop is guaranteed to terminate, because the grammar
+    is cycle-free, any node added this loop is the parent
+    ("effect") of the node
+    that was most recently popped from the stack
+    (its "cause")
+    and every cause-effect chain will
+    eventually reach a effect node that
+    is the left nucleotide of the start rule,
+    which will not be the cause of any effect node.
+
+  - Pop a node from the working stack.
+    Call the popped node `cause-node == [ dr, orig, split ]`.
+
+  - If `Rule(dr)` is a start rule, do not execute
+    the following steps.
+    Restart INTRA-NUCLEOTIDE-LOOP from the beginning.
+
+  - Follow the predecessors of `cause-node` back to
+    its prediction.  Let the links for that predictions
+    be the set `prediction-links`.
+
+  - PREDICTION-LINK-LOOP:
+    For each link, call it `pred-link`,
+    in `predictions-links`.
+
+    + Let `pred-link = [undef, pred-node]`.
+      `pred-node` must be a medial,
+      and its postdot symbol must be the base symbol
+      of `LHS(dr)`.
+
+               new-rule = Forward-intra-nucleotide(Rule(pred-node))
+               new-node = [
+                   Penult(new-rule),
+                   Orig(pred-node), split
+               ]
+
+    + `Add-link(new-node, [Clone-node(pred-node, new-rule), cause-node])`
+      
+    + `Node-to-bocage-add(new-node)`
+
+    + Push new-node onto `working-stack`.
+
+  - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
+
 ### Creating nodes that straddle the split point
 
 The function `Recursive-node-add(prefix-node, suffix-node, rule)`
@@ -1007,15 +1009,22 @@ In practice,
 a non-recursive implementation
 is likely to be preferable.
 
-`prefix-node` is a bocage node which must
-be on the prefix side of the split point.
-`prefix-node` may be undefined if 
-`suffix-node` is a token, or if
-`Rule(suffix-node)` is not
-a nucleotide.
-`suffix-node`, `rule` and, if defined, `prefix-node`
-must all share the same
-base rule.
+`prefix-node` is defined,
+if and only if
+`suffix-node` is a non-terminal node,
+and `Rule(suffix-node)` is a nucleotide.
+If `prefix-node` is defined,
+it must be a bocage node such that
+`Base-rule(prefix-node) == Base-rule(suffix-node)`.
+
+If `suffix-node` is a non-terminal node,
+`rule` may be defined.
+If `rule` is defined,
+it must that
+`Base-rule(rule) == Base-rule(suffix-node)`.
+If `suffix-node` is a non-terminal node,
+and `rule` is not defined,
+then `rule == Rule(suffix-node)`.
 
 * If `suffix-node` is a token, end the `Recursive-node-add()`
   function.  Return `Token-node-add(predot)` as
@@ -1023,19 +1032,14 @@ base rule.
 
 * Let `predot` be the predot symbol of `yim`.
 
-* If `predot` is a token, end the `Recursive-node-add()`
-  function.  Return `Token-node-add(predot)` as
-  its value.
-
 * Let `Loc(split-offset, current)`.
   be the dot location of `yim`.
   Call this location, `current`, for short.
 
-* Let `new-dr` be `DR-convert(rule, yim)`.
+* Let
 
-* Let `new-node` be
-
-          [ new-dr, orig, current ]
+          new-dr = DR-convert(rule, DR(suffix-node))
+          new-node = [ new-dr, orig, current ]
 
   where `orig` is `Orig(prefix-node)` if
   `Rule(yim)` is a nucleotide,
@@ -1052,6 +1056,8 @@ base rule.
                    Token-node-add(predot)
                  ]
 
+    - `Link-add(new-node, link)`
+
   + `Node-to-bocage-add(new-node)`
 
   + End the `Recursive-node-add()` function.
@@ -1061,11 +1067,18 @@ base rule.
 
     + For every `[pred, succ]` in `Sources(yim)`
 
-          In the previous step, note that `succ` is after all the reverse nucleosymbols,
-          and therefore is after the split point and entirely inside the suffix parse.
-          `Rule(succ)` will be a non-nucleotide rule.
+      - In the previous step, note that `succ` is after all the reverse nucleosymbols,
+        and therefore is after the split point and entirely inside the suffix parse.
+        `Rule(succ)` will be a non-nucleotide rule.
 
-        - `Link-add(new-node, link)`
+      - Let `link` be
+
+                 [
+                   Recursive-node-add(prefix-node, pred, rule),
+                   Recursive-node-add(undef, succ, undef),
+                 ]
+
+      - `Link-add(new-node, link)`
 
     + `Node-to-bocage-add(new-node)`
 
@@ -1077,15 +1090,15 @@ base rule.
     + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
         - REVERSE_CAUSE_LOOP:
-          For every completion whose current location
+          For every completion,
+          call that completion `rev-cause-eim`,
+          whose current location
           is `current`,
           and whose LHS is `predot`
 
-            * Call that completion `rev-cause-eim`.
-              It must be a nucleotide, because `predot`, it LHS,
+            * `rev-cause-eim`
+              must be a nucleotide, because `predot`, its LHS,
               is a nucleosugar.
-
-            * Call its dotted rule `rev-cause-dr`.
 
             * If Nucleobases-match(forw-cause, rev-cause_eim)`
               is `FALSE`,
@@ -1218,23 +1231,21 @@ The algorithm then proceeds as follows:
 
     - Call the current top of stack work item, `work-item`.
 
-    - We examine `work-item`, to determine if bocage nodes exist to
-      create all the necessary links.
-
     - Any terminal bocage node that does not exist is created and
       added to the AVL.
 
     - LINK_LOOP:
-      For every bocage node needed for a link:
+      For every bocage node
+      call it `needed-node`,
+      that is needed by `work-item`
+      for a link,
 
-      * Let `needed-node` be that bocage node.
-
-      * If `link-node` is not already in the
+      * If `needed-node` is not already in the
         bocage,
 
         - We set the `ready` flag to `FALSE`.
 
-        - We push a work item for `link-node`
+        - We push a work item for `needed-node`
           on top of the stack,
           if it is not on the stack already.
           We use the stack memoization to track this.
@@ -1248,14 +1259,16 @@ The algorithm then proceeds as follows:
       We pop `work-eim` from the top of the stack.
 
     - We create the new bocage node,
-      call it `new-node`.
+      calling it `new-node`.
 
-    - We all the necessary links.
-      In the previous steps, we make sure that all the
+    - In the previous steps, we make sure that all the
       bocage nodes necessary will be found in the memoization.
+      We now add all the necessary links to `new-node`.
 
     - We add `new-node` to the bocage,
       and continue with LOOP.
+
+## Leo items [TO DO]
 
 ## Saving space [TO DO]
 
