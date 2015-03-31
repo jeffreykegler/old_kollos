@@ -182,49 +182,6 @@ If `dr` is a dotted rule, then
 
 * `Rule(dr)` is its rule
 
-* `Dot(dr)` is its zero-based dot position, in lexical order,
-  so that 0 is the position before the first symbol of the RHS.
-  and 0 is the position immediately after the first symbol of the RHS.
-
-* `Reverse-dot(dr)` is its zero-based dot position,
-  in reverse lexical order.
-  so that 0 is the position after the last symbol of the RHS.
-  and 0 is the position immediately before the last symbol of the RHS.
-
-* `Directed-dot(dr, direction)` is its zero-based dot position,
-  in the order indicated by direction.
-
-        Directed-dot(dr, direction) == (direction == 'forward') ? Dot(dr) : Reverse-dot(dr)
-
-* When `Rule(dr)` is a nucleotide, a single argument form of `Directed-dot(dr)`
-  can be used:
-
-        Directed-dot(dr) == Directed-dot(dr, Direction(Rule(dr)))
-
-As we will see when we define forward and reverse nucleotides,
-it is most convenient to count positions in
-the traditional left-to-right, "forward",
-lexical direction when dealing with forward nucleotides.
-It also turns to be most convenient to count positions in
-reverse lexical order, right-to-left,
-when dealing with reverse nucleotides.
-This is a pleasant and useful coincidence.
-
-We will find it necessarily to
-translate dotted rules from one rule to
-another, related rule,
-but preserving the idea of dot location
-in the translation.
-For this, the following will be useful.
-
-* `dr = Place-dot(rule. dot)` is the dotted rule
-  such that `Rule(dr) == rule` and
-  `Dot(dr) == dot`.
-
-* `dr = Place-reverse-dot(rule. rdot)` is the dotted rule
-  such that `Rule(dr) == rule` and
-  `Reverse-dot(dr) == rdot`.
-
 ## Earley items
 
 As a reminder, an
@@ -381,6 +338,49 @@ the `Direction(rule)` is its direction,
 `forward` or `reverse` as described above.
 `Direction(rule)` is not defined if `rule` is
 not a nucleotide.
+
+## Converting dotted rules
+
+In what follows, it will be necessary to convert dotted rules
+between nucleotides and their base rules,
+and between two nucleotides.
+We do this using the `DR-convert()` pseudo-code function:
+
+         DR-convert(to-rule, dr, direction)
+
+which, given a dotted rule called `dr`,
+returns a new dotted rule such that for
+
+         new-dr = DR-convert(to-rule, dr, direction)
+
+it is always the case that
+
+         Rule(new-dr) == to-rule
+
+The dot location of `new-dr` will be the same as that
+of `dr`, where position is counted as indicated by
+`direction`.
+
+`direction` must be one of `forward` or `reverse`.
+If `direction == forward`,
+then position is counted in traditional left-to-right,
+lexical order,
+so that 0 is the position before the first symbol of the RHS.
+and 0 is the position immediately after the first symbol of the RHS.
+If `direction == reverse`,
+then position is counted in reverse lexical order,
+so that 0 is the position after the last symbol of the RHS.
+and 0 is the position immediately before the last symbol of the RHS.
+
+When dealing with forward nucleotides,
+it is most convenient to count positions in the "forward"
+direction.
+When dealing with reverse nucleotides,
+it is most convenient to count positions in the "reverse"
+direction.
+This is a pleasant and useful coincidence.
+
+## Start rules
 
 [ Talk about the start rule nucleotides. ]
 
@@ -579,35 +579,6 @@ Subsequent sources add links,
 when appropriate,
 to original node.
 Also, no link is ever added twice.
-
-### The "outside" dot position
-
-Recall that, in a nucleotide rule,
-there were "inside" and "outside" directions,
-as defined by the position of the nucleobase.
-The nucleobase is always either the first
-or the last symbol of the RHS of a nucleotide,
-and is the symbol furthest "inside".
-
-Positions are numbered zero-based
-from outside to inside.
-Position zero is before the first symbol,
-if it is a nucleobase.
-Otherwise, position zero is after last symbol.
-Note that, by this definition, if the nucleotide
-has a RHS length of 1,
-then position zero is before the first symbol.
-Prediction forward nucleotides are only one symbol
-in RHS length.
-
-We will find "outside-relative" dot positions very
-useful.
-We define `Outside-dot(dr)` to be `Dot-reverse(dr)`
-if `Rule(dr)` is a forward nucleotide.
-We define `Outside-dot(dr)` to be `Dot(dr)`
-if `Rule(dr)` is a reverse nucleotide.
-(A nucleobase is the first symbol of a
-nucleotide if and only if it is a reverse nucleotide.)
 
 ### The straddling dotted rule
 
