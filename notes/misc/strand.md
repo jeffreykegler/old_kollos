@@ -45,7 +45,7 @@ whose language is `suffixes(L1)`.
 
 ## Notation
 
-Hypenated names are very convenient in what follows,
+Hyphenated names are very convenient in what follows,
 while subtraction is rare.
 In this document,
 to avoid confusion,
