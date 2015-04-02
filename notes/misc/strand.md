@@ -341,44 +341,73 @@ not a nucleotide.
 
 ## Converting dotted rules
 
-In what follows, it will be necessary to convert dotted rules
-between nucleotides and their base rules,
-and between two nucleotides.
-We do this using the `DR-convert()` pseudo-code function:
+In what follows, it will be necessary to change the rule
+in dotted rules,
+from nucleotides to base rules,
+from base rules to nucleotide,
+and even between two nucleotides.
+In the process, we need to keep the dot position "stable".
+This section explains how we do this.
 
-         DR-convert(to-rule, dr, direction)
+Dotted rules are converted
+using the `DR-convert()` pseudo-code function:
 
-which, given a dotted rule called `dr`,
-returns a new dotted rule such that for
+         to-dr = DR-convert(to-rule, from-dr)
 
-         new-dr = DR-convert(to-rule, dr, direction)
+where `to-dr`
+is undefined unless
+         
+         Base-rule(to-rule) == Base-rule(from-dr)
 
-it is always the case that
+and otherwise is always such that
 
-         Rule(new-dr) == to-rule
+         Rule(to-dr) == to-rule
 
-The dot location of `new-dr` will be the same as that
-of `dr`, where position is counted as indicated by
-`direction`.
+The dot location of `to-dr` will be 
+as described below.
 
-`direction` must be one of `forward` or `reverse`.
-If `direction == forward`,
+If 
+
+         Base-rule(to-rule) == to-rule and
+         Base-rule(dr) == Rule(dr), then
+
+         to-dr == dr
+
+so that the dot stays in the same place.
+In this case, the conversion is called trivial.
+
+If the conversion is not trival,
+at least one of
+
+         Base-rule(to-rule) != to-rule or
+         Base-rule(dr) != Rule(dr) is true,
+
+and the conversion of the dot position depends on
+the "direction" of the nucleotides involved.
+
+The most complicated case is where
+
+        Base-rule(to-rule) is a nucleotide and
+        Base-rule(dr) is a nucleotide
+
+In this case, DR-convert is expanded into a double conversion
+such that no more
+than one nucleotide is involved at a time
+
+         DR-convert(to-rule, from-dr) =
+           DR-convert(to-rule, DR-convert(Base-rule(from-dr), from-dr))
+
+In the remaining cases, exactly one of `to-rule` and `Rule(from-dr)`
+is a nucleotide.
+If the nucleotide's direction is "forward",
 then position is counted in traditional left-to-right,
 lexical order,
 so that 0 is the position before the first symbol of the RHS.
 and 0 is the position immediately after the first symbol of the RHS.
-If `direction == reverse`,
+If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
 so that 0 is the position after the last symbol of the RHS.
 and 0 is the position immediately before the last symbol of the RHS.
-
-When dealing with forward nucleotides,
-it is most convenient to count positions in the "forward"
-direction.
-When dealing with reverse nucleotides,
-it is most convenient to count positions in the "reverse"
-direction.
-This is a pleasant and useful coincidence.
 
 ## Start rules
 
@@ -448,19 +477,18 @@ In more detail:
 
 ## The structure of an Bocage
 
-Marpa::R2 has two format for abstract syntax forests.
-The one
+Marpa::R2 uses a format called a "bocage" for
+abstract syntax forests (ASFs).
+There is another one,
 [externally documented](https://metacpan.org/pod/distribution/Marpa-R2/pod/ASF.pod)
-as its `Marpa::R2::ASF` interface
-is for advanced uses,
-and is an upper layer to the undocumented
-"bocage" interface.
-The bocage interface (which is essentially
-the same as Elizabeth Scott's SPFF format)
-is the one which will be described here.
-An forest for the `Marpa::R2::ASF` interface
-can be built from the bocage,
-when and if desired.
+as its `Marpa::R2::ASF` interface,
+but this 
+is for advanced uses.
+When this documentation talks about ASFs,
+it refers to the bocage interface,
+unless otherwise specified.
+Marpa's bocage interface is essentially
+the same as Elizabeth Scott's SPFF format.
 
 A bocage consists of nodes.
 All nodes are either terminal nodes
