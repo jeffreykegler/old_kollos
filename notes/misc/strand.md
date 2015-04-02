@@ -984,8 +984,6 @@ then `rule == Rule(suffix-node)`.
   function.  Return `Token-node-add(predot)` as
   its value.
 
-* Let `predot` be the predot symbol of `yim`.
-
 * Let `Loc(split-offset, current)`.
   be the dot location of `yim`.
   Call this location, `current`, for short.
@@ -998,6 +996,58 @@ then `rule == Rule(suffix-node)`.
   where `orig` is `Orig(prefix-node)` if
   `Rule(yim)` is a nucleotide,
   and is `Orig(yim)` otherwise.
+
+* If there is no predot symbol
+  and `yim` is *not* a nucleotide
+
+  - For each `[undef, pred-cause]`
+    in `Sources(yim)`.
+
+    - If the current location is
+      `Loc(split, 0)`,
+      there will be no sources for
+      a non-nucleotide `yim`.
+
+    - Let `link` be
+
+                 [
+                   undef,
+                   Recursive-node-add(undef, pred-cause, undef),
+                 ]
+
+    - `Link-add(new-node, link)`
+
+  + `Node-to-bocage-add(new-node)`
+
+  + End the `Recursive-node-add()` function.
+    Return `new-node` as its value.
+
+* If there is no predot symbol
+  and `yim` *is* a nucleotide
+
+  + PREFIX-NODE-LOOP: For every `[undef, prefix-node]` in
+    in `Sources(yim)`.
+
+    - PREFIX-NODE-LINK-LOOP: For every
+      `[new-pred, forw-cause]`
+      in `Sources(prefix-node)`.
+
+      * Let `link` be `[new-pred, forw-cause]` where
+
+               new-pred = Node-clone(pred, rule)
+
+      * `Link-add(new-node, link)`
+
+      * Start the next iteration of PREFIX-NODE-LINK-LOOP.
+
+    - Start the next iteration of PREFIX-NODE-LOOP.
+
+  + `Node-to-bocage-add(new-node)`
+
+  + End the `Recursive-node-add()` function.
+    Return `new-node` as its value.
+
+* Let `predot` be the predot symbol of `yim`.
 
 * If `predot` is a token
 
@@ -1075,23 +1125,8 @@ then `rule == Rule(suffix-node)`.
     + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
-* If we are at this point, `predot` must be a nucleobase.
-  In this case:
-
-    + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
-
-      * Let `link` be `[new-pred, forw-cause]` where
-
-               new-pred = Node-clone(pred, rule)
-
-      * `Link-add(new-node, link)`
-
-      * Start the next iteration of LINK_LOOP.
-
-    + `Node-to-bocage-add(new-node)`
-
-    + End the `Recursive-node-add()` function.
-      Return `new-node` as its value.
+* In the `Recursive-node-add()` function,
+  this point should never be reached.
 
 ### Expanding a input token into a bocage node
 
