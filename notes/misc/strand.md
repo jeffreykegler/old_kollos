@@ -375,6 +375,22 @@ If
 
 so that the dot stays in the same place.
 In this case, the conversion is called trivial.
+As an example
+```
+    [X ::= A B . C D] =
+         DR-convert([X ::= A B C D], [X ::= A B . C D])
+
+    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
+    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
+    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
+    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
+    Straddle([X ::= . A B C D])    = [X ::= . A B C D]
+    Straddle([X ::= A . B C D])    = [X ::= A . B C D]
+    Straddle([X ::= A B C . D])    = [X ::= A B C . D]
+    Straddle([X ::= A B C D .])    = [X ::= A B C D .]
+```
 
 If the conversion is not trival,
 at least one of
@@ -392,22 +408,54 @@ The most complicated case is where
 
 In this case, DR-convert is expanded into a double conversion
 such that no more
-than one nucleotide is involved at a time
+than one nucleotide is involved at a time.
 
          DR-convert(to-rule, from-dr) =
            DR-convert(to-rule, DR-convert(Base-rule(from-dr), from-dr))
+
+We'll give an example of this "double conversion"
+after we've introduced the simpler
+conversions.
 
 In the remaining cases, exactly one of `to-rule` and `Rule(from-dr)`
 is a nucleotide.
 If the nucleotide's direction is "forward",
 then position is counted in traditional left-to-right,
 lexical order,
-so that 0 is the position before the first symbol of the RHS.
+so that 0 is the position before the first symbol of the RHS,
 and 0 is the position immediately after the first symbol of the RHS.
+As examples,
+
+    [X-L ::= A . B b42L]
+         = DR-convert([X-L ::= A B b42L], [X ::= A . B C D])
+    [X-L ::= A . B C D]
+         = DR-convert([X ::= A B C D], [X-L ::= A . B b42L])
+
 If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
 so that 0 is the position after the last symbol of the RHS.
 and 0 is the position immediately before the last symbol of the RHS.
+As examples,
+
+    [X-R ::= b42R C . D])
+        = DR-convert([X-R ::= b42R C D], [X ::= A B C . D])
+    [X-L ::= A B C . D]
+         = DR-convert([X ::= A B C D], [X-R ::= b42R C . D])
+
+As another example, consider a case were two nucleotides
+are involved.
+Let the two nucleotides be
+    [X-L ::= A B C b43L] and [X-R ::= b42R B C D]
+which share a common base rule
+    [X-L ::= A B C D]
+but which do *not* share the same base dotted rule.
+The result is as follows:
+```
+    DR-convert([X-L ::= A B C b43L]), [X-R ::= b42R B . C D])
+         = DR-convert([X-L ::= A B C b43L]),
+                  DR-convert([X-R ::= A B C D], [X-R ::= b42R B . C D])
+         = DR-convert([X-L ::= A B C b43L]), [X-R ::= A B . C D])
+         = [X-L ::= A B . C b43L]
 
 ## Start rules
 
@@ -718,32 +766,6 @@ In that case
     Straddle([X ::= A B C . D])    = [X ::= A B C . D]
     Straddle([X ::= A B C D .])    = [X ::= A B C D .]
 ```
-
-### Moving the dot when changing rules
-
-In winding together a prefix bocage and
-a suffix parse,
-it is often necessary to translate back and forth
-between nucleotide rules and base rules,
-while keeping the dot in the "corresponding" position
-in terms of the base rule.
-The "corresponding" position
-will remain stable through any number
-of translations back and forth between
-nucleotide and base rules.
-The function `DR-convert(rule, dr)` returns
-a dotted rule where `Rule(DR-convert(dr)) = rule`,
-and whose dot position corresponds to the
-one in `dr` in that sense.
-
-More precisely, we define `DR-convert(rule, dr)` via
-the following shallow recursion:
-```
-    DR-convert(rule, dr) = Straddle(dr), if Base-rule(rule) == rule
-    [ Finish this ]
-    DR-convert(rule, dr) = DR-convert(rule, DR-convert(Base-rule(dr), dr)), otherwise
-```
-
 ## Producing the ASF from inactive strands
 
 To produce an ASF from an inactive strand,
