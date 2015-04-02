@@ -457,6 +457,48 @@ The result is as follows:
          = DR-convert([X-L ::= A B C b43L]), [X-R ::= A B . C D])
          = [X-L ::= A B . C b43L]
 
+### The straddling dotted rule
+
+The `DR-convert()` pseudo-function has a useful special case:
+
+         
+         Straddle(dr) == DR-convert(Base-rule(dr), dr)
+
+We call `Straddle(dr)`,
+the *straddling dotted rule*.
+Intuitively,
+a dotted rule's straddling rule
+is its dotted rule when converted to
+to its base rule.
+The idea is that, while `dr` may not straddle
+the split point,
+`Straddle(dr)` will.
+
+As some more examples, let
+```
+    X-L ::= A B b42L
+    X-R ::= b42R C D
+```
+be forward and reverse inter-nucleotides.
+Their base dotted rule is
+```
+    X ::= A B . C D
+```
+In that case
+```
+    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
+    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
+    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
+    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
+    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
+    Straddle([X ::= . A B C D])    = [X ::= . A B C D]
+    Straddle([X ::= A . B C D])    = [X ::= A . B C D]
+    Straddle([X ::= A B . C D])    = [X ::= A B . C D]
+    Straddle([X ::= A B C . D])    = [X ::= A B C . D]
+    Straddle([X ::= A B C D .])    = [X ::= A B C D .]
+```
+
 ## Start rules
 
 [ Talk about the start rule nucleotides. ]
@@ -656,116 +698,6 @@ when appropriate,
 to original node.
 Also, no link is ever added twice.
 
-### The straddling dotted rule
-
-For winding a prefix and
-a suffix together, it will be convenient
-to define the *straddling dotted rule*.
-Intuitively, the straddling dotted rule of another
-dotted rule, call it `dr`,
-is a dotted rule whose rule is the base rule
-of `Rule(dr)`,
-and which has the dot in the corresponding position.
-
-More precisely,
-if `Rule(dr)` is not a nucleotide,
-then 
-```
-    Straddle(dr) == dr
-```
-If `Rule(dr)` is a nucleotide,
-then
-```
-    Rule(Straddle(dr)) == Base-rule(dr) and
-    Directed-dot(Straddle(dr), Direction(rule)) == Outside-dot(dr)
-```
-
-For instance,
-from the example above,
-let `dr` be the dotted rule
-```
-    X-R ::= b4R B-R . C`
-```
-Call the base dotted rule of `Rule(dr)`,
-`base-dr`.
-We have
-```
-    base-dr = [X ::= A . B C]
-```
-Then, `Straddle(dr)` will be `Rule(dr)`,
-and its dot position will be `Outside-dot(dr)`.
-
-In `dr`, the dot is just before
-the last symbol of the RHS.
-To create the straddling dotted rule,
-we start with the base rule,
-and put the dot just before
-the last symbol of its RHS.
-The result is
-```
-    Straddle(dr) = [X ::= A B . C]
-```
-
-`Straddle(dr)` will sometimes be the same as
-the base dotted rule,
-but often that is not the base.
-On one hand,
-the stradding dotted rule
-and the base dotted rule
-will always have the same rule.
-But the
-the stradding dotted rule
-and the base dotted rule
-often have
-have different dot positions.
-For instance,
-this is true in the example just given.
-
-As another example, let `dr-forw`
-be the dotted rule
-```
-    X-L ::= A . B-L b4L
-```
-This time `Rule(dr-forw)` is a forward
-nucleotide, so that the nuclebase is at
-the right end of the RHS,
-and
-the "inside" of the RHS is its last symbol.
-Therefore the outside of the RHS
-is its last symbol.
-The dot in `dr-forw` is just after its first
-symbol so that,
-putting the dot in the same position
-in the straddling dotted rule,
-we have
-```
-    Straddle(dr-forw) = [X ::= A . B C]
-```
-
-For some more examples, let
-```
-    X-L ::= A B b42L
-    X-R ::= b42R C D
-```
-be forward and reverse inter-nucleotides.
-Their base dotted rule is
-```
-    X ::= A B . C D
-```
-In that case
-```
-    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
-    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
-    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
-    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
-    Straddle([X ::= . A B C D])    = [X ::= . A B C D]
-    Straddle([X ::= A . B C D])    = [X ::= A . B C D]
-    Straddle([X ::= A B . C D])    = [X ::= A B . C D]
-    Straddle([X ::= A B C . D])    = [X ::= A B C . D]
-    Straddle([X ::= A B C D .])    = [X ::= A B C D .]
-```
 ## Producing the ASF from inactive strands
 
 To produce an ASF from an inactive strand,
