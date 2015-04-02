@@ -683,10 +683,23 @@ and is never a completion.
 A successor can be a terminal node or
 a non-terminal node.
 
-[ Add section about what successors (causes)
-are allowed to be:
-penult vs. completions.
-Also, describe causes of predictions. ]
+By convention,
+predictions never have predecessors,
+but they may have causes.
+In the initial parse,
+the prediction of the start rule
+will not have a cause.
+All other predictions of Earley items will
+have causes.
+In the case of a non-nucleotide rule,
+the cause of an Earley item prediction
+is the medial rule from which it
+was created.
+In the case of a nucleotide rule,
+the cause of an Earley item is
+a bocage node -- the forward
+nucleotide node from which 
+the Earley item was created.
 
 [ Move this into section describing `Add-node-to-bocage()`.
 In creating or extending a bocage,
