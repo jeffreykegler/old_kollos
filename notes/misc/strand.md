@@ -456,6 +456,7 @@ The result is as follows:
                   DR-convert([X-R ::= A B C D], [X-R ::= b42R B . C D])
          = DR-convert([X-L ::= A B C b43L]), [X-R ::= A B . C D])
          = [X-L ::= A B . C b43L]
+```
 
 ### The straddling dotted rule
 
