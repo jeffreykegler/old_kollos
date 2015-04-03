@@ -735,12 +735,12 @@ This grammar would be considerably smaller.
 
   + Let 
 
-         reverse-rule = Nucleotide-match(Rule(forward-node))
-         suffix-loc-0 = Loc(split, 0)
+          reverse-rule = Nucleotide-match(Rule(forward-node))
+          suffix-loc-0 = Loc(split, 0)
 
   + Add the Earley item
 
-         [Prediction(reverse-rule), suffix-loc-0, suffix-loc-0]
+          [Prediction(reverse-rule), suffix-loc-0, suffix-loc-0]
 
     to Earley set 0.
 
@@ -799,14 +799,12 @@ of the split point.
 
 Absolute location, `abs` is calculated as
 ```
-    abs = offset > 0 ? offset+loc+(-1) : loc
+    abs = offset+loc
 ```
-Comparison of locations always uses absolute
-locations.
 In the location `Loc(0, abs-loc)`,
 `abs-loc` is equal to the absolute location.
-The absolute location of `Loc(offset, 0)`
-is undefined when `offset` is non-zero.
+Comparison of locations always uses absolute
+locations.
 
 The necessary conversions are obvious
 and would clutter the pseudo-code, they are
