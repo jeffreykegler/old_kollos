@@ -53,7 +53,7 @@ subtraction will always be
 shown as the addition of a negative number.
 For example `4+(-1) = 3`.
 
-## Nucleobases, nucleosugars and nucleotides
+## Nucleobases and nucleotides
 
 In order to make the following algorithm appeal to the intuition more,
 we use an analogy to DNA transcription and winding.
@@ -67,60 +67,12 @@ cytosine (C), guanine (G), adenine (A) and thymine (T).
 In our strand grammars, we will usually need many more
 nucleobases.
 
-In DNA, each nucleobase molecule is attached to a sugar to
-form a nucleoside.
-Biochemists occasionally call this sugar a nucleosugar.
-In DNA,
-each nucleoside
-is attached to
-one or more phosphate groups
-to form
-a nucleotide.
-(Some biochemical texts insist there can be only one
-phosphate group in a nucleotide.
-For our purposes, the difference is not relevant,
-and we will let the chemists argue this out among themselves.)
-
 For our purposes,
-a *nucleobase* is a lexeme
-at which two "strands" touch directly.
-There are left and right nucleobases,
-which occur on the left edge and right
-edge of strands, respectively.
-
-The RHS of a rule contains at most one nucleobase.
-If it is a right nucleobase, it will always be
-the first symbol of the RHS.
-If it is a left nucleobase, it will always be
-the last symbol of the RHS.
-
-In a RHS containing a nucleobase,
-a symbol is "inside" another if it is in the direction heading away from
-the edge.
-If the nucleobase on the RHS of a rule is a left nucleobase,
-one symbol is inside another one if it to its left.
-If the nucleobase on the RHS of a rule is a right nucleobase,
-one symbol is inside another one if it to its right.
-
-If symbol `<A>` is inside symbol `<B>`,
-then symbol `<B>` is outside of symbol `<A>`.
-If a RHS does not contain a nucleobase,
-"inside" and "outside" are not defined.
-
-A *nucleosugar* is a non-terminal used in
-winding and unwinding strands.
-Nucleosugars always occur in a RHS next to,
-and inside of, a nucleobase.
-
-A *nucleosymbol* is either a nucleobase or a nucleosugar.
-Finally, a *nucleotide* is a rule that contains
-a nucleobase.
-
-As a mnemonic, note that
-the order from inside to outside,
-and the order from smallest to largest,
-is the same as the alphabetical order of the terms:
-"base", "side" and "tide".
+a *nucleobase* is a symbol
+used to match rules and symbols
+divided between two parses.
+A *nucleotide* is a rule that contains
+a nucleobase, either on its RHS or as its LHS.
 
 ## Grammars
 
@@ -208,33 +160,12 @@ We need to define, for every rule in `g1`, two 'nucleotide rules',
 a 'left nucleotide' and a 'right nucleotide'.
 
 First, we define our set of "nucleobase symbols".
-The purpose of nucleobase symbols is similar to the purpose
-of nucleobases in DNA -- they occur where two strand "touch"
-and they occur in pairs.
-The matching of nucleobase pairs indicates where two strands
-should "touch" in order to preserve their information.
-
-Nuclebase symbols
-have the form `b42R`,
-and `b42L`;
-where the initial `b` means "base".
-`R` and `L` indicate, respectively,
-the right and left member of the base pair.
-`42` is an arbitrary number,
-chosen to make sure that every base pair is unique.
-A nucleobase symbol can occur only once.
-They must occur on the outside of a RHS.
-(Pedantically, their location defines "inside" and "outside".)
-
-Every pair of nucleotide rules must have a unique pair of nucleobase
-symbols.
-
-Nucleosugar symbols exist to allow non-terminals to be split in half.
-Like nucleobase symbols, nucleosugars come in right and left versions.
+Nucleobase symbols exist to allow non-terminals to be split in half.
+Nucleobases come in right and left versions.
 For example, for the symbol `A`,
-the nucleosugars will be `A-L` and `A-R`.
+the nucleobases will be `A-L` and `A-R`.
 The symbol `A` is called by *base symbol*
-of the nucleosugars `A-L` and `A-R`.
+of the nucleobases `A-L` and `A-R`.
 
 We will call the original grammar,
 before it has strand rules and symbols added to it,
@@ -252,29 +183,29 @@ Call this rule `rule-X`.
 The six pairs of
 "nucleotide rules" that we will need for `rule-X` are
 ```
-    1: X-L ::= b1L            X-R ::= b1R A B C
-    2: X-L ::= A-L b2L        X-R ::= b2R A-R B C
-    3: X-L ::= A b3L          X-R ::= b3R B C
-    4: X-L ::= A B-L b4L      X-R ::= b4R B-R C
-    5: X-L ::= A B b5L        X-R ::= b5R C
-    6: X-L ::= A B C-L b6L    X-R ::= b6R C-R
+    1: X-L ::=                X-R ::= A B C
+    2: X-L ::= A-L            X-R ::= A-R B C
+    3: X-L ::= A              X-R ::= B C
+    4: X-L ::= A B-L          X-R ::= B-R C
+    5: X-L ::= A B            X-R ::= C
+    6: X-L ::= A B C-L        X-R ::= C-R
 ```
-The pairs are numbered 1 to 6, the same number which
-is used in the example to uniquely identify the nucleobase
-symbols.
 `rule-X` is called the "base rule" of these nucleotides.
-
 Each numbered pair of nucleotide contains a forward
 and a reverse nucleotide.
-The forward nucleotide is so-called because its nucleobase
-is on its right, so that it can to be combined
-with its partner in the "forward" direction of the parse.
-The reverse nucleotide has its nucleobase on its left,
-and it can be combined
-with another nucleotide
-looking backward,
-in a direction that is the reverse
-of the direction that the parse is proceeding in.
+The forward nucleotide (shown as the left one
+in the pairs above)
+is so-called because it is intended
+to be rejoined to a nucleotide to
+its right,
+which is the direction in which the parse proceeds
+and which therefore can be called the "forward"
+direction.
+The reverse nucleotide is intended to be rejoined
+with a forward nucleotide, which will be
+"behind" it in the direction of parse,
+or in the "reverse" of the direction in which
+the parse proceeds.
 
 Pairs 1, 3 and 5 are
 "inter-nucleotides" --
@@ -289,20 +220,51 @@ Every nucleotide has a "base dotted rule".
 (As a reminder,
 a "dotted rule"
 is a BNF rule with one of its positions marked with a dot.)
+Dotted rules which are completions do not have nucleotides
+For each rule in the pre-strand parse,
+every non-completion dotted rule,
+call it `base-dr`,
+has
 
-The rule of a nucleotide's "base dotted rule" is the nucleotide's base rule.
-The base dotted rule for nucleotide pairs 1 and 2 is
+* A forward inter-nucleotide,
+  `Forward-Inter-Nucleotide(base-dr)`.
+
+* A reverse inter-nucleotide,
+  `Reverse-Inter-Nucleotide(base-dr)`.
+
+* A forward intra-nucleotide,
+  `Forward-Intra-Nucleotide(base-dr)`.
+
+* A reverse intra-nucleotide,
+  `Reverse-Intra-Nucleotide(base-dr)`.
+
+For the example above,
+
 ```
-    X ::= . A B C
+    Forward-inter-nucleotide([X ::= . A B C]) = [X-L ::= ]
+    Reverse-inter-nucleotide([X ::= . A B C]) = [X-R ::= A B C]
+    Forward-intra-nucleotide([X ::= . A B C]) = [X-L ::= A-L]
+    Reverse-intra-nucleotide([X ::= . A B C]) = [X-R ::= A-R B C]
+    Forward-inter-nucleotide([X ::= A . B C]) = [X-L ::= A]
+    Reverse-inter-nucleotide([X ::= A . B C]) = [X-R ::= B C]
+    Forward-intra-nucleotide([X ::= A . B C]) = [X-L ::= A B-L]
+    Reverse-intra-nucleotide([X ::= A . B C]) = [X-R ::= B-R C]
+    Forward-inter-nucleotide([X ::= A B . C]) = [X-L ::= A B]
+    Reverse-inter-nucleotide([X ::= A B . C]) = [X-R ::= C]
+    Forward-intra-nucleotide([X ::= A B . C]) = [X-L ::= A B C-L ]
+    Reverse-intra-nucleotide([X ::= A B . C]) = [X-R ::= C-R]
 ```
-The base dotted rule for nucleotide pairs 3 and 4 is
+
+We use the pseudo-code function `Nucleotide-match(rule)` to match
+a nucleotide to its partner.
+For every base dotted rule, `base-dr`
 ```
-    X ::= A . B C
+    Nucleotide-match(Forward-inter-nucleotide(base-dr)) = Reverse-inter-nucleotide(base-dr)
+    Nucleotide-match(Reverse-inter-nucleotide(base-dr)) = Forward-inter-nucleotide(base-dr)
+    Nucleotide-match(Forward-intra-nucleotide(base-dr)) = Reverse-intra-nucleotide(base-dr)
+    Nucleotide-match(Reverse-intra-nucleotide(base-dr)) = Forward-intra-nucleotide(base-dr)
 ```
-The base dotted rule for nucleotide pairs 5 and 6 is
-```
-    X ::= A B . C
-```
+In all other cases, `Nucleotide-match(rule)` is undefined.
 
 A completion is
 a dotted rule with the dot
@@ -379,17 +341,6 @@ As an example
 ```
     [X ::= A B . C D] =
          DR-convert([X ::= A B C D], [X ::= A B . C D])
-
-    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
-    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
-    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
-    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
-    Straddle([X ::= . A B C D])    = [X ::= . A B C D]
-    Straddle([X ::= A . B C D])    = [X ::= A . B C D]
-    Straddle([X ::= A B C . D])    = [X ::= A B C . D]
-    Straddle([X ::= A B C D .])    = [X ::= A B C D .]
 ```
 
 If the conversion is not trival,
@@ -426,10 +377,10 @@ so that 0 is the position before the first symbol of the RHS,
 and 0 is the position immediately after the first symbol of the RHS.
 As examples,
 
-    [X-L ::= A . B b42L]
-         = DR-convert([X-L ::= A B b42L], [X ::= A . B C D])
+    [X-L ::= A . B ]
+         = DR-convert([X-L ::= A B ], [X ::= A . B C D])
     [X-L ::= A . B C D]
-         = DR-convert([X ::= A B C D], [X-L ::= A . B b42L])
+         = DR-convert([X ::= A B C D], [X-L ::= A . B ])
 
 If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
@@ -437,25 +388,25 @@ so that 0 is the position after the last symbol of the RHS.
 and 0 is the position immediately before the last symbol of the RHS.
 As examples,
 
-    [X-R ::= b42R C . D])
-        = DR-convert([X-R ::= b42R C D], [X ::= A B C . D])
+    [X-R ::= C . D])
+        = DR-convert([X-R ::= C D], [X ::= A B C . D])
     [X-L ::= A B C . D]
-         = DR-convert([X ::= A B C D], [X-R ::= b42R C . D])
+         = DR-convert([X ::= A B C D], [X-R ::= C . D])
 
 As another example, consider a case were two nucleotides
 are involved.
 Let the two nucleotides be
-    [X-L ::= A B C b43L] and [X-R ::= b42R B C D]
+    [X-L ::= A B C ] and [X-R ::= B C D]
 which share a common base rule
     [X-L ::= A B C D]
 but which do *not* share the same base dotted rule.
 The result is as follows:
 ```
-    DR-convert([X-L ::= A B C b43L]), [X-R ::= b42R B . C D])
-         = DR-convert([X-L ::= A B C b43L]),
-                  DR-convert([X-R ::= A B C D], [X-R ::= b42R B . C D])
-         = DR-convert([X-L ::= A B C b43L]), [X-R ::= A B . C D])
-         = [X-L ::= A B . C b43L]
+    DR-convert([X-L ::= A B C ]), [X-R ::= B . C D])
+         = DR-convert([X-L ::= A B C ]),
+                  DR-convert([X-R ::= A B C D], [X-R ::= B . C D])
+         = DR-convert([X-L ::= A B C ]), [X-R ::= A B . C D])
+         = [X-L ::= A B . C ]
 ```
 
 ### The straddling dotted rule
@@ -477,8 +428,8 @@ the split point,
 
 As some more examples, let
 ```
-    X-L ::= A B b42L
-    X-R ::= b42R C D
+    X-L ::= A B
+    X-R ::= C D
 ```
 be forward and reverse inter-nucleotides.
 Their base dotted rule is
@@ -487,12 +438,12 @@ Their base dotted rule is
 ```
 In that case
 ```
-    Straddle([X-L ::= . A B b42L]) = [X ::= . A B C D]
-    Straddle([X-L ::= A . B b42L]) = [X ::= A . B C D]
-    Straddle([X-L ::= A B . b42L]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R . C D]) = [X ::= A B . C D]
-    Straddle([X-R ::= b42R C . D]) = [X ::= A B C . D]
-    Straddle([X-R ::= b42R C D .]) = [X ::= A B C D .]
+    Straddle([X-L ::= . A B ]) = [X ::= . A B C D]
+    Straddle([X-L ::= A . B ]) = [X ::= A . B C D]
+    Straddle([X-L ::= A B . ]) = [X ::= A B . C D]
+    Straddle([X-R ::= . C D]) = [X ::= A B . C D]
+    Straddle([X-R ::= C . D]) = [X ::= A B C . D]
+    Straddle([X-R ::= C D .]) = [X ::= A B C D .]
     Straddle([X ::= . A B C D])    = [X ::= . A B C D]
     Straddle([X ::= A . B C D])    = [X ::= A . B C D]
     Straddle([X ::= A B . C D])    = [X ::= A B . C D]
@@ -506,18 +457,11 @@ In that case
 
 ## Active strands
 
-An active strand is one capable of being wound together with
-another active strand.
-An active strand must be forward-active or reverse-active.
-A strand can be *both* forward- and reverse-active,
-in which case we call it bi-active.
-An active strand which is not bi-active
-is called single-active.
-An inactive strand is the same as an ordinary
-parse forest.
-
-A strand is forward-active if it has nucleobases at its right edge.
-A strand is reverse-active if it has nucleobases at its left edge.
+A strand is *forward-active*,
+or simply *active*,
+if it contains nucleotide nodes.
+An active strand is capable of being wound together with
+a suffix parse.
 
 ## Archetypal strand parsing
 
@@ -742,16 +686,6 @@ another forward-active strand.
 The intent will usually be to wind the two strands
 together.
 
-### The forward nucleobases
-
-The forward nucleobases are the set of left nucleobases
-from the forward-active strand.
-The reverse nucleobases are the set of right nucleobases
-corresponding to the left nucleobases.
-As a reminder, the corresponding right nucleobase
-of the left nucleobase `b42L` would be `b42R`,
-and vice versa.
-
 ### The suffix grammar
 
 To create a suffix parse, we use a special suffix grammar,
@@ -762,12 +696,12 @@ The suffix grammar is the pre-strand grammar with these changes.
 
 * The pre-strand start rule is deleted.
 
-* The right nucleosymbols (nucleosugars and nucleobases)
+* The reverse nucleobase symbols
   are added.
 
-* The right nucleotide rules are added.
+* The reverse nucleotide rules are added.
 
-* The start rule of the suffix grammar is the right
+* The start rule of the suffix grammar is the reverse
   intra-nucleotide rule whose base dotted rule
   is the prediction start rule of the pre-strand
   grammar.
@@ -777,13 +711,11 @@ times the size of the pre-strand grammar.
 Alternatively, a suffix grammar could be created
 on a per-parse basis, adding only
 
-* The forward nucleobase symbols
+* The reverse nucleotide rules which match forward
+  nucleotide rules currently in the bocage.
 
-* The right nucleotide rules which contain forward
-  nucleobase symbols.
-
-* The right nucleosugars contained in right nucleotide
-  rule with contain forward nucleobase symbols.
+* Any nucleobase symbols contained in those
+  reverse nucleotide rules.
 
 All pre-strand rules and symbols made inaccessible
 could then deleted.
@@ -791,32 +723,61 @@ This grammar would be considerably smaller.
 
 ### Create Earley set 0
 
-Earley set 0 in the suffix parse
-should consist of all the Earley items
-of the form `[ nucleo-dr, 0, 0 ]`,
-where `nucleo-dr` is prediction of one
-of the suffix grammar's nucleotide rules.
+* Let `worklist` be a stack of symbols,
+  initially empty.
+  `worklist` will have an associated boolean
+  array to ensure that no symbol
+  is pushed onto it more than once.
 
-### Create Earley set 1
+* For every forward nucleotide node,
+  call it `forward-node` currently
+  in the bocage.
 
-All the Earley items in Earley set 0
-will have a right nucleobase as their
-postdot symbol.
-Earley set 1 is created by reading all
-the nucleobase symbols as tokens
-with start location 0 and start location 1.
-This makes use of Marpa's ambiguous lexing
-capability.
+  + Let 
+
+         reverse-rule = Nucleotide-match(Rule(forward-node))
+         suffix-loc-0 = Loc(split, 0)
+
+  + Add the Earley item
+
+         [Prediction(reverse-rule), suffix-loc-0, suffix-loc-0]
+
+    to Earley set 0.
+
+  + Let `postdot = Postdot(Prediction(reverse-rule))`.
+    If `postdot` is not a nucleobase,
+    push `postdot` onto `work-list`.
+
+  + WORK-LIST-LOOP: While `work-list` is not empty,
+
+    - Pop the top symbol of `work-list`.
+      Call it `work-list-symbol`.
+      If it has
+      already been processed,
+      do not execute the rest of the steps in WORK-LIST_LOOP.
+      Start the next iteration of WORK-LIST-LOOP.
+
+    - For every rule, call it `r`, where
+      `LHS(r) == work-list-symbol`
+
+      * Add the Earley item
+
+             [Prediction(r), suffix-loc-0, suffix-loc-0]
+
+        to Earley set 0.
+
+      * Push `Postdot(r)` onto `work-list`,
+
 
 ### Continuing the suffix parse
 
 The suffix parse then continues in the standard
 way.
 If the original input has been read up to input
-location `i`, then tokens from the original input
-at location `j`
-are read into the suffix parse as if they
-were at location `j-(i+1)`.
+location `i`,
+then the tokens for location `j` in the suffix
+parse are read from original input location
+`j+i`.
 
 ## Winding strands together
 
@@ -1102,7 +1063,7 @@ then `rule == Rule(suffix-node)`.
     + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
-* If `predot` is a nucleosugar
+* If `predot` is a nucleobase
 
     + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
@@ -1115,10 +1076,9 @@ then `rule == Rule(suffix-node)`.
 
             * `rev-cause-eim`
               must be a nucleotide, because `predot`, its LHS,
-              is a nucleosugar.
+              is a nucleobase.
 
-            * If Nucleobases-match(forw-cause, rev-cause_eim)`
-              is `FALSE`,
+            * If `Nucleotide-match(forw-cause) != Rule(rev-cause_eim)`
               end this iteration
               and start the next iteration
               of RIGHT_CAUSE_LOOP.
