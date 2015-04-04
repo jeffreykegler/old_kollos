@@ -493,75 +493,21 @@ rule of the suffix grammar will be
     [ start-R ::= old-start-R . ]
 ```
 
-## Active strands
-
-A strand is *forward-active*,
-or simply *active*,
-if it contains nucleotide nodes.
-An active strand is capable of being wound together with
-a suffix parse.
-
-## Archetypal strand parsing
-
-Before getting into details of the algorithms for forming
-and winding strands,
-it may be helpful to indicate how they are intended to
-be used.
-There are many ways in which strand parsing can be used,
-but
-the archetypal case is that where we
-are parsing from left-to-right,
-breaking the parse up at arbitrary "split points",
-and winding pairs of strands together as
-we proceed.
-
-In more detail:
-
-* We start by parsing the input until
-    we have an initial single-active forward-active strand,
-    or the parse has succeeded,
-    or the parse has failed.
-    If the parse succeeded or failed,
-    we have an inactive strand,
-    and we proceed as described in the section titled
-    "Producing the ASF".
-
-* We then loop for as long as we can create bi-active strands,
-    by parsing the remaining input.
-
-    * We parse the remaining input to create a new strand.
-
-    * If this new strand is not bi-active, we end the loop.
-
-    * At this point,
-        we have a single-active forward-active strand
-        and a bi-active strand.
-
-    * We wind our two strands together,
-         leaving a single-active forward-active strand,
-         and continue the loop.
-
-* On leaving the loop, we have two single-active strands, one
-    forward-active, one reverse-active.
-    We wind these two together to produce an inactive strand.
-    Call this the "final strand".
-    We proceed as described in the section titled
-    "Producing the ASF".
-
-## The structure of an Bocage
+## The structure of an bocage
 
 Marpa::R2 uses a format called a "bocage" for
 abstract syntax forests (ASFs).
-There is another one,
+Marpa's bocage interface is essentially
+the same as Elizabeth Scott's SPFF format.
+Marpa has a second syntax for abstract syntax forests,
 [externally documented](https://metacpan.org/pod/distribution/Marpa-R2/pod/ASF.pod)
 as its `Marpa::R2::ASF` interface,
 but this 
+`Marpa::R2::ASF`
 is for advanced uses.
 When this documentation talks about ASFs,
-it refers to the bocage interface,
-unless otherwise specified.
-Marpa's bocage interface is essentially
-the same as Elizabeth Scott's SPFF format.
+unless otherwise specified,
+it refers to the bocage interface.
 
 A bocage consists of nodes.
 All nodes are either terminal nodes
@@ -580,60 +526,59 @@ A terminal node is a 4-tuple of
 * An end position, which is a G1 location
  at or after the start position.
 
-The start position and end position may be
-the same, in which case the terminal node
-is a nulling node.
 The length of the node is the difference
 between end position and start position,
 which must be a non-negative integer.
 A node is nulling if and only if the length is zero.
-In normal applications,
-the length
-of non-nulling terminal nodes
-will be one.
+The length
+of a terminal node is always one.
 
-A non-terminal node is a 3-tuple of
+A non-terminal node, call it `node`, is a 3-tuple of
 
-* Dotted rule.
- As a reminder, a dotted rule is
- a rule of the grammar with one of its
- positions distinguished as the "dot position".
+* Dotted rule,
+  as returned by the
+  pseudo-code function `DR(node)`.
 
-* Origin, that is, the G1 location at which
- the dotted rule starts.
+* Origin,
+  as returned by the
+  pseudo-code function `Orig(node)`.
+  The origin is the G1 location at which
+  the dotted rule starts.
 
-* Dot location, which
- is the G1 location of
- the dotted rule's dot position.
+* Current location,
+  as returned by the
+  pseudo-code function `Current(node)`.
+  This is the G1 location of
+  the dotted rule's dot position.
 
 It is convenient to use the same terminology for G1 locations
 in both terminal and non-terminal nodes, so that the
 start and end position of a terminal node are often
 called,respectively, its origin and dot location.
 
-A non-terminal nodes is called a prediction,
-a medial and or a completion,
-based on their dotted rules.
-A prediction node whose dotted rule
-is a nucleotide,
-will only occur on the active edge of
-a strand,
-and is called an
-active prediction node.
-All other prediction nodes
-are called inactive prediction nodes.
-The information in
-inactive prediction nodes
-can usually be deduced from the other nodes,
-so that inactive prediction nodes are not physically represented
-in the bocage.
+When we apply a dotted rule notion to an bocage node,
+it is equivalent that to dotted rule notion
+applied to the dotted rule
+of the bocage node.
+For example, if `node` is an Earley item,
+```
+     Rule(node) == Rule(DR(node))
+```
+
+When we apply a rule notion applied to an bocage node,
+it is equivalent to that rule notion applied to the rule
+of the dotted rule of the bocage node.
+For example, if `yim` is an bocage node,
+```
+     LHS(node) == LHS(Rule(DR(node)))
+```
 
 Every non-terminal node has zero or more "source links",
 which describe why the node exists.
-If the node is a prediction,
+If the node is a start rule prediction
 its source is not tracked,
 and it will have zero links.
-Otherwise, a non-terminal node has one or more links.
+All other non-terminal nodes have one or more links.
 
 Every link is a duple,
 consisting of
@@ -667,7 +612,8 @@ a non-terminal node.
 
 By convention,
 predictions never have predecessors,
-but they may have causes.
+but, with one exception,
+predictions have causes.
 In the initial parse,
 the prediction of the start rule
 will not have a cause.
@@ -683,16 +629,106 @@ a bocage node -- the forward
 nucleotide node from which 
 the Earley item was created.
 
-[ Move this into section describing `Add-node-to-bocage()`.
-In creating or extending a bocage,
+## Adding a node to the bocage
+
+Nodes are added to the bocage using
+the psuedo-code function `Add-node-to-bocage(node)`.
+The `node` argument of `Add-node-to-bocage(node)` is a fully
+formed node, often including links into the current
+bocage, but which is not yet in the bocage data structure.
+
+When adding a node to a bocage,
 no node is ever added twice.
-If a node has more than one source,
-the node with, if appropriate, a link
-is added by the first source.
-Subsequent sources add links,
-when appropriate,
-to original node.
-Also, no link is ever added twice.
+A memoization is used to prevent this.
+
+If `Add-node-to-bocage(node)` is called for a node
+already in the prefix bocage,
+its links are added to the already-existing node,
+provided that no link is ever added twice.
+
+## Archetypal strand parsing
+
+Before getting into details of the algorithms for forming
+and winding strands,
+it may be useful to outline 
+their main intended use.
+There are many ways in which strand parsing can be used,
+but
+the archetypal case is that where we
+are parsing from left-to-right,
+breaking the parse up at arbitrary "split points",
+and winding pairs of strands together as
+we proceed.
+
+### Initializing an archetypal strand parse
+
+We start by parsing the input normally with the pre-strand
+grammar.
+This is called the *initial* parse.
+
+All successful parses are assumed to proceed for at least one character
+of input.
+The initial parse ends
+
+* when it succeeds, as defined by the application;
+
+* when it fails, because the parse cannot continue; or
+
+* when the application has found a desirable "split point"
+  and wants to break off the parse.
+
+Regardless of the outcome, we continue into
+the following loop, which continues the strand parse.
+
+### Strand parsing loop
+
+<a name="STRAND-PARSING-LOOP"></a>
+
+When the loop that continues a strand parse begins we
+assume that we have
+
+* A parse.  This may be the initial
+  parse.  This is called the suffix parse,
+  even when it is the initial parse.
+
+* A bocage.  If the suffix parse is the initial parse,
+  the bocage will be empty.
+
+If the suffix parse failed,
+we deal with it
+using methods like those currently
+in Marpa::R2.
+These will not be described further.
+
+If the suffix parse succeeded,
+we end the iteration,
+and finish the parse as described
+[below](#SUCCESSFUL).
+
+At this point we have a suffix parse which neither failed
+or succeeded, and a (possibly empty) prefix bocage.
+We wind these together as described 
+[below](#WINDING).
+The result will be a new prefix bocage.
+
+At this point the suffix parse can be discarded.
+To save more space, the prefix bocage may be partially
+or completely evaluated.
+
+We now restart the parse using the suffix grammar
+and the unconsumed input,
+as described
+[below](SUFFIX-PARSE).
+
+We continue the suffix point until
+success, failure, or the reaching of another split point.
+Regardless of the result,
+we start a new iteration of the
+["Strand parsing loop"](STRAND-PARSING-LOOP).
+
+## Successful parses [ TODO ]
+
+<a name="SUCCESSFUL"></a>
 
 ## Producing the ASF from inactive strands
 
@@ -818,6 +854,8 @@ parse are read from original input location
 `j+i`.
 
 ## Winding strands together
+
+<a name="WINDING"></a>
 
 ### Offsets
 
