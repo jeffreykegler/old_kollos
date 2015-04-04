@@ -444,7 +444,54 @@ In that case
 
 ## Start rules
 
-[ Talk about the start rule nucleotides. ]
+Marpa internal grammars are augmented with a start rule
+of a very strict form -- a dedicated symbol on its LHS,
+and a single symbol on the RHS.
+The RHS symbol is often the start of the original grammar.
+
+the start rule of a suffix grammar is the reverse
+prediction intra-nucleotide of the pre-strand grammar's
+start rule.
+For example,
+if the start rule of a pre-strand grammar is
+```
+    start ::= old-start
+```
+then the start rule of a suffix grammar is
+```
+    start-R ::= old-start-R
+```
+
+Success in a parse requires a completed start rule
+be in one of the Earley sets.
+This is a necessary condition, but *not* a sufficient
+one.
+"Success" is a parse is usually not completely a function
+of state of the most recent Earley set.
+Application often impose additional requirements --
+typically that that Earley be the one
+built just after the last character of input
+is consumed.
+
+For example, a typical C language program "succeeds"
+in the sense of produced a completed start rule
+many times before the end of input.
+But a C compiler will only call the parse successful
+if there is a completed start rule in the Earley set
+produced
+after reading the last character of input.
+
+In our example,
+the completed start
+rule of the pre-strand grammar will be
+```
+    [ start ::= old-start . ]
+```
+The completed start
+rule of the suffix grammar will be
+```
+    [ start-R ::= old-start-R . ]
+```
 
 ## Active strands
 
