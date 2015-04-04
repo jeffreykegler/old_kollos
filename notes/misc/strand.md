@@ -105,6 +105,12 @@ Earley item, `yim`, consists of
   and which corresponds to the position of the
   dot in the dotted rule.
 
+Marpa creates links for its Earley items,
+which track how and why they were created.
+If `yim` is an Earley item,
+then `Links(yim)` is the pseudo-code
+function that returns the set of links for `yim`.
+
 When we apply a dotted rule notion to an Earley item,
 it is equivalent that to dotted rule notion
 applied to the dotted rule
@@ -579,6 +585,9 @@ If the node is a start rule prediction
 its source is not tracked,
 and it will have zero links.
 All other non-terminal nodes have one or more links.
+If `node` is a node,
+then `Links(node)` is pseudo-code
+function that returns the set of links for `node`.
 
 Every link is a duple,
 consisting of
@@ -726,9 +735,73 @@ Regardless of the result,
 we start a new iteration of the
 ["Strand parsing loop"](STRAND-PARSING-LOOP).
 
+## Finding the prefix node
+
+In several cases, we will have an Earley item
+in the suffix parse
+and will need to find the nodes
+in the
+prefix bocage which it continues.
+These bocage nodes are called *prefix nodes*.
+There will be many prefix nodes, or none.
+The prefix nodes
+are returned by the 
+pseudo-code function `Prefix-nodes(yim)`,
+where `yim` is an Earley item.
+
+If `yim` is not a nucleotide,
+there are no prefix nodes,
+and `Prefix-nodes(yim)`
+is undefined.
+
+If `yim` is a nucleotide,
+we follow its predecessor links to the back to
+the Earley item, call it `pred-yim`,
+whose dotted rule
+is `Prediction(Rule(yim))`.
+`pred-yim` will always be in the Earley set at `Loc(split, 0)`.
+There may be more than one chain of predecessors back
+to `pred-yim`, but there will never be more than one `pred-yim`.
+The prefix nodes will be the set containing
+all `prefix-node` such that
+```
+     pred-link = [ undef, prefix-node ] and
+     pred-link is an element of Links(pred-yim)
+```
+
 ## Successful parses [ TODO ]
 
 <a name="SUCCESSFUL"></a>
+If a parse is successful,
+there will be a completed start rule,
+call it `completed-start-yim`.
+
+* Let
+
+          prefix-nodes = Prefix-nodes(completed-start-yim)
+
+* If `prefix-nodes` is not defined,
+  this is an initial parse.
+  Execute the pseudo-code function
+
+          Recursive-node-add(undef, completed-start-yim, undef)
+
+  Afterwards, the prefix bocage will contain the successful parse,
+  and the initial parse may be discarded.
+  Do not execute the following steps.
+
+* If `prefix-nodes` is not defined,
+  this is an non-initial parse, and `prefix-nodes`
+  is a set containing a single bocage node.
+  Call this node `prefix-node`.
+
+* Execute the pseudo-code function
+
+          Recursive-node-add(prefix-node, completed-start-yim,
+              Base-rule(completed-start-yim))
+
+  Afterwards, the prefix bocage will contain the successful parse,
+  and the suffix parse may be discarded.
 
 ## Producing the ASF from inactive strands
 
@@ -797,6 +870,11 @@ This grammar would be considerably smaller.
 
 ### Create Earley set 0
 
+In a suffix parse, we proceed using the suffix grammar
+and the unconsumed input.
+Earley set 0 must be specially constructed.
+Otherwise, the parse is normal
+
 * Let `worklist` be a stack of symbols,
   initially empty.
   `worklist` will have an associated boolean
@@ -826,10 +904,6 @@ This grammar would be considerably smaller.
 
     - Pop the top symbol of `work-list`.
       Call it `work-list-symbol`.
-      If it has
-      already been processed,
-      do not execute the rest of the steps in WORK-LIST_LOOP.
-      Start the next iteration of WORK-LIST-LOOP.
 
     - For every rule, call it `r`, where
       `LHS(r) == work-list-symbol`
@@ -840,12 +914,12 @@ This grammar would be considerably smaller.
 
         to Earley set 0.
 
-      * Push `Postdot(r)` onto `work-list`,
-
+      * Push `Postdot(r)` onto `work-list`.
 
 ### Continuing the suffix parse
 
-The suffix parse then continues in the standard
+After Earley set 0,
+a suffix parse then continues in the standard
 way.
 If the original input has been read up to input
 location `i`,
@@ -853,19 +927,18 @@ then the tokens for location `j` in the suffix
 parse are read from original input location
 `j+i`.
 
-## Winding strands together
+## Winding
 
 <a name="WINDING"></a>
 
 ### Offsets
 
-In winding strands together,
-we actually wind a forward-only strand
-with a suffix parse.
-As implemented, each of these will keep
+When we wind a bocage together with
+a parse, we need to keep track of location.
+Each of these will keep
 locations in its own terms,
 and these terms will be different.
-Locations in the forward-only strand
+Locations in the prefix strand
 will be absolute, and may be represented
 as `Loc(0, forw-loc)` or simply `forw-loc`.
 Locations in the suffix parse will be
@@ -873,9 +946,10 @@ represented as `Loc(split-offset, suffix-loc)`,
 where `split-offset` is the absolute location 
 of the split point.
 
-Absolute location, `abs` is calculated as
+From `Loc(offset, loc)`,
+absolute location can be calculated as
 ```
-    abs = offset+loc
+    offset+loc
 ```
 In the location `Loc(0, abs-loc)`,
 `abs-loc` is equal to the absolute location.
@@ -883,7 +957,8 @@ Comparison of locations always uses absolute
 locations.
 
 The necessary conversions are obvious
-and would clutter the pseudo-code, they are
+and would clutter the pseudo-code,
+so they are
 usually omitted.
 An implementation, of course, would have to
 perform them.
@@ -903,35 +978,58 @@ This implies that there is at least
 one medial Earley item at the split point.
 
 Call the split point, `split`.
-Initializa a stack of bocage nodes,
-call it `working-stack`
+Initialize a stack of bocage nodes,
+call it `working-stack`,
 to empty.
 
 To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
+* INTER-LOOP:
+  For every medial Earley item, call it `medial-yim,
+  which is in the Earley set at `split`,
+  and where `Rule(medial-yim)` is *not* a nucleotide.
+
+  - Let
+      
+             straddle-rule = Straddle(DR(medial-yim))
+             new-rule = Forward-inter-nucleotide(straddle-rule)
+             new-node =
+                 Recursive-node-add(undef, medial-yim, new-rule)
+
+  - `Node-to-bocage-add(new-node)`
+
+  - Push new-node onto `working-stack`.
+
 * INTER-NUCLEOTIDE-LOOP:
   For every medial Earley item, call it `medial-yim,
-  which is in the Earley set at `split`
+  which is in the Earley set at `split`,
+  and where `Rule(medial-yim)` *is* a nucleotide.
 
-    - Let
+  - Let
       
-               base-rule = Base-rule(medial-yim)
-               straddle-rule = Straddle(DR(medial-yim))
-               new-rule = Forward-inter-nucleotide(straddle-rule)
+             straddle-rule = Straddle(DR(medial-yim))
+             new-rule = Forward-inter-nucleotide(straddle-rule)
 
-    - For every `prefix-node` in `Prefix-nodes(medial-yim)`
+  - For every `prefix-node` in `Prefix-nodes(medial-yim)`
 
-                Recursive-node-add(prefix-node, medial-yim, new-rule)
+    + Let
 
-    - `Node-to-bocage-add(new-node)`
+             new-node
+                 = Recursive-node-add(prefix-node, medial-yim, new-rule)
 
-    - Push new-node onto `working-stack`.
+    + `Node-to-bocage-add(new-node)`
+
+    + Push new-node onto `working-stack`.
 
 * PREDICTION LOOP:
   For every bocage node,
   call it `inter-node`,
-  added in INTER-NUCLEOTIDE LOOP,
+  added in INTER-NUCLEOTIDE LOOP.
+
+  - Note: the values of `inter-node` can be found on
+    the `working-stack`, but the values should not be
+    popped from the stack, as they will be needed again.
 
   - Let the postdot symbol in `DR(inter-node)` be `postdot`
 
@@ -975,8 +1073,8 @@ the suffix parse, we do the following:
     in `predictions-links`.
 
     + Let `pred-link = [undef, pred-node]`.
-      `pred-node` must be a medial,
-      and its postdot symbol must be the base symbol
+      `pred-node` will not be a completion,
+      and its postdot symbol will be the base symbol
       of `LHS(dr)`.
 
                new-rule = Forward-intra-nucleotide(Rule(pred-node))
@@ -989,11 +1087,11 @@ the suffix parse, we do the following:
       
     + `Node-to-bocage-add(new-node)`
 
-    + Push new-node onto `working-stack`.
+    + Push `new-node` onto `working-stack`.
 
   - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
 
-### Creating nodes that straddle the split point
+### Adding bocage nodes recursively
 
 The function `Recursive-node-add(prefix-node, suffix-node, rule)`
 creates a new node from `suffix-node`,
@@ -1049,7 +1147,7 @@ then `rule == Rule(suffix-node)`.
   and `yim` is *not* a nucleotide
 
   - For each `[undef, pred-cause]`
-    in `Sources(yim)`.
+    in `Links(yim)`.
 
     - If the current location is
       `Loc(split, 0)`,
@@ -1074,11 +1172,11 @@ then `rule == Rule(suffix-node)`.
   and `yim` *is* a nucleotide
 
   + PREFIX-NODE-LOOP: For every `[undef, prefix-node]` in
-    in `Sources(yim)`.
+    in `Links(yim)`.
 
     - PREFIX-NODE-LINK-LOOP: For every
       `[new-pred, forw-cause]`
-      in `Sources(prefix-node)`.
+      in `Links(prefix-node)`.
 
       * Let `link` be `[new-pred, forw-cause]` where
 
@@ -1099,7 +1197,7 @@ then `rule == Rule(suffix-node)`.
 
 * If `predot` is a token
 
-  + For every `[pred, succ]` in `Sources(yim)`
+  + For every `[pred, succ]` in `Links(yim)`
 
     - Let `link` be
 
@@ -1117,7 +1215,7 @@ then `rule == Rule(suffix-node)`.
 
 * If `predot` is not a nucleosymbol
 
-    + For every `[pred, succ]` in `Sources(yim)`
+    + For every `[pred, succ]` in `Links(yim)`
 
       - In the previous step, note that `succ` is after all the reverse nucleosymbols,
         and therefore is after the split point and entirely inside the suffix parse.
