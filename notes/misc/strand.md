@@ -170,6 +170,9 @@ The six pairs of
     6: X-L ::= A B C-L        X-R ::= C-R
 ```
 `rule-X` is called the "base rule" of these nucleotides.
+The pseudo-code function `Base-rule(rule)` returns the base
+rule of a nucleotide rule.
+
 Each numbered pair of nucleotide contains a forward
 and a reverse nucleotide.
 The forward nucleotide (shown as the left one
@@ -205,16 +208,16 @@ every non-completion dotted rule,
 call it `base-dr`,
 has
 
-* A forward inter-nucleotide,
+* a forward inter-nucleotide,
   `Forward-Inter-Nucleotide(base-dr)`.
 
-* A reverse inter-nucleotide,
-  `Reverse-Inter-Nucleotide(base-dr)`.
+* a reverse inter-nucleotide,
+  `Reverse-Inter-Nucleotide(base-dr)`,
 
-* A forward intra-nucleotide,
-  `Forward-Intra-Nucleotide(base-dr)`.
+* a forward intra-nucleotide,
+  `Forward-Intra-Nucleotide(base-dr)`, and
 
-* A reverse intra-nucleotide,
+* a reverse intra-nucleotide,
   `Reverse-Intra-Nucleotide(base-dr)`.
 
 For the example above,
@@ -238,10 +241,14 @@ We use the pseudo-code function `Nucleotide-match(rule)` to match
 a nucleotide to its partner.
 For every base dotted rule, `base-dr`
 ```
-    Nucleotide-match(Forward-inter-nucleotide(base-dr)) = Reverse-inter-nucleotide(base-dr)
-    Nucleotide-match(Reverse-inter-nucleotide(base-dr)) = Forward-inter-nucleotide(base-dr)
-    Nucleotide-match(Forward-intra-nucleotide(base-dr)) = Reverse-intra-nucleotide(base-dr)
-    Nucleotide-match(Reverse-intra-nucleotide(base-dr)) = Forward-intra-nucleotide(base-dr)
+    Nucleotide-match(Forward-inter-nucleotide(base-dr))
+         = Reverse-inter-nucleotide(base-dr)
+    Nucleotide-match(Reverse-inter-nucleotide(base-dr))
+         = Forward-inter-nucleotide(base-dr)
+    Nucleotide-match(Forward-intra-nucleotide(base-dr))
+         = Reverse-intra-nucleotide(base-dr)
+    Nucleotide-match(Reverse-intra-nucleotide(base-dr))
+         = Forward-intra-nucleotide(base-dr)
 ```
 In all other cases, `Nucleotide-match(rule)` is undefined.
 
@@ -259,26 +266,22 @@ We can ignore completions,
 but we do need to deal with predictions,
 The inter-nucleotide pair whose base dotted rule has its dot
 before the first non-nulled RHS symbol is called the "prediction nucleotide pair".
-In this example, the prediction nucleotides are pair 1.
+In the above example,
+the prediction nucleotides are pair 1, these two rules:
+```
+    X-L ::=
+    X-R ::= A B C
+```
 
-Each pre-strand rule potentially needs `2*n` pairs of nucleotide rules,
-where `n` is the number of symbols on the RHS of the
-`g1` rule.
-Empty rules can be ignored.
-We can also ignore any splits that occur before nulling symbols.
-
-The above rules imply that left split rules can be nulling.
-In fact,
-for every pre-strand rule,
-one of the left split rules derived from it must be nulling.
-But no right split rule can be nulling.
-Informally, a right split rule must represent "something".
-
-If `rule` is a nucleotide rule,
-the `Direction(rule)` is its direction,
-`forward` or `reverse` as described above.
-`Direction(rule)` is not defined if `rule` is
-not a nucleotide.
+The forward prediction nucleotide
+of every pre-strand rule is nulling.
+This rule is not used in parsing,
+but it is used in the bocage nodes.
+Marpa internal grammars do not allow nulling rules,
+so 
+this is one case where the grammar used in the
+bocage nodes does not obey the restrictions
+imposed on Marpa internal grammars.
 
 ## Converting dotted rules
 
@@ -326,8 +329,9 @@ If the conversion is not trival,
 at least one of
 
          Base-rule(to-rule) != to-rule or
-         Base-rule(dr) != Rule(dr) is true,
+         Base-rule(dr) != Rule(dr)
 
+is true,
 and the conversion of the dot position depends on
 the "direction" of the nucleotides involved.
 
@@ -358,7 +362,7 @@ As examples,
 
     [X-L ::= A . B ]
          = DR-convert([X-L ::= A B ], [X ::= A . B C D])
-    [X-L ::= A . B C D]
+    [X ::= A . B C D]
          = DR-convert([X ::= A B C D], [X-L ::= A . B ])
 
 If the nucleotide's direction is "reverse",
@@ -369,22 +373,30 @@ As examples,
 
     [X-R ::= C . D])
         = DR-convert([X-R ::= C D], [X ::= A B C . D])
-    [X-L ::= A B C . D]
+    [X ::= A B C . D]
          = DR-convert([X ::= A B C D], [X-R ::= C . D])
 
-As another example, consider a case were two nucleotides
-are involved.
+As another example, consider the most complex case,
+where one nucleotide
+is converted into another.
 Let the two nucleotides be
-    [X-L ::= A B C ] and [X-R ::= B C D]
+```
+    [X-L ::= A B C ] and
+    [X-R ::= B C D]
+```
 which share a common base rule
+```
     [X-L ::= A B C D]
-but which do *not* share the same base dotted rule.
-The result is as follows:
+```
+Note that the two nucleotides
+in this example
+do *not* share the same base dotted rule.
+The conversion takes place as follows:
 ```
     DR-convert([X-L ::= A B C ]), [X-R ::= B . C D])
          = DR-convert([X-L ::= A B C ]),
-                  DR-convert([X-R ::= A B C D], [X-R ::= B . C D])
-         = DR-convert([X-L ::= A B C ]), [X-R ::= A B . C D])
+                  DR-convert([X ::= A B C D], [X-R ::= B . C D])
+         = DR-convert([X-L ::= A B C ]), [X ::= A B . C D])
          = [X-L ::= A B . C ]
 ```
 
@@ -410,8 +422,8 @@ As some more examples, let
     X-L ::= A B
     X-R ::= C D
 ```
-be forward and reverse inter-nucleotides.
-Their base dotted rule is
+be forward and reverse inter-nucleotides,
+whose base dotted rule is
 ```
     X ::= A B . C D
 ```
