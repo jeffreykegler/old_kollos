@@ -4,44 +4,6 @@ This document describes Marpa's planned
 "strand parsing" facility.
 Strand parsing allows parsing to do done in pieces,
 pieces which can then be "wound" together.
-The technique bears a slight resemblance to
-that for DNA unwinding, rewinding
-and transcription,
-and a lot of the terminology
-for strand parsing
-is borrowed
-from biochemistry.
-
-## Theory: suffix grammars
-
-In what follows, some sections will,
-like this one,
-be marked "Theory".
-It is safe to skip them.
-They record mathematical details,
-some of which are important
-for ensuring the correctness of the algorithm.
-
-The "transcription grammar" here is based on
-the "suffix grammar", whose construction is described in
-Grune & Jacobs, 2nd ed., section 12.1, p. 401.
-Our purpose differs from theirs, in that
-
-* we want our parse to contain only those suffixes which
-    match a known prefix; and
-
-* we want to be able to create parse forests from both suffix
-    and prefix, and to combine these parse forests.
-
-Every context-free grammar has a context-free "suffix grammar" --
-a grammar, whose language is the set of suffixes of the first language.
-That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
-grammar.
-(In parsing theory, "language" is an fancy term for a set of strings.)
-Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
-`L1` will always be a subset of `suffixes(L1)`.
-It can be shown that there is always some context-free grammar `g2`,
-whose language is `suffixes(L1)`.
 
 ## Notation
 
@@ -50,16 +12,14 @@ while subtraction is rare.
 In this document,
 to avoid confusion,
 subtraction will always be
-shown as the addition of a negative number.
+shown as the addition of a negative.
 For example `4+(-1) = 3`.
 
 ## Nucleobases and nucleotides
 
-In order to make the following algorithm appeal to the intuition more,
-we use an analogy to DNA transcription and winding.
-For this purpose, we borrow some of the specialist terminology
-of biochemistry.
-
+In an attempt to appeal to the intuition,
+we employ terms that make
+an analogy to DNA transcription and winding.
 A DNA molecule consists of two "strands", which are joined
 by "nucleobase pairs".
 In DNA, there are four nucleobases: the familiar
@@ -98,6 +58,9 @@ The restrictions that are relevant here are
   so that nulling symbols can be eliminated before
   parsing and restored afterward.
 
+The pseudo-code function `LHS(rule)`
+returns the LHS symbol of a rule.
+
 ## Dotted rules
 
 Dotted rules are of several kinds:
@@ -109,21 +72,6 @@ Dotted rules are of several kinds:
 * medials, which are those dotted rules which are neither
     predictions or completions.
 
-* penults, which are a special kind of medial,
-  in which the dot is just before the last RHS symbol.
-
-If a dotted rule has the dot after a RHS symbol instance,
-the predecessor of that dotted rule is the dotted rule
-with the dot before that symbol instance --
-in
-other words, with the dot one position earlier.
-If a dotted rule has the dot before a RHS symbol instance,
-the predecessor of that dotted rule is the dotted rule
-with the dot after that symbol instance --
-other words, with the dot one position later.
-Predictions do not have predecessors
-and completions do not have successors.
-
 If `rule` is a rule, then
 
 * `Prediction(rule)` is the dotted rule which is its prediction; and
@@ -134,20 +82,45 @@ If `dr` is a dotted rule, then
 
 * `Rule(dr)` is its rule
 
+When we apply a rule notion applied to a dotted rule,
+it is equivalent to that rule notion applied to the rule
+of the dotted rule.
+For example, if `dr` is a dotted rule,
+```
+     LHS(dr) == LHS(Rule(DR))
+```
+
 ## Earley items
 
 As a reminder, an
-Earley item, `eim`, consists of
+Earley item, `yim`, consists of
 
-* A dotted rule, `DR(eim)`.
+* A dotted rule, `DR(yim)`.
 
-* An origin, `Orig(eim)`, which is the number
-  of the Earley set where `eim` starts.
+* An origin, `Orig(yim)`, which is the number
+  of the Earley set where `yim` starts.
 
-* An current location, `Dot(eim)`, which is the number
-  of the Earley set that contains `eim`,
+* An current location, `Dot(yim)`, which is the number
+  of the Earley set that contains `yim`,
   and which corresponds to the position of the
   dot in the dotted rule.
+
+When we apply a dotted rule notion to an Earley item,
+it is equivalent that to dotted rule notion
+applied to the dotted rule
+of the Earley item.
+For example, if `yim` is an Earley item,
+```
+     Rule(yim) == Rule(DR(yim))
+```
+
+When we apply a rule notion applied to an Earley item,
+it is equivalent to that rule notion applied to the rule
+of the dotted rule of the Earley item.
+For example, if `yim` is an Earley item,
+```
+     LHS(yim) == LHS(Rule(DR(yim)))
+```
 
 ## Creating the strand grammar
 
@@ -156,10 +129,15 @@ We also call `g1` the pre-strand grammar.
 We will need to extend `g1` to a
 "strand grammar".
 
-We need to define, for every rule in `g1`, two 'nucleotide rules',
-a 'left nucleotide' and a 'right nucleotide'.
+We will call the original grammar,
+before it has strand rules and symbols added to it,
+the "pre-strand grammar".
+The rules of a pre-strand grammar are pre-strand rules
+and the symbols of a pre-strand grammar are pre-strand symbols.
 
-First, we define our set of "nucleobase symbols".
+To extend the pre-strand grammar to a strand grammar,
+we will define,
+a set of "nucleobase symbols".
 Nucleobase symbols exist to allow non-terminals to be split in half.
 Nucleobases come in right and left versions.
 For example, for the symbol `A`,
@@ -167,13 +145,14 @@ the nucleobases will be `A-L` and `A-R`.
 The symbol `A` is called by *base symbol*
 of the nucleobases `A-L` and `A-R`.
 
-We will call the original grammar,
-before it has strand rules and symbols added to it,
-the "pre-strand grammar".
-The rules of a pre-strand grammar are pre-strand rules
-and the symbols of a pre-strand grammar are pre-strand symbols.
+To extend the pre-strand grammar to a strand grammar,
+we also define pairs of 'nucleotide rules'.
+In a pair of nucleotide rules,
+one of the pair is 
+a 'forward nucleotide' and
+the other is
+a 'reverse nucleotide'.
 
-To split rules in half, we use nucleotide rules.
 Let one of `g1`'s pre-strand rules be
 ```
      X ::= A B C
@@ -600,8 +579,8 @@ Otherwise, a non-terminal node has one or more links.
 Every link is a duple,
 consisting of
 a predecessor and
-a successor.
-The predecessor and successor
+a cause.
+The predecessor and cause
 are called children of the node that their
 link belongs to.
 If node A is a child of node B,
@@ -612,19 +591,19 @@ was formed,
 with the predecessor describing a
 dotted rule with its dot one symbol
 earlier in the rule,
-and the successor describing the source
+and the cause describing the source
 of the symbol which allowed the dot
 to be moved forward.
 
-The successor may be either a terminal node
+The cause may be either a terminal node
 or a non-terminal node.
-If the successor is a non-terminal node,
+If the cause is a non-terminal node,
 that node must be a completion.
 
 The predecessor is always
 a non-terminal node,
 and is never a completion.
-A successor can be a terminal node or
+A cause can be a terminal node or
 a non-terminal node.
 
 By convention,
@@ -666,8 +645,8 @@ input in the inactive strand,
 the parse succeeded.
 The completed start rule is an Earley item,
 which we can call
-`success-eim`.
-We expand `success-eim` to a bocage node,
+`success-yim`.
+We expand `success-yim` to a bocage node,
 as described above.
 In the process, we will have created our
 parse forest.
@@ -835,18 +814,18 @@ To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
 * INTER-NUCLEOTIDE-LOOP:
-  For every medial Earley item, call it `medial-eim,
+  For every medial Earley item, call it `medial-yim,
   which is in the Earley set at `split`
 
     - Let
       
-               base-rule = Base-rule(medial-eim)
-               straddle-rule = Straddle(DR(medial-eim))
+               base-rule = Base-rule(medial-yim)
+               straddle-rule = Straddle(DR(medial-yim))
                new-rule = Forward-inter-nucleotide(straddle-rule)
 
-    - For every `prefix-node` in `Prefix-nodes(medial-eim)`
+    - For every `prefix-node` in `Prefix-nodes(medial-yim)`
 
-                Recursive-node-add(prefix-node, medial-eim, new-rule)
+                Recursive-node-add(prefix-node, medial-yim, new-rule)
 
     - `Node-to-bocage-add(new-node)`
 
@@ -905,7 +884,7 @@ the suffix parse, we do the following:
 
                new-rule = Forward-intra-nucleotide(Rule(pred-node))
                new-node = [
-                   Penult(new-rule),
+                   Completion(new-rule),
                    Orig(pred-node), split
                ]
 
@@ -1067,16 +1046,16 @@ then `rule == Rule(suffix-node)`.
 
         - REVERSE_CAUSE_LOOP:
           For every completion,
-          call that completion `rev-cause-eim`,
+          call that completion `rev-cause-yim`,
           whose current location
           is `current`,
           and whose LHS is `predot`
 
-            * `rev-cause-eim`
+            * `rev-cause-yim`
               must be a nucleotide, because `predot`, its LHS,
               is a nucleobase.
 
-            * If `Nucleotide-match(forw-cause) != Rule(rev-cause_eim)`
+            * If `Nucleotide-match(forw-cause) != Rule(rev-cause_yim)`
               end this iteration
               and start the next iteration
               of RIGHT_CAUSE_LOOP.
@@ -1085,7 +1064,7 @@ then `rule == Rule(suffix-node)`.
 
                      new-pred = Node-clone(pred, rule)
                      new-cause = Recursive-node-add(
-                         forw-cause, rev-cause-eim, Base-rule(rev-cause-eim))
+                         forw-cause, rev-cause-yim, Base-rule(rev-cause-yim))
 
             * Start the next iteration of RIGHT_CAUSE_LOOP.
 
@@ -1216,7 +1195,7 @@ The algorithm then proceeds as follows:
 
     - If we are here,
       then `work-item` is still on top of the stack,
-      We pop `work-eim` from the top of the stack.
+      We pop `work-yim` from the top of the stack.
 
     - We create the new bocage node,
       calling it `new-node`.
@@ -1233,6 +1212,32 @@ The algorithm then proceeds as follows:
 ## Saving space [TO DO]
 
 ## Incremental evaluation [TO DO]
+
+## Theory: suffix grammars
+
+It is safe to skip this section.
+It is devoted to mathematical details.
+
+The "transcription grammar" here is based on
+the "suffix grammar", whose construction is described in
+Grune & Jacobs, 2nd ed., section 12.1, p. 401.
+Our purpose differs from theirs, in that
+
+* we want our parse to contain only those suffixes which
+    match a known prefix; and
+
+* we want to be able to create parse forests from both suffix
+    and prefix, and to combine these parse forests.
+
+Every context-free grammar has a context-free "suffix grammar" --
+a grammar, whose language is the set of suffixes of the first language.
+That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
+grammar.
+(In parsing theory, "language" is an fancy term for a set of strings.)
+Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
+`L1` will always be a subset of `suffixes(L1)`.
+It can be shown that there is always some context-free grammar `g2`,
+whose language is `suffixes(L1)`.
 
 <!---
 vim: expandtab shiftwidth=4
