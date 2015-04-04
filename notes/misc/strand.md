@@ -1154,14 +1154,30 @@ then `rule == Rule(suffix-node)`.
       there will be no sources for
       a non-nucleotide `yim`.
 
-    - Let `link` be
+    - If `Rule(pred-cause)` is *not* a nucleotide,
 
-                 [
-                   undef,
-                   Recursive-node-add(undef, pred-cause, undef),
-                 ]
+      + Let `link` be
 
-    - `Link-add(new-node, link)`
+                   [
+                     undef,
+                     Recursive-node-add(undef, pred-cause, undef),
+                   ]
+
+      + `Link-add(new-node, link)`
+
+    - If `Rule(pred-cause)` *is* a nucleotide,
+
+      + For every `prefix-link` in `Prefix-links(pred-cause)`
+
+        * Let `link` be
+
+                     [
+                       undef,
+                       Recursive-node-add(prefix-node, pred-cause,
+                          Base-rule(pred-cause)),
+                     ]
+
+        * `Link-add(new-node, link)`
 
   + `Node-to-bocage-add(new-node)`
 
