@@ -998,7 +998,7 @@ a parse, we need to keep track of location.
 Each of these will keep
 locations in its own terms,
 and these terms will be different.
-Locations in the prefix strand
+Locations in the prefix bocage
 will be absolute, and may be represented
 as `Loc(0, forw-loc)` or simply `forw-loc`.
 Locations in the suffix parse will be
@@ -1014,7 +1014,7 @@ absolute location can be calculated as
 In the location `Loc(0, abs-loc)`,
 `abs-loc` is equal to the absolute location.
 Comparison of locations always uses absolute
-locations.
+location.
 
 The necessary conversions are obvious
 and would clutter the pseudo-code,
@@ -1024,8 +1024,8 @@ An implementation, of course, would have to
 perform them.
 As implemented, locations will often be
 stored as absolute locations.
-Locations in the bocage and in its
-AVL index are always absolute locations.
+Locations stored in the bocage
+are always absolute locations.
 
 ## Winding together a prefix bocage and a suffix parse
 
@@ -1033,7 +1033,8 @@ In the following,
 we assume that we have stopped the suffix parse
 at a point called the split point.
 We assume that, at the split point,
-the parse has not failed.
+the parse has not failed or
+succeeded.
 This implies that there is at least
 one medial Earley item at the split point.
 
@@ -1046,23 +1047,20 @@ To produce a bocage from the prefix bocage and
 the suffix parse, we do the following:
 
 * INTER-LOOP:
-  For every medial Earley item, call it `medial-yim,
+  For every medial Earley item, call it `medial-yim`,
   which is in the Earley set at `split`,
   and where `Rule(medial-yim)` is *not* a nucleotide.
 
   - Let
       
-             straddle-rule = Straddle(DR(medial-yim))
-             new-rule = Forward-inter-nucleotide(straddle-rule)
+             new-rule = Forward-inter-nucleotide(DR(medial-yim))
              new-node =
                  Recursive-node-add(undef, medial-yim, new-rule)
-
-  - `Node-to-bocage-add(new-node)`
 
   - Push new-node onto `working-stack`.
 
 * INTER-NUCLEOTIDE-LOOP:
-  For every medial Earley item, call it `medial-yim,
+  For every medial Earley item, call it `medial-yim`,
   which is in the Earley set at `split`,
   and where `Rule(medial-yim)` *is* a nucleotide.
 
@@ -1077,8 +1075,6 @@ the suffix parse, we do the following:
 
              new-node
                  = Recursive-node-add(prefix-node, medial-yim, new-rule)
-
-    + `Node-to-bocage-add(new-node)`
 
     + Push new-node onto `working-stack`.
 
@@ -1102,16 +1098,17 @@ the suffix parse, we do the following:
 
     + `Add-link(new-node, [undef, inter-node])`
 
-  - `Node-to-bocage-add(new-node)`
+    + `Node-to-bocage-add(new-node)`
 
 * INTRA-NUCLEOTIDE LOOP:
   While `working-stack` is not empty:
 
   - This loop is guaranteed to terminate, because the grammar
-    is cycle-free, any node added this loop is the parent
+    is cycle-free;
+    any node added by this loop is the parent
     ("effect") of the node
     that was most recently popped from the stack
-    (its "cause")
+    (its "cause");
     and every cause-effect chain will
     eventually reach a effect node that
     is the left nucleotide of the start rule,
@@ -1137,7 +1134,7 @@ the suffix parse, we do the following:
       and its postdot symbol will be the base symbol
       of `LHS(dr)`.
 
-               new-rule = Forward-intra-nucleotide(Rule(pred-node))
+               new-rule = Forward-intra-nucleotide(DR(pred-node))
                new-node = [
                    Completion(new-rule),
                    Orig(pred-node), split
@@ -1151,19 +1148,73 @@ the suffix parse, we do the following:
 
   - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
 
+### Rewriting bocage nodes recursively
+
+The pseudo-code function
+`Node-rewrite(old-node, rule)`
+takes two arguments.
+`old-node` must be a node already in the bocage.
+`rule` must a rule.
+In addition, it must be true that
+```
+    Base-rule(old-node) == Base-rule(rule)
+```
+`Node-rewrite(old-node, rule)` returns a new
+node, call it `new-node`.
+Informally, `new-node` is the same as `old-node`
+except that `Rule(new-node) = rule`.
+
+`new-node` is added to the bocage.
+After `Node-rewrite(old-node, rule)`, 
+`old-node` may or may not be necessary.
+`old-node` is not deleted by Node-rewrite()`.
+Cleaning up `old-node`, if necessary, is
+left up to the garbage collection scheme.
+
+`Node-rewrite(old-node, rule)` has the same
+effect as the following pseudo-code,
+which describes it as a recursion.
+
+* Let
+
+          new-node = [
+            DR-convert(rule, DR(old-node)),
+            Orig(old-node),
+            Current(old-node),
+               ]
+
+* For every link in `Links(old-node)`
+
+  - Let `link` be `[ pred, cause ]`
+
+  - Let `new-link` be `[ Node-rewrite(pred, rule), cause ]`
+
+  - `Add-link(new-node, new-link)`
+
++ `Node-to-bocage-add(new-node)`
+
 ### Adding bocage nodes recursively
 
-The function `Recursive-node-add(prefix-node, suffix-node, rule)`
-creates a new node from `suffix-node`,
-which may be either an Earley item
-or a token,
-and adds it to the bocage,
+The function `Recursive-node-add(prefix-node, suffix-element, rule)`
+creates a new node, call it 'new-node`,
+from `suffix-element`.
+`suffix-element` may be either an Earley item
+or a token.
+The new node's rule is taken from the `rule`
+argument and,
+if `suffix-element` is a continuation of a rule
+from the prefix bocage,
+the bocage node that it continues
+is given via the `prefix-node` argument.
+
+`new-node` is added to the bocage,
 along with all its links
 and memoizations.
 This may require the addition of many other
 child nodes to the bocage.
 
-The description describes a recursion,
+The pseudo-code below describes
+`Recursive-node-add()` as a recursion,
 because that is easiest conceptually.
 In practice,
 a non-recursive implementation
@@ -1171,32 +1222,42 @@ is likely to be preferable.
 
 `prefix-node` is defined,
 if and only if
-`suffix-node` is a non-terminal node,
-and `Rule(suffix-node)` is a nucleotide.
+`suffix-element` is a non-terminal node,
+and `Rule(suffix-element)` is a nucleotide.
 If `prefix-node` is defined,
 it must be a bocage node such that
-`Base-rule(prefix-node) == Base-rule(suffix-node)`.
+`Base-rule(prefix-node) == Base-rule(suffix-element)`.
 
-If `suffix-node` is a non-terminal node,
+If `suffix-element` is a non-terminal node,
 `rule` may be defined.
 If `rule` is defined,
-it must that
-`Base-rule(rule) == Base-rule(suffix-node)`.
-If `suffix-node` is a non-terminal node,
-and `rule` is not defined,
-then `rule == Rule(suffix-node)`.
+it must be the case that
+```
+    Base-rule(rule) == Base-rule(suffix-element)
+```
 
-* If `suffix-node` is a token, end the `Recursive-node-add()`
+* If `suffix-element` is a non-terminal node,
+  and `rule` is not defined, then let
+
+          rule == Rule(suffix-element)
+
+* If `suffix-element` is a token, end the `Recursive-node-add()`
   function.  Return `Token-node-add(predot)` as
   its value.
 
-* Let `Loc(split-offset, current)`.
+* At this point, we know that `suffix-element`
+  is an Earley item.
+  For easier reading, let
+
+          yim == suffix-element
+
+* Let `Loc(split-offset, current)`
   be the current location of `yim`.
-  Call this location, `current`, for short.
+  Call this location, `current`.
 
 * Let
 
-          new-dr = DR-convert(rule, DR(suffix-node))
+          new-dr = DR-convert(rule, DR(suffix-element))
           new-node = [ new-dr, orig, current ]
 
   where `orig` is `Orig(prefix-node)` if
@@ -1208,11 +1269,6 @@ then `rule == Rule(suffix-node)`.
 
   - For each `[undef, pred-cause]`
     in `Links(yim)`.
-
-    - If the current location is
-      `Loc(split, 0)`,
-      there will be no sources for
-      a non-nucleotide `yim`.
 
     - If `Rule(pred-cause)` is *not* a nucleotide,
 
@@ -1256,7 +1312,7 @@ then `rule == Rule(suffix-node)`.
 
       * Let `link` be `[new-pred, forw-cause]` where
 
-               new-pred = Node-clone(pred, rule)
+               new-pred = Node-rewrite(pred, rule)
 
       * `Link-add(new-node, link)`
 
@@ -1333,7 +1389,7 @@ then `rule == Rule(suffix-node)`.
 
             * `Link-add(new-node, [new-pred, new-cause])` where
 
-                     new-pred = Node-clone(pred, rule)
+                     new-pred = Node-rewrite(pred, rule)
                      new-cause = Recursive-node-add(
                          forw-cause, rev-cause-yim, Base-rule(rev-cause-yim))
 
