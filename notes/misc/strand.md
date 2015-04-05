@@ -670,41 +670,61 @@ and is never a completion.
 A cause can be a terminal node or
 a non-terminal node.
 
-By convention,
-predictions never have predecessors,
-but, with one exception,
+Predictions never have predecessors.
+With one exception,
 predictions have causes.
 In the initial parse,
 the prediction of the start rule
 will not have a cause.
-All other predictions of Earley items will
-have causes.
+All other predictions have causes.
 In the case of a non-nucleotide rule,
-the cause of an Earley item prediction
+the cause of an prediction
 is the medial rule from which it
 was created.
-In the case of a nucleotide rule,
-the cause of an Earley item is
-a bocage node -- the forward
-nucleotide node from which 
-the Earley item was created.
+
+Readers familiar with
+the links as currently implemented in
+Marpa's current implementation
+should be aware that
+the scheme described here differs.
+Marpa currently does not track links
+for predictions,
+but for the implementation of strand
+parsing, it will need to.
+Among other reasons,
+strand parsing will require a
+garbage collection scheme for its
+memory management,
+and safe garbage collection will require
+that all the nodes required
+for the creation of a bocage node
+be its children.
 
 ## Adding a node to the bocage
 
 Nodes are added to the bocage using
 the psuedo-code function `Add-node-to-bocage(node)`.
-The `node` argument of `Add-node-to-bocage(node)` is a fully
-formed node, often including links into the current
-bocage, but which is not yet in the bocage data structure.
+The `node` argument of `Add-node-to-bocage(node)` must be
+a bocage node which is
+a fully formed "tuple",
+and which includes all of its links,
+but which is not yet part of the bocage.
 
 When adding a node to a bocage,
 no node is ever added twice.
 A memoization is used to prevent this.
 
-If `Add-node-to-bocage(node)` is called for a node
+If `Add-node-to-bocage(new-node)` is called for a node
 already in the prefix bocage,
-its links are added to the already-existing node,
-provided that no link is ever added twice.
+`new-node` itself is ignored is favor of the existing node,
+but the links of `new-node` are examined.
+Call the existing node, `old-node`.
+If a link of `new-node`
+is not identical to a link
+already in `old-node`,
+it is added
+to `old-node`.
+A node is never allowed to have two identical links.
 
 ## Archetypal strand parsing
 
@@ -744,22 +764,21 @@ the following loop, which continues the strand parse.
 
 <a name="STRAND-PARSING-LOOP"></a>
 
-When the loop that continues a strand parse begins we
-assume that we have
+When the loop that continues a strand parse begins,
+we assume that we have
 
 * A parse.  This may be the initial
-  parse.  This is called the suffix parse,
+  parse.  This is called the *suffix parse*,
   even when it is the initial parse.
 
-* A bocage.  If the suffix parse is the initial parse,
-  the bocage will be empty.
+* A bocage, called the *prefix bocage*.
+  If the suffix parse is the initial parse,
+  the prefix bocage will be empty.
 
 If the suffix parse failed,
 we deal with it
 using methods like those currently
 in Marpa::R2.
-These will not be described further.
-
 If the suffix parse succeeded,
 we end the iteration,
 and finish the parse as described
@@ -780,37 +799,54 @@ and the unconsumed input,
 as described
 [below](SUFFIX-PARSE).
 
-We continue the suffix point until
+We continue the suffix parse until
 success, failure, or the reaching of another split point.
 Regardless of the result,
 we start a new iteration of the
 ["Strand parsing loop"](STRAND-PARSING-LOOP).
 
+### Ending the strand parsing loop
+
+As already described above, the strand parsing loop
+ends if it encounters success or failure.
+Any iteration of the strand parsing loop that
+does not succeed or fail must advance at least
+one character in the input,
+so that the strand parsing loop
+always terminates.
+
 ## Finding the prefix node
 
-In several cases, we will have an Earley item
+In several cases, we will have
+a nucleotide Earley item
 in the suffix parse
-and will need to find the nodes
-in the
-prefix bocage which it continues.
-These bocage nodes are called *prefix nodes*.
-There will be many prefix nodes, or none.
+and will need to find
+the forward nucleotide nodes
+that it continues from
+the prefix bocage.
+These set of forward nucleotide nodes that are
+continued by a reverse nucleotide are called its
+*prefix nodes*.
+There may be many prefix nodes, or none.
 The prefix nodes
 are returned by the 
 pseudo-code function `Prefix-nodes(yim)`,
 where `yim` is an Earley item.
 
 If `yim` is not a nucleotide,
-there are no prefix nodes,
-and `Prefix-nodes(yim)`
+there are no prefix nodes.
+In this case, `Prefix-nodes(yim)`
 is undefined.
 
 If `yim` is a nucleotide,
-we follow its predecessor links to the back to
+there will be at least one prefix node.
+To find the set of prefix nodes,
+we follow `yim`'s predecessor links to the back to
 the Earley item, call it `pred-yim`,
 whose dotted rule
 is `Prediction(Rule(yim))`.
-`pred-yim` will always be in the Earley set at `Loc(split, 0)`.
+`pred-yim` will always be in the first Earley set
+of the suffix parse.
 There may be more than one chain of predecessors back
 to `pred-yim`, but there will never be more than one `pred-yim`.
 The prefix nodes will be the set containing
@@ -820,7 +856,7 @@ all `prefix-node` such that
      pred-link is an element of Links(pred-yim)
 ```
 
-## Successful parses [ TODO ]
+## Successful parses
 
 <a name="SUCCESSFUL"></a>
 If a parse is successful,
@@ -831,7 +867,7 @@ call it `completed-start-yim`.
 
           prefix-nodes = Prefix-nodes(completed-start-yim)
 
-* If `prefix-nodes` is not defined,
+* If `prefix-nodes` is defined,
   this is an initial parse.
   Execute the pseudo-code function
 
@@ -854,39 +890,12 @@ call it `completed-start-yim`.
   Afterwards, the prefix bocage will contain the successful parse,
   and the suffix parse may be discarded.
 
-## Producing the ASF from inactive strands
-
-To produce an ASF from an inactive strand,
-we must determine if the parse succeeded
-or failed.
-If there is completed start rule covering the entire
-input in the inactive strand,
-the parse succeeded.
-The completed start rule is an Earley item,
-which we can call
-`success-yim`.
-We expand `success-yim` to a bocage node,
-as described above.
-In the process, we will have created our
-parse forest.
-
-If there is no completed start rule,
-the parse is a failure.
-To diagnose the failure,
-we can produce a parse
-forest
-using broken left nucleotides.
-
 ## Starting a suffix parse
-
-A suffix parse is a reverse-active strand which continues
-another forward-active strand.
-The intent will usually be to wind the two strands
-together.
 
 ### The suffix grammar
 
-To create a suffix parse, we use a special suffix grammar,
+To create a non-initial suffix parse,
+we use a special suffix grammar,
 created from the pre-strand grammar.
 The suffix grammar is the pre-strand grammar with these changes.
 
@@ -904,27 +913,27 @@ The suffix grammar is the pre-strand grammar with these changes.
   is the prediction start rule of the pre-strand
   grammar.
 
-The suffix grammar described above will be several
+The change of start rules between the pre-strand
+and the suffix grammar may make some rules inaccessible.
+These inaccessible rules can be deleted.
+Even so,
+the suffix grammar described above may be several
 times the size of the pre-strand grammar.
 Alternatively, a suffix grammar could be created
 on a per-parse basis, adding only
 
 * The reverse nucleotide rules which match forward
-  nucleotide rules currently in the bocage.
+  nucleotide rules currently in the prefix bocage.
 
-* Any nucleobase symbols contained in those
+* Any nucleobase symbols that are on the LHS or RHS
+  of those
   reverse nucleotide rules.
-
-All pre-strand rules and symbols made inaccessible
-could then deleted.
-This grammar would be considerably smaller.
 
 ### Create Earley set 0
 
 In a suffix parse, we proceed using the suffix grammar
 and the unconsumed input.
 Earley set 0 must be specially constructed.
-Otherwise, the parse is normal
 
 * Let `worklist` be a stack of symbols,
   initially empty.
@@ -933,8 +942,8 @@ Otherwise, the parse is normal
   is pushed onto it more than once.
 
 * For every forward nucleotide node,
-  call it `forward-node` currently
-  in the bocage.
+  call it `forward-node`,
+  currently in the bocage.
 
   + Let 
 
@@ -961,11 +970,11 @@ Otherwise, the parse is normal
 
       * Add the Earley item
 
-             [Prediction(r), suffix-loc-0, suffix-loc-0]
+                [Prediction(r), suffix-loc-0, suffix-loc-0]
 
         to Earley set 0.
 
-      * Push `Postdot(r)` onto `work-list`.
+      * Push `Postdot(Prediction(r))` onto `work-list`.
 
 ### Continuing the suffix parse
 
