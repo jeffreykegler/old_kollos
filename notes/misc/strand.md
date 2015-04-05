@@ -2,7 +2,7 @@
 
 This document describes Marpa's planned
 "strand parsing" facility.
-Strand parsing allows parsing to do done in pieces.
+Strand parsing allows parsing to be done in pieces.
 These pieces can then be "wound" together.
 
 ## Notation
@@ -29,7 +29,8 @@ nucleobases.
 
 For our purposes,
 a *nucleobase* is a symbol
-used to match rules and symbols
+used to match part of a second symbol,
+when that second symbol is
 divided between two parses.
 A *nucleotide* is a rule whose LHS
 is a nucleobase.
@@ -59,7 +60,7 @@ The restrictions that are relevant here are
   so that nulling symbols can be eliminated before
   parsing and restored afterward.
 
-The pseudo-code function `LHS(rule)`
+The pseudo-code accessor `LHS(rule)`
 returns the LHS symbol of a rule.
 
 ## Dotted rules
@@ -86,17 +87,35 @@ If `dr` is a dotted rule, then
 When we apply a rule notion applied to a dotted rule,
 it is equivalent to that rule notion applied to the rule
 of the dotted rule.
+For example, a start dotted rule is a dotted rule
+whose rule is a start rule.
+Similarly, if a rule accessor is called with a dotted
+rule, then it acts as a dotted rule accessor whose
+whose result is equivalent to that of the rule
+accessor when called with the rule of the dotted
+rule as its argument.
 For example, if `dr` is a dotted rule,
 ```
-     LHS(dr) == LHS(Rule(DR))
+     LHS(dr) == LHS(Rule(dr))
 ```
 
 If a dotted rule is not a completion,
 it will have a symbol after the dot,
 called the *postdot symbol*.
-The pseudo-code function `Postdot(dr)`
+The pseudo-code accessor `Postdot(dr)`
 returns the postdot symbol of the dotted
 rule `dr`.
+
+## Location
+
+At this point, the term *input location*
+means the ordinal of an Earley set.
+Unless otherwise specified,
+the term *location* will refer to input locations.
+When we introduce the concept of a bocage,
+we will need to extend our definition of input
+location but this definition suffices
+until then.
 
 ## Earley items
 
@@ -105,29 +124,28 @@ Earley item, `yim`, consists of
 
 * A dotted rule, `DR(yim)`.
 
-* An origin, `Orig(yim)`, which is the location,
-  in terms of
-  Earley sets, where `yim` starts.
+* An origin, `Orig(yim)`, which is the location
+  where `yim` starts.
 
 * A current location, `Current(yim)`, which is
-  number of the Earley set
+  the ordinal of Earley set
   that contains the Earley item `yim`,
   and which corresponds to the position of the
-  dot in the dotted rule.
+  dot in the RHS of the dotted rule.
 
 Marpa creates links for its Earley items,
 which track how and why they were created.
-If `yim` is an Earley item,
-then `Links(yim)` is the pseudo-code
-function that returns the set of links for `yim`.
+`Links(yim)` is the pseudo-code
+accessor that returns the set of links
+for the Earley item `yim`.
 
 When we apply a dotted rule notion to an Earley item,
-it is equivalent to dotted rule notion
+it is equivalent to that dotted rule notion
 applied to the dotted rule
 of the Earley item.
 For example, a medial Earley item is an Earley
 item whose dotted rule is medial.
-Similarly, pseudo-code functions whose argument
+Similarly, pseudo-code accessors whose argument
 can be a dotted rule, when that argument is an
 Earley item, apply to the dotted rule of the
 Earley item.
@@ -141,7 +159,7 @@ it is equivalent to that rule notion applied to the rule
 of the dotted rule of the Earley item.
 For example, a start Earley item is an
 Earley item whose rule is a start rule.
-Similarly, pseudo-code functions whose argument
+Similarly, pseudo-code accessors whose argument
 can be a rule, when that argument is an
 Earley item, apply to the rule of the
 dotted rule of the
@@ -199,7 +217,7 @@ The six pairs of
     6: X-L ::= A B C-L        X-R ::= C-R
 ```
 `rule-X` is called the "base rule" of these nucleotides.
-The pseudo-code function `Base-rule(rule)` returns the base
+The pseudo-code accessor `Base-rule(rule)` returns the base
 rule of a nucleotide rule.
 
 The base rule of a nucleotide must be unique.
@@ -279,7 +297,7 @@ For the example above,
     Reverse-intra-nucleotide([X ::= A B . C]) = [X-R ::= C-R]
 ```
 
-We use the pseudo-code function `Nucleotide-match(rule)` to match
+We use the pseudo-code accessor `Nucleotide-match(rule)` to match
 a nucleotide to its partner.
 For every base dotted rule, `base-dr`
 ```
@@ -455,7 +473,7 @@ Here is another example of a "double conversion"
 
 ### The straddling dotted rule
 
-The `DR-convert()` pseudo-function has a useful special case:
+The `DR-convert()` pseudo-code function has a useful special case:
 
          
          Straddle(dr) == DR-convert(Base-rule(dr), dr)
@@ -528,7 +546,7 @@ typically that
 the completed start rule be in the
 Earley set
 built after
-the last character of input
+the last token of input
 was consumed.
 
 For example, a typical C language program
@@ -537,7 +555,7 @@ many times before the end of input.
 But a C compiler will only call the parse successful
 if there is a completed start rule in the Earley set
 produced
-after reading the last character of input.
+after reading the last token of input.
 
 In our example,
 the completed start
@@ -587,17 +605,17 @@ A non-terminal node, call it `node`, is a 3-tuple of
 
 * Dotted rule,
   as returned by the
-  pseudo-code function `DR(node)`.
+  pseudo-code accessor `DR(node)`.
 
 * Origin,
   as returned by the
-  pseudo-code function `Orig(node)`.
+  pseudo-code accessor `Orig(node)`.
   The origin is the G1 location at which
   the dotted rule starts.
 
 * Current location,
   as returned by the
-  pseudo-code function `Current(node)`.
+  pseudo-code accessor `Current(node)`.
   This is the G1 location of
   the dotted rule's dot position.
 
@@ -638,7 +656,7 @@ and it will have zero links.
 All other non-terminal nodes have one or more links.
 If `node` is a node,
 then `Links(node)` is pseudo-code
-function that returns the set of links for `node`.
+accessor that returns the set of links for `node`.
 
 Every link is a duple,
 consisting of
@@ -746,7 +764,7 @@ We start by parsing the input normally with the pre-strand
 grammar.
 This is called the *initial* parse.
 
-All successful parses are assumed to proceed for at least one character
+All successful parses are assumed to proceed for at least one token
 of input.
 The initial parse ends
 
@@ -811,7 +829,7 @@ As already described above, the strand parsing loop
 ends if it encounters success or failure.
 Any iteration of the strand parsing loop that
 does not succeed or fail must advance at least
-one character in the input,
+one token in the input,
 so that the strand parsing loop
 always terminates.
 
@@ -830,7 +848,7 @@ continued by a reverse nucleotide are called its
 There may be many prefix nodes, or none.
 The prefix nodes
 are returned by the 
-pseudo-code function `Prefix-nodes(yim)`,
+pseudo-code accessor `Prefix-nodes(yim)`,
 where `yim` is an Earley item.
 
 If `yim` is not a nucleotide,
@@ -1195,7 +1213,8 @@ which describes it as a recursion.
 
 ### Adding bocage nodes recursively
 
-The function `Recursive-node-add(prefix-node, suffix-element, rule)`
+The pseudo-code function
+`Recursive-node-add(prefix-node, suffix-element, rule)`
 creates a new node, call it `new-node`,
 from `suffix-element`.
 `suffix-element` may be either an Earley item
@@ -1422,7 +1441,7 @@ does the following
 
 - `Node-to-bocage-add(new-node)`.
 
--  End the `Token-node-add()` functions, returning
+-  End the `Token-node-add()` function, returning
    `new-node` as it value.
 
 ## Implementation
