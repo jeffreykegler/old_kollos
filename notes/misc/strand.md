@@ -1303,22 +1303,17 @@ it must be the case that
 * If there is no predot symbol
   and `yim` *is* a nucleotide
 
-  + PREFIX-NODE-LOOP: For every `[undef, prefix-node]` in
-    in `Links(yim)`.
+  - PREFIX-NODE-LINK-LOOP: For every
+    `[new-pred, forw-cause]`
+    in `Links(prefix-node)`.
 
-    - PREFIX-NODE-LINK-LOOP: For every
-      `[new-pred, forw-cause]`
-      in `Links(prefix-node)`.
+    * Let `link` be `[new-pred, forw-cause]` where
 
-      * Let `link` be `[new-pred, forw-cause]` where
+              new-pred = Node-rewrite(pred, rule)
 
-               new-pred = Node-rewrite(pred, rule)
+    * `Link-add(new-node, link)`
 
-      * `Link-add(new-node, link)`
-
-      * Start the next iteration of PREFIX-NODE-LINK-LOOP.
-
-    - Start the next iteration of PREFIX-NODE-LOOP.
+    * Start the next iteration of PREFIX-NODE-LINK-LOOP.
 
   + `Node-to-bocage-add(new-node)`
 
@@ -1345,13 +1340,14 @@ it must be the case that
   + End the `Recursive-node-add()` function.
     Return `new-node` as its value.
 
-* If `predot` is not a nucleobase
+* If `predot` is *not* a nucleobase
 
     + For every `[pred, succ]` in `Links(yim)`
 
-      - In the previous step, note that `succ` is after all the reverse nucleobases,
-        and therefore is after the split point and entirely inside the suffix parse.
-        `Rule(succ)` will be a non-nucleotide rule.
+      - In the previous step, note that `succ` is must be after the reverse nucleobase;
+        therefore after the split point;
+        therefore entirely inside the suffix parse;
+        and therefore `Rule(succ)` will be a non-nucleotide rule.
 
       - Let `link` be
 
@@ -1367,13 +1363,13 @@ it must be the case that
     + End the `Recursive-node-add()` function.
       Return `new-node` as its value.
 
-* If `predot` is a nucleobase
+* If `predot` *is* a nucleobase
 
     + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
-        - REVERSE_CAUSE_LOOP:
+        - REVERSE-CAUSE-LOOP:
           For every completion,
-          call that completion `rev-cause-yim`,
+          call it `rev-cause-yim`,
           whose current location
           is `current`,
           and whose LHS is `predot`
@@ -1385,7 +1381,7 @@ it must be the case that
             * If `Nucleotide-match(forw-cause) != Rule(rev-cause_yim)`
               end this iteration
               and start the next iteration
-              of RIGHT_CAUSE_LOOP.
+              of REVERSE-CAUSE-LOOP.
 
             * `Link-add(new-node, [new-pred, new-cause])` where
 
@@ -1393,7 +1389,7 @@ it must be the case that
                      new-cause = Recursive-node-add(
                          forw-cause, rev-cause-yim, Base-rule(rev-cause-yim))
 
-            * Start the next iteration of RIGHT_CAUSE_LOOP.
+            * Start the next iteration of REVERSE-CAUSE-LOOP.
 
         - Start the next iteration of LINK_LOOP.
 
@@ -1416,7 +1412,8 @@ does the following
   whose start location is `start-n`,
   and whose end location is `end.
 
-- We create a new node, call it `new-node`,
+- We create a new bocage node,
+  call it `new-node`,
   of type "Token", where
 
         new-node = [ sym, v, start, end ]
@@ -1475,7 +1472,7 @@ The implementation will require
   Work items are either Earley items in the suffix,
   or bocage nodes in the prefix.
   Since the number of Earley items in a strand,
-  and the number nodes in the bocage, are both know,
+  and the number nodes in the bocage, are both known,
   either a fixed size stack or a dynamicly sized one could be used.
 
 * The memoization of the bocage nodes,
@@ -1498,23 +1495,21 @@ The algorithm then proceeds as follows:
     - Call the current top of stack work item, `work-item`.
 
     - Any terminal bocage node that does not exist is created and
-      added to the AVL.
+      added to the bocage and its memoization.
 
     - LINK_LOOP:
-      For every bocage node
+      For every bocage node,
       call it `needed-node`,
       that is needed by `work-item`
       for a link,
+      and that is not already in the bocage,
 
-      * If `needed-node` is not already in the
-        bocage,
+      - We set the `ready` flag to `FALSE`.
 
-        - We set the `ready` flag to `FALSE`.
-
-        - We push a work item for `needed-node`
-          on top of the stack,
-          if it is not on the stack already.
-          We use the stack memoization to track this.
+      - We push a work item for `needed-node`
+        on top of the stack,
+        if it is not on the stack already.
+        We use the stack memoization to track this.
 
     - If the `ready` flag is `FALSE`,
       we start a new iteration of LOOP.
@@ -1522,13 +1517,15 @@ The algorithm then proceeds as follows:
 
     - If we are here,
       then `work-item` is still on top of the stack,
-      We pop `work-yim` from the top of the stack.
+      We pop `work-item` from the top of the stack.
 
-    - We create the new bocage node,
-      calling it `new-node`.
+    - We create the new bocage node from
+      `work-item`, calling it `new-node`.
 
-    - In the previous steps, we make sure that all the
-      bocage nodes necessary will be found in the memoization.
+    - In the previous steps,
+      we made sure that all the
+      bocage nodes necessary for `new-node`
+      are already in the bocage.
       We now add all the necessary links to `new-node`.
 
     - We add `new-node` to the bocage,
