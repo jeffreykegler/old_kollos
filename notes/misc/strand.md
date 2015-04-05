@@ -1167,7 +1167,7 @@ except that `Rule(new-node) = rule`.
 `new-node` is added to the bocage.
 After `Node-rewrite(old-node, rule)`, 
 `old-node` may or may not be necessary.
-`old-node` is not deleted by Node-rewrite()`.
+`old-node` is not deleted by `Node-rewrite()`.
 Cleaning up `old-node`, if necessary, is
 left up to the garbage collection scheme.
 
@@ -1401,7 +1401,7 @@ it must be the case that
 * In the `Recursive-node-add()` function,
   this point should never be reached.
 
-### Expanding a input token into a bocage node
+### Expanding an input token into a bocage node
 
 The pseudo-code function `Token-node-add(tok)`
 does the following
