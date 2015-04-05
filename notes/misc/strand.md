@@ -2,8 +2,8 @@
 
 This document describes Marpa's planned
 "strand parsing" facility.
-Strand parsing allows parsing to do done in pieces,
-pieces which can then be "wound" together.
+Strand parsing allows parsing to do done in pieces.
+These pieces can then be "wound" together.
 
 ## Notation
 
@@ -31,8 +31,9 @@ For our purposes,
 a *nucleobase* is a symbol
 used to match rules and symbols
 divided between two parses.
-A *nucleotide* is a rule that contains
-a nucleobase, either on its RHS or as its LHS.
+A *nucleotide* is a rule whose LHS
+is a nucleobase.
+A nucleotide may also have a nucleobase on its RHS.
 
 ## Grammars
 
@@ -90,6 +91,13 @@ For example, if `dr` is a dotted rule,
      LHS(dr) == LHS(Rule(DR))
 ```
 
+If a dotted rule is not a completion,
+it will have a symbol after the dot,
+called the *postdot symbol*.
+The pseudo-code function `Postdot(dr)`
+returns the postdot symbol of the dotted
+rule `dr`.
+
 ## Earley items
 
 As a reminder, an
@@ -97,11 +105,13 @@ Earley item, `yim`, consists of
 
 * A dotted rule, `DR(yim)`.
 
-* An origin, `Orig(yim)`, which is the number
-  of the Earley set where `yim` starts.
+* An origin, `Orig(yim)`, which is the location,
+  in terms of
+  Earley sets, where `yim` starts.
 
-* An current location, `Dot(yim)`, which is the number
-  of the Earley set that contains `yim`,
+* A current location, `Current(yim)`, which is
+  number of the Earley set
+  that contains the Earley item `yim`,
   and which corresponds to the position of the
   dot in the dotted rule.
 
@@ -112,9 +122,15 @@ then `Links(yim)` is the pseudo-code
 function that returns the set of links for `yim`.
 
 When we apply a dotted rule notion to an Earley item,
-it is equivalent that to dotted rule notion
+it is equivalent to dotted rule notion
 applied to the dotted rule
 of the Earley item.
+For example, a medial Earley item is an Earley
+item whose dotted rule is medial.
+Similarly, pseudo-code functions whose argument
+can be a dotted rule, when that argument is an
+Earley item, apply to the dotted rule of the
+Earley item.
 For example, if `yim` is an Earley item,
 ```
      Rule(yim) == Rule(DR(yim))
@@ -123,6 +139,13 @@ For example, if `yim` is an Earley item,
 When we apply a rule notion applied to an Earley item,
 it is equivalent to that rule notion applied to the rule
 of the dotted rule of the Earley item.
+For example, a start Earley item is an
+Earley item whose rule is a start rule.
+Similarly, pseudo-code functions whose argument
+can be a rule, when that argument is an
+Earley item, apply to the rule of the
+dotted rule of the
+Earley item.
 For example, if `yim` is an Earley item,
 ```
      LHS(yim) == LHS(Rule(DR(yim)))
@@ -179,6 +202,19 @@ The six pairs of
 The pseudo-code function `Base-rule(rule)` returns the base
 rule of a nucleotide rule.
 
+The base rule of a nucleotide must be unique.
+When two different base rules might otherwise produce
+the same nucleotide,
+the nucleobase symbol names should be changed to prevent
+this.
+One way to do this is to,
+when necessary,
+encode
+the base rule into
+the nucleobase symbol name
+with
+a unique numeric identifier.
+
 Each numbered pair of nucleotide contains a forward
 and a reverse nucleotide.
 The forward nucleotide (shown as the left one
@@ -208,7 +244,7 @@ Every nucleotide has a "base dotted rule".
 (As a reminder,
 a "dotted rule"
 is a BNF rule with one of its positions marked with a dot.)
-Dotted rules which are completions do not have nucleotides
+Dotted rules which are completions do not have nucleotides.
 For each rule in the pre-strand parse,
 every non-completion dotted rule,
 call it `base-dr`,
@@ -258,18 +294,6 @@ For every base dotted rule, `base-dr`
 ```
 In all other cases, `Nucleotide-match(rule)` is undefined.
 
-A completion is
-a dotted rule with the dot
-after the last RHS symbol.
-In this example, it is
-```
-    X ::= A B C .
-```
-A completion is never the base dotted rule
-of a nucleotide.
-
-We can ignore completions,
-but we do need to deal with predictions,
 The inter-nucleotide pair whose base dotted rule has its dot
 before the first non-nulled RHS symbol is called the "prediction nucleotide pair".
 In the above example,
@@ -293,10 +317,16 @@ imposed on Marpa internal grammars.
 
 In what follows, it will be necessary to change the rule
 in dotted rules,
-from nucleotides to base rules,
-from base rules to nucleotide,
-and even between two nucleotides.
-In the process, we need to keep the dot position "stable".
+
+* from a nucleotide to its base rules,
+
+* from a base rule to one of its nucleotides,
+
+* between two nucleotides which share the same base rule.
+
+In the process of converting a dotted rule
+from one rule to another,
+we will want to keep the dot position "stable".
 This section explains how we do this.
 
 Dotted rules are converted
@@ -309,12 +339,12 @@ is undefined unless
          
          Base-rule(to-rule) == Base-rule(from-dr)
 
-and otherwise is always such that
+Otherwise, it is always such that
 
          Rule(to-dr) == to-rule
 
-The dot location of `to-dr` will be 
-as described below.
+and the dot location of `to-dr` is as
+described next.
 
 If 
 
@@ -324,7 +354,7 @@ If
          to-dr == dr
 
 so that the dot stays in the same place.
-In this case, the conversion is called trivial.
+In this case, the conversion is called *trivial*.
 As an example
 ```
     [X ::= A B . C D] =
@@ -355,7 +385,7 @@ than one nucleotide is involved at a time.
 
 We'll give an example of this "double conversion"
 after we've introduced the simpler
-conversions.
+conversions from which it is composed.
 
 In the remaining cases, exactly one of `to-rule` and `Rule(from-dr)`
 is a nucleotide.
@@ -1229,11 +1259,11 @@ then `rule == Rule(suffix-node)`.
   + End the `Recursive-node-add()` function.
     Return `new-node` as its value.
 
-* If `predot` is not a nucleosymbol
+* If `predot` is not a nucleobase
 
     + For every `[pred, succ]` in `Links(yim)`
 
-      - In the previous step, note that `succ` is after all the reverse nucleosymbols,
+      - In the previous step, note that `succ` is after all the reverse nucleobases,
         and therefore is after the split point and entirely inside the suffix parse.
         `Rule(succ)` will be a non-nucleotide rule.
 
