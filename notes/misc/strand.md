@@ -1196,7 +1196,7 @@ which describes it as a recursion.
 ### Adding bocage nodes recursively
 
 The function `Recursive-node-add(prefix-node, suffix-element, rule)`
-creates a new node, call it 'new-node`,
+creates a new node, call it `new-node`,
 from `suffix-element`.
 `suffix-element` may be either an Earley item
 or a token.
