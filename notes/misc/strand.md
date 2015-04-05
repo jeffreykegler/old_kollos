@@ -400,10 +400,14 @@ As examples,
          = DR-convert([X-L ::= A B ], [X ::= A . B C D])
     [X ::= A . B C D]
          = DR-convert([X ::= A B C D], [X-L ::= A . B ])
+    [X-L ::= A . B-L ]
+         = DR-convert([X-L ::= A B-L ], [X ::= A . B C D])
+    [X ::= A . B C D]
+         = DR-convert([X ::= A B C D], [X-L ::= A . B-L ])
 
 If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
-so that 0 is the position after the last symbol of the RHS.
+so that 0 is the position after the last symbol of the RHS,
 and 0 is the position immediately before the last symbol of the RHS.
 As examples,
 
@@ -411,8 +415,12 @@ As examples,
         = DR-convert([X-R ::= C D], [X ::= A B C . D])
     [X ::= A B C . D]
          = DR-convert([X ::= A B C D], [X-R ::= C . D])
+    [X-R ::= C-R . D])
+        = DR-convert([X-R ::= C-R D], [X ::= A B C . D])
+    [X ::= A B C . D]
+         = DR-convert([X ::= A B C D], [X-R ::= C-R . D])
 
-As another example, consider the most complex case,
+We know show an example of the most complex case,
 where one nucleotide
 is converted into another.
 Let the two nucleotides be
@@ -436,6 +444,15 @@ The conversion takes place as follows:
          = [X-L ::= A B . C ]
 ```
 
+Here is another example of a "double conversion"
+```
+    DR-convert([X-L ::= A B C-L ]), [X-R ::= . B-R C D])
+         = DR-convert([X-L ::= A B C-L ]),
+             DR-convert([X ::= A B C D], [X-R ::= . B-R C D])
+         = DR-convert([X-L ::= A B C-L ]), [X ::= A . B C D])
+         = [X-L ::= A . B C-L ]
+```
+
 ### The straddling dotted rule
 
 The `DR-convert()` pseudo-function has a useful special case:
@@ -449,9 +466,9 @@ Intuitively,
 a dotted rule's straddling rule
 is its dotted rule when converted to
 to its base rule.
-The idea is that, while `dr` may not straddle
-the split point,
-`Straddle(dr)` will.
+The idea is that
+`Straddle(dr)` "straddles" the point at which a nucleotide
+is split.
 
 As some more examples, let
 ```
@@ -483,9 +500,10 @@ In that case
 Marpa internal grammars are augmented with a start rule
 of a very strict form -- a dedicated symbol on its LHS,
 and a single symbol on the RHS.
-The RHS symbol is often the start of the original grammar.
+The RHS symbol is usually the start symbol
+of the pre-augment grammar.
 
-the start rule of a suffix grammar is the reverse
+The start rule of a suffix grammar is the reverse
 prediction intra-nucleotide of the pre-strand grammar's
 start rule.
 For example,
@@ -493,24 +511,28 @@ if the start rule of a pre-strand grammar is
 ```
     start ::= old-start
 ```
-then the start rule of a suffix grammar is
+then the start rule of a non-initial suffix grammar
+derived from it will be
 ```
     start-R ::= old-start-R
 ```
 
-Success in a parse requires a completed start rule
+Success in a parse requires that a completed start rule
 be in one of the Earley sets.
 This is a necessary condition, but *not* a sufficient
 one.
 "Success" is a parse is usually not completely a function
 of state of the most recent Earley set.
 Application often impose additional requirements --
-typically that that Earley be the one
-built just after the last character of input
-is consumed.
+typically that
+the completed start rule be in the
+Earley set
+built after
+the last character of input
+was consumed.
 
-For example, a typical C language program "succeeds"
-in the sense of produced a completed start rule
+For example, a typical C language program
+adds a completed start rule to one of its Earley sets
 many times before the end of input.
 But a C compiler will only call the parse successful
 if there is a completed start rule in the Earley set
@@ -538,8 +560,7 @@ the same as Elizabeth Scott's SPFF format.
 Marpa has a second syntax for abstract syntax forests,
 [externally documented](https://metacpan.org/pod/distribution/Marpa-R2/pod/ASF.pod)
 as its `Marpa::R2::ASF` interface,
-but this 
-`Marpa::R2::ASF`
+but `Marpa::R2::ASF`
 is for advanced uses.
 When this documentation talks about ASFs,
 unless otherwise specified,
@@ -562,13 +583,6 @@ A terminal node is a 4-tuple of
 * An end position, which is a G1 location
  at or after the start position.
 
-The length of the node is the difference
-between end position and start position,
-which must be a non-negative integer.
-A node is nulling if and only if the length is zero.
-The length
-of a terminal node is always one.
-
 A non-terminal node, call it `node`, is a 3-tuple of
 
 * Dotted rule,
@@ -590,7 +604,14 @@ A non-terminal node, call it `node`, is a 3-tuple of
 It is convenient to use the same terminology for G1 locations
 in both terminal and non-terminal nodes, so that the
 start and end position of a terminal node are often
-called,respectively, its origin and dot location.
+called, respectively, its origin and current location.
+
+The length of a node is the difference
+between its origin and its current location,
+which must be a non-negative integer.
+A node is nulling if and only if the length is zero.
+The length
+of a terminal node is always one.
 
 When we apply a dotted rule notion to an bocage node,
 it is equivalent that to dotted rule notion
@@ -1161,7 +1182,7 @@ then `rule == Rule(suffix-node)`.
   its value.
 
 * Let `Loc(split-offset, current)`.
-  be the dot location of `yim`.
+  be the current location of `yim`.
   Call this location, `current`, for short.
 
 * Let
