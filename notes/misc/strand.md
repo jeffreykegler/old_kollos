@@ -67,12 +67,17 @@ returns the LHS symbol of a rule.
 
 Dotted rules are of several kinds:
 
-* predictions, in which the dot is before the first RHS symbol;
+* predicted dotted rules, or *predictions*,
+  in which the dot is before the first RHS symbol;
 
-* completions, in which the dot is after the last RHS symbol; and
+* completed dotted rules,
+  or *completions*,
+  in which the dot is after the last RHS symbol; and
 
-* medials, which are those dotted rules which are neither
-    predictions or completions.
+* medial dotted rules,
+  or *medials*,
+  which are those dotted rules which are neither
+  predictions or completions.
 
 If `rule` is a rule, then
 
@@ -84,16 +89,15 @@ If `dr` is a dotted rule, then
 
 * `Rule(dr)` is its rule
 
-When we apply a rule notion applied to a dotted rule,
-it is equivalent to that rule notion applied to the rule
+A rule notion, when applied to a dotted rule,
+is equivalent to that rule notion applied to the rule
 of the dotted rule.
 For example, a start dotted rule is a dotted rule
 whose rule is a start rule.
-Similarly, if a rule accessor is called with a dotted
-rule, then it acts as a dotted rule accessor whose
-whose result is equivalent to that of the rule
-accessor when called with the rule of the dotted
-rule as its argument.
+Similarly, a pseudo-code accessor whose argument
+can be a rule, when that argument is a
+dotted rule, applies to the rule of the
+dotted rule.
 For example, if `dr` is a dotted rule,
 ```
      LHS(dr) == LHS(Rule(dr))
@@ -139,30 +143,31 @@ which track how and why they were created.
 accessor that returns the set of links
 for the Earley item `yim`.
 
-When we apply a dotted rule notion to an Earley item,
-it is equivalent to that dotted rule notion
-applied to the dotted rule
+A dotted rule notion, when applied to a Earley item,
+is equivalent to that dotted rule notion applied
+to the dotted rule
 of the Earley item.
-For example, a medial Earley item is an Earley
-item whose dotted rule is medial.
-Similarly, pseudo-code accessors whose argument
-can be a dotted rule, when that argument is an
-Earley item, apply to the dotted rule of the
+For example, a medial Earley item is an Earley item
+whose dotted rule is a medial.
+Similarly, a pseudo-code accessor whose argument
+can be a dotted rule, when that argument is a
+Earley item, applies to the dotted rule of the
 Earley item.
 For example, if `yim` is an Earley item,
 ```
      Rule(yim) == Rule(DR(yim))
 ```
 
-When we apply a rule notion applied to an Earley item,
-it is equivalent to that rule notion applied to the rule
-of the dotted rule of the Earley item.
-For example, a start Earley item is an
-Earley item whose rule is a start rule.
-Similarly, pseudo-code accessors whose argument
-can be a rule, when that argument is an
-Earley item, apply to the rule of the
-dotted rule of the
+A rule notion, when applied to a Earley item,
+is equivalent to that rule notion applied
+to the rule of the dotted rule
+of the Earley item.
+For example, a start Earley item is an Earley item
+in which the rule of the dotted rule is a start rule.
+Similarly, a pseudo-code accessor whose argument
+can be a rule, when that argument is a
+Earley item, applies to the rule
+of the dotted rule of the
 Earley item.
 For example, if `yim` is an Earley item,
 ```
@@ -171,9 +176,9 @@ For example, if `yim` is an Earley item,
 
 ## The suffix grammar
 
-Let our original grammar be `g1`.
-We also call `g1` the pre-strand grammar.
-We will need to extend `g1` to a
+Let our original grammar be `g-orig`.
+We also call `g-orig` the pre-strand grammar.
+We will need to extend `g-orig` to a
 "suffix grammar".
 
 We will call the original grammar,
@@ -201,7 +206,7 @@ a 'forward nucleotide' and
 the other is
 a 'reverse nucleotide'.
 
-Let one of `g1`'s pre-strand rules be
+Let one of `g-orig`'s pre-strand rules be
 ```
      X ::= A B C
 ```
@@ -537,23 +542,26 @@ Success in a parse requires that a completed start rule
 be in one of the Earley sets.
 This is a necessary condition, but *not* a sufficient
 one.
-"Success" is a parse is usually not completely a function
-of state of the most recent Earley set.
-Application often impose additional requirements --
-typically that
+"Success" is a parse is usually more than just a function
+of the state of the most recent Earley set.
+Applications often impose additional requirements.
+A common requirement is that
 the completed start rule be in the
 Earley set
 built after
 the last token of input
 was consumed.
 
-For example, a typical C language program
-adds a completed start rule to one of its Earley sets
-many times before the end of input.
-But a C compiler will only call the parse successful
+For example,
+an Earley parser
+parsing a typical C language source file will
+add a completed start rule to its Earley sets
+many times before it reaches the end of input.
+But a C compiler will only consider the parse successful
 if there is a completed start rule in the Earley set
 produced
-after reading the last token of input.
+after reading the last token of the C language
+source file.
 
 In our example,
 the completed start
@@ -595,10 +603,10 @@ A terminal node is a 4-tuple of
  meaningful to the application,
  or which may be undefined.
 
-* A start position, which is a G1 location.
+* A start position, which an input location.
 
-* An end position, which is a G1 location
- at or after the start position.
+* An end position, which is an input location
+  at or after the start position.
 
 A non-terminal node, call it `node`, is a 3-tuple of
 
@@ -609,16 +617,17 @@ A non-terminal node, call it `node`, is a 3-tuple of
 * Origin,
   as returned by the
   pseudo-code accessor `Orig(node)`.
-  The origin is the G1 location at which
+  The origin is the input location at which
   the dotted rule starts.
 
 * Current location,
   as returned by the
   pseudo-code accessor `Current(node)`.
-  This is the G1 location of
-  the dotted rule's dot position.
+  This is the location in the input that
+  corresponds to the location of the
+  dot in the dotted rule's RHS.
 
-It is convenient to use the same terminology for G1 locations
+It is convenient to use the same terminology for input locations
 in both terminal and non-terminal nodes, so that the
 start and end position of a terminal node are often
 called, respectively, its origin and current location.
@@ -630,19 +639,33 @@ A node is nulling if and only if the length is zero.
 The length
 of a terminal node is always one.
 
-When we apply a dotted rule notion to an bocage node,
-it is equivalent that to dotted rule notion
-applied to the dotted rule
+A dotted rule notion, when applied to a bocage node,
+is equivalent to that dotted rule notion applied
+to the dotted rule
 of the bocage node.
-For example, if `node` is an Earley item,
+For example, a medial bocage node is a bocage node
+whose dotted rule is a medial.
+Similarly, a pseudo-code accessor whose argument
+can be a dotted rule, when that argument is a
+bocage node, applies to the dotted rule of the
+bocage node.
+For example, if `node` is an bocage node,
 ```
      Rule(node) == Rule(DR(node))
 ```
 
-When we apply a rule notion applied to an bocage node,
-it is equivalent to that rule notion applied to the rule
-of the dotted rule of the bocage node.
-For example, if `yim` is an bocage node,
+A rule notion, when applied to a bocage node,
+is equivalent to that rule notion applied
+to the rule of the dotted rule
+of the bocage node.
+For example, a start bocage node is a bocage node
+in which the rule of its dotted rule is a start rule.
+Similarly, a pseudo-code accessor whose argument
+can be a rule, when that argument is a
+bocage node, applies to the rule of the
+dotted rule of the
+bocage node.
+For example, if `node` is an bocage node,
 ```
      LHS(node) == LHS(Rule(DR(node)))
 ```
@@ -1567,16 +1590,6 @@ Our purpose differs from theirs, in that
 
 * we want to be able to create parse forests from both suffix
     and prefix, and to combine these parse forests.
-
-Every context-free grammar has a context-free "suffix grammar" --
-a grammar, whose language is the set of suffixes of the first language.
-That is, let `g1` be the grammar for language `L1`, where `g1` is a context-free
-grammar.
-(In parsing theory, "language" is an fancy term for a set of strings.)
-Let `suffixes(L1)` be the set of strings, all of which are suffixes of `L1`.
-`L1` will always be a subset of `suffixes(L1)`.
-It can be shown that there is always some context-free grammar `g2`,
-whose language is `suffixes(L1)`.
 
 <!---
 vim: expandtab shiftwidth=4
