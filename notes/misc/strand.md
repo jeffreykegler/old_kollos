@@ -15,6 +15,27 @@ subtraction will always be
 shown as the addition of a negative.
 For example `4+(-1) = 3`.
 
+In the pseudo-code,
+loops are often named.
+The phrase `exit LOOP-X` means to not
+execute any iterations of `LOOP-X`,
+and not to execute any of the following
+statements for the current iteration.
+
+The phrase `continue LOOP-X` means to not
+execute the any of the following statements for
+the current iteration of the loop,
+and instead to start
+a new iteration of LOOP-X,
+using the next item over which
+the loop traverses.
+At the end of the statements for any loop,
+call it `LOOP-X`,
+a `continue LOOP-X` is implied,
+but it may also be stated explicitly
+especially if the loop is long or
+part of complex logic.
+
 ## Nucleobases and nucleotides
 
 In an attempt to appeal to the intuition,
@@ -518,7 +539,8 @@ As examples,
 
 ## Start rules
 
-Marpa internal grammars are augmented with a start rule
+<a name="START-RULES"></a>Marpa
+internal grammars are augmented with a start rule
 of a very strict form -- a dedicated symbol on its LHS,
 and a single symbol on the RHS.
 The RHS symbol is usually the start symbol
@@ -871,7 +893,7 @@ and will need to find
 the forward nucleotide nodes
 that it continues from
 the prefix bocage.
-These set of forward nucleotide nodes that are
+The forward nucleotide nodes that are
 continued by a reverse nucleotide are called its
 *prefix nodes*.
 There may be many prefix nodes, or none.
@@ -888,7 +910,7 @@ is undefined.
 If `yim` is a nucleotide,
 there will be at least one prefix node.
 To find the set of prefix nodes,
-we follow `yim`'s predecessor links to the back to
+we follow `yim`'s predecessor links back to
 the Earley item, call it `pred-yim`,
 whose dotted rule
 is `Prediction(Rule(yim))`.
@@ -914,7 +936,7 @@ call it `completed-start-yim`.
 
           prefix-nodes = Prefix-nodes(completed-start-yim)
 
-* If `prefix-nodes` is defined,
+* If `prefix-nodes` is *not* defined,
   this is an initial parse.
   Execute the pseudo-code function
 
@@ -924,7 +946,7 @@ call it `completed-start-yim`.
   and the initial parse may be discarded.
   Do not execute the following steps.
 
-* If `prefix-nodes` is not defined,
+* If `prefix-nodes` *is* defined,
   this is an proper suffix parse, and `prefix-nodes`
   is a set containing a single bocage node.
   Call this node `prefix-node`.
@@ -937,9 +959,44 @@ call it `completed-start-yim`.
   Afterwards, the prefix bocage will contain the successful parse,
   and the suffix parse may be discarded.
 
-## Starting a suffix parse
+### Offsets
 
-### The suffix grammar
+A prefix bocage and
+a suffix parse 
+will have two different ideas of input location.
+To wind them together,
+we need to translate between them.
+Locations in the prefix bocage
+are called
+*absolute*, and may be represented
+as `Loc(0, forw-loc)` or simply `forw-loc`.
+Locations in the suffix parse can be
+represented as `Loc(split-offset, suffix-loc)`,
+where `split-offset` is the absolute location 
+of the split point.
+
+From any `Loc(offset, loc)`,
+the absolute location can be calculated as
+```
+    offset+loc
+```
+Comparison of locations always uses absolute
+location.
+
+The necessary conversions are obvious
+and would clutter the pseudo-code,
+so they are
+usually omitted.
+An implementation, of course, would have to
+perform them.
+As implemented, locations will often be
+stored as absolute locations.
+Locations stored in the bocage
+are always absolute locations.
+
+## Suffix parses
+
+### Creating the suffix grammar
 
 To create a proper suffix parse,
 we use a special suffix grammar,
@@ -955,10 +1012,9 @@ The suffix grammar is the pre-strand grammar with these changes.
 
 * The reverse nucleotide rules are added.
 
-* The start rule of the suffix grammar is the reverse
-  intra-nucleotide rule whose base dotted rule
-  is the prediction start rule of the pre-strand
-  grammar.
+* The start rule of the suffix grammar must be
+  added.  Its form is
+  as described [above](#START-RULES).
 
 The change of start rules between the pre-strand
 and the suffix grammar may make some rules inaccessible.
@@ -976,11 +1032,17 @@ on a per-parse basis, adding only
   of those
   reverse nucleotide rules.
 
-### Create Earley set 0
+### Creating Earley set 0
 
+<a name="EARLEY-SET-0"></a>
 In a suffix parse, we proceed using the suffix grammar
 and the unconsumed input.
 Earley set 0 must be specially constructed.
+As a reminded, duplicate items are never added
+to an Earley set
+and duplicate links are not added to Marpa's
+Earley items.
+The logic needed to prevent this is not shown.
 
 * Let `worklist` be a stack of symbols,
   initially empty.
@@ -990,40 +1052,43 @@ Earley set 0 must be specially constructed.
 
 * For every forward nucleotide node,
   call it `forward-node`,
-  currently in the bocage.
+  currently in the prefix bocage.
 
   + Let 
 
           reverse-rule = Nucleotide-match(Rule(forward-node))
           suffix-loc-0 = Loc(split, 0)
+          new-yim =
+              [Prediction(reverse-rule), suffix-loc-0, suffix-loc-0]
+          new-link = [undef, forward-node]
 
-  + Add the Earley item
+  + Add `new-yim-link` to the links for `new-yim`.
 
-          [Prediction(reverse-rule), suffix-loc-0, suffix-loc-0]
+  + Add `new-yim` to Earley set 0.
 
-    to Earley set 0.
-
-  + Let `postdot = Postdot(Prediction(reverse-rule))`.
-    If `postdot` is not a nucleobase,
-    push `postdot` onto `work-list`.
+  + Push `new-yim` onto `work-list`.
 
   + WORK-LIST-LOOP: While `work-list` is not empty,
 
-    - Pop the top symbol of `work-list`.
-      Call it `work-list-symbol`.
+    - Pop the top Earley item of `work-list`.
+      Call it `working-yim`.
 
     - For every rule, call it `r`, where
-      `LHS(r) == work-list-symbol`
+      `LHS(r) == Postdot(working-yim)`.
 
-      * Add the Earley item
+      * Let 
 
-                [Prediction(r), suffix-loc-0, suffix-loc-0]
+          new-yim =
+              [Prediction(r), suffix-loc-0, suffix-loc-0]
+          new-link = [undef, working-yim]
 
-        to Earley set 0.
+      * Add `new-yim` to Earley set 0.
 
-      * Push `Postdot(Prediction(r))` onto `work-list`.
+      * Add `new-yim-link` to the links for `new-yim`.
 
-### Continuing the suffix parse
+      * Push `new-yim` onto `work-list`.
+
+### After Earley set 0
 
 After Earley set 0,
 a suffix parse then continues in the standard
@@ -1034,45 +1099,33 @@ then the tokens for location `j` in the suffix
 parse are read from original input location
 `j+i`.
 
+### Links in the suffix parses
+
+Links in the suffix parses
+are as currently implemented for Marpa parses,
+except for predictions.
+In Marpa's current implementation, predicted
+Earley items do not have links.
+For suffix parses, they will need to have links.
+
+The predecessor in all prediction links is undefined.
+In the initial parse, the cause of the start rule prediction
+is also undefined.
+All other causes are defined.
+
+For a nucleotide prediction, 
+the cause is the forward bocage node from which it
+was created.
+For a non-nucleotide prediction, 
+the cause is the Earley item from which it was created.
+The pseudo-code [above](#EARLEY-SET-0)
+show how to set the links up correctly in the case
+of Earley set 0
+of a proper suffix parse.
+
 ## Winding
 
 <a name="WINDING"></a>
-
-### Offsets
-
-When we wind a bocage together with
-a parse, we need to keep track of location.
-Each of these will keep
-locations in its own terms,
-and these terms will be different.
-Locations in the prefix bocage
-will be absolute, and may be represented
-as `Loc(0, forw-loc)` or simply `forw-loc`.
-Locations in the suffix parse will be
-represented as `Loc(split-offset, suffix-loc)`,
-where `split-offset` is the absolute location 
-of the split point.
-
-From `Loc(offset, loc)`,
-absolute location can be calculated as
-```
-    offset+loc
-```
-In the location `Loc(0, abs-loc)`,
-`abs-loc` is equal to the absolute location.
-Comparison of locations always uses absolute
-location.
-
-The necessary conversions are obvious
-and would clutter the pseudo-code,
-so they are
-usually omitted.
-An implementation, of course, would have to
-perform them.
-As implemented, locations will often be
-stored as absolute locations.
-Locations stored in the bocage
-are always absolute locations.
 
 ## Winding together a prefix bocage and a suffix parse
 
@@ -1134,16 +1187,16 @@ the suffix parse, we do the following:
     the `working-stack`, but the values should not be
     popped from the stack, as they will be needed again.
 
-  - Let the postdot symbol in `DR(inter-node)` be `postdot`
+  - RULE-LOOP: For every rule, call it `r`.
 
-  - For every rule, call it `r`, with `postdot` as its LHS.
+    + If `Postdot(DR(inter-node)) != LHS(r)`, continue `RULE-LOOP`.
 
     + Let
 
               new-rule = Forward-inter-nucleotide(Prediction(r))
               new-node = [Prediction(new-rule), split, split]
 
-    + `Add-link(new-node, [undef, inter-node])`
+    + `Link-add(new-node, [undef, inter-node])`
 
     + `Node-to-bocage-add(new-node)`
 
@@ -1164,9 +1217,8 @@ the suffix parse, we do the following:
   - Pop a node from the working stack.
     Call the popped node `cause-node == [ dr, orig, split ]`.
 
-  - If `Rule(dr)` is a start rule, do not execute
-    the following steps.
-    Restart INTRA-NUCLEOTIDE-LOOP from the beginning.
+  - If `Rule(dr)` is a start rule,
+    continue `INTRA-NUCLEOTIDE-LOOP`.
 
   - Follow the predecessors of `cause-node` back to
     its prediction.  Let the links for that predictions
@@ -1187,13 +1239,13 @@ the suffix parse, we do the following:
                    Orig(pred-node), split
                ]
 
-    + `Add-link(new-node, [Clone-node(pred-node, new-rule), cause-node])`
+    + `Link-add(new-node, [Clone-node(pred-node, new-rule), cause-node])`
       
     + `Node-to-bocage-add(new-node)`
 
     + Push `new-node` onto `working-stack`.
 
-  - Restart INTRA-NUCLEOTIDE LOOP from the beginning.
+  - Continue `INTRA-NUCLEOTIDE LOOP`.
 
 ### Rewriting bocage nodes recursively
 
@@ -1236,7 +1288,7 @@ which describes it as a recursion.
 
   - Let `new-link` be `[ Node-rewrite(pred, rule), cause ]`
 
-  - `Add-link(new-node, new-link)`
+  - `Link-add(new-node, new-link)`
 
 + `Node-to-bocage-add(new-node)`
 
@@ -1290,7 +1342,7 @@ it must be the case that
           rule == Rule(suffix-element)
 
 * If `suffix-element` is a token, end the `Recursive-node-add()`
-  function.  Return `Token-node-add(predot)` as
+  function.  Return `Token-node-add(suffix-element)` as
   its value.
 
 * At this point, we know that `suffix-element`
@@ -1312,6 +1364,13 @@ it must be the case that
   `Rule(yim)` is a nucleotide,
   and is `Orig(yim)` otherwise.
 
+* At this point we have defined the tuple for the new node --
+  we have called it `new-node`.
+  We now need to add the links for `new-node`
+  before we can add it to the bocage.
+  There are many cases,
+  so this will be a complicated process.
+
 * If there is no predot symbol
   and `yim` is *not* a nucleotide
 
@@ -1331,13 +1390,13 @@ it must be the case that
 
     - If `Rule(pred-cause)` *is* a nucleotide,
 
-      + For every `prefix-link` in `Prefix-links(pred-cause)`
+      + For every `link-prefix-node` in `Prefix-links(pred-cause)`
 
         * Let `link` be
 
                      [
                        undef,
-                       Recursive-node-add(prefix-node, pred-cause,
+                       Recursive-node-add(link-prefix-node, pred-cause,
                           Base-rule(pred-cause)),
                      ]
 
@@ -1361,7 +1420,7 @@ it must be the case that
 
     * `Link-add(new-node, link)`
 
-    * Start the next iteration of PREFIX-NODE-LINK-LOOP.
+    * Continue `PREFIX-NODE-LINK-LOOP`.
 
   + `Node-to-bocage-add(new-node)`
 
@@ -1413,7 +1472,7 @@ it must be the case that
 
 * If `predot` *is* a nucleobase
 
-    + LINK_LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
+    + LINK-LOOP: For every `[pred, forw-cause]` in the links of `prefix-node`
 
         - REVERSE-CAUSE-LOOP:
           For every completion,
@@ -1426,10 +1485,8 @@ it must be the case that
               must be a nucleotide, because `predot`, its LHS,
               is a nucleobase.
 
-            * If `Nucleotide-match(forw-cause) != Rule(rev-cause_yim)`
-              end this iteration
-              and start the next iteration
-              of REVERSE-CAUSE-LOOP.
+            * If `Nucleotide-match(forw-cause) != Rule(rev-cause-yim)`,
+              continue `REVERSE-CAUSE-LOOP`.
 
             * `Link-add(new-node, [new-pred, new-cause])` where
 
@@ -1437,9 +1494,9 @@ it must be the case that
                      new-cause = Recursive-node-add(
                          forw-cause, rev-cause-yim, Base-rule(rev-cause-yim))
 
-            * Start the next iteration of REVERSE-CAUSE-LOOP.
+            * Continue `REVERSE-CAUSE-LOOP`.
 
-        - Start the next iteration of LINK_LOOP.
+        - Continue `LINK-LOOP`.
 
     + `Node-to-bocage-add(new-node)`
 
@@ -1486,7 +1543,10 @@ A recursive implementation might have acceptable
 speed, but only if the bocage nodes are memoized.
 The memoization can be either a hash or an AVL.
 
-The key for a bocage node must consist of
+Each keys of the memoization will be the signature
+of a bocage node.
+A bocage node signature
+consists of
 
 * Type: Terminal or non-terminal
 
@@ -1496,9 +1556,9 @@ The key for a bocage node must consist of
 
 * Dot location, as an absolute location
 
-The value of the key-value pair must consist of:
+The values of the memoization must consist of:
 
-* Type: "Bocage node" or "Actual evalution".
+* Type: "Bocage node" or "Actual evaluation".
 
 * Actual value if the value type is "Actual evaluation".
   An actual value can be any first-class value
@@ -1507,24 +1567,25 @@ The value of the key-value pair must consist of:
 * A pointer to bocage node,
   if the value type is "Bocage node".
 
-In the value of the key-value pair,
-only one of 
-The value of the bocage node can be either the node itself,
-or an arbitrary value
-
 ### Non-recursive implementation
 
 The implementation will require
 
 * A stack of "work items" to be processed.
-  Work items are either Earley items in the suffix,
-  or bocage nodes in the prefix.
+  Work items are bocage node signatures.
+  To avoid repeated lookups,
+  or for other efficiencies,
+  work items may also contain
+  a fixed amount of
+  memoized data.
 
 * The memoization of the bocage nodes,
   discussed above.
 
 * A "stack memoization"
-  that keeps track of work items
+  that keeps track,
+  by bocage node signature,
+  of work items
   already pushed to the stack.
   This prevents a work item from being pushed onto
   the stack twice.
@@ -1533,32 +1594,33 @@ The algorithm then proceeds as follows:
 
 * We initialize the stack of work items with a single item.
 
-* LOOP: While the stack of work items is not empty,
+* MAIN-LOOP: While the stack of work items is not empty,
 
     - We initialize a `ready` flag to `TRUE`.
 
     - Call the current top of stack work item, `work-item`.
 
-    - Any terminal bocage node that does not exist is created and
-      added to the bocage and its memoization.
-
-    - LINK_LOOP:
+    - LINK-LOOP:
       For every bocage node,
       call it `needed-node`,
       that is needed by `work-item`
       for a link,
       and that is not already in the bocage,
 
-      - We set the `ready` flag to `FALSE`.
+      - If `needed-node` is a terminal bocage node,
+        create it; add it to the bocage and the bocage
+        memoization;
+        and continue LINK-LOOP.
 
-      - We push a work item for `needed-node`
+      - Set the `ready` flag to `FALSE`.
+
+      - Push a work item for `needed-node`
         on top of the stack,
         if it is not on the stack already.
         We use the stack memoization to track this.
 
     - If the `ready` flag is `FALSE`,
-      we start a new iteration of LOOP.
-      We do not perform the following steps.
+      continue `MAIN-LOOP`.
 
     - If we are here,
       then `work-item` is still on top of the stack,
@@ -1574,7 +1636,7 @@ The algorithm then proceeds as follows:
       We now add all the necessary links to `new-node`.
 
     - We add `new-node` to the bocage,
-      and continue with LOOP.
+      continue `MAIN-LOOP`.
 
 ## Leo items [TO DO]
 
@@ -1584,19 +1646,10 @@ The algorithm then proceeds as follows:
 
 ## Theory: suffix grammars
 
-It is safe to skip this section.
-It is devoted to mathematical details.
-
-The "transcription grammar" here is based on
-the "suffix grammar", whose construction is described in
+The suffix grammars described in this
+document are derived from
+the "suffix grammars", whose construction is described in
 Grune & Jacobs, 2nd ed., section 12.1, p. 401.
-Our purpose differs from theirs, in that
-
-* we want our parse to contain only those suffixes which
-    match a known prefix; and
-
-* we want to be able to create parse forests from both suffix
-    and prefix, and to combine these parse forests.
 
 <!---
 vim: expandtab shiftwidth=4
