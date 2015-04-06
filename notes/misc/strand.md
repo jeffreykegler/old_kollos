@@ -169,22 +169,23 @@ For example, if `yim` is an Earley item,
      LHS(yim) == LHS(Rule(DR(yim)))
 ```
 
-## Creating the strand grammar
+## The suffix grammar
 
 Let our original grammar be `g1`.
 We also call `g1` the pre-strand grammar.
 We will need to extend `g1` to a
-"strand grammar".
+"suffix grammar".
 
 We will call the original grammar,
-before it has strand rules and symbols added to it,
+before it has suffix rules and symbols added to it,
 the "pre-strand grammar".
 The rules of a pre-strand grammar are pre-strand rules
 and the symbols of a pre-strand grammar are pre-strand symbols.
 
-To extend the pre-strand grammar to a strand grammar,
+To extend the pre-strand grammar to a suffix grammar,
 we will define,
-a set of "nucleobase symbols".
+a set of *nucleobase symbols*,
+or *nucleobases*.
 Nucleobase symbols exist to allow non-terminals to be split in half.
 Nucleobases come in right and left versions.
 For example, for the symbol `A`,
@@ -192,7 +193,7 @@ the nucleobases will be `A-L` and `A-R`.
 The symbol `A` is called by *base symbol*
 of the nucleobases `A-L` and `A-R`.
 
-To extend the pre-strand grammar to a strand grammar,
+To extend the pre-strand grammar to a suffix grammar,
 we also define pairs of 'nucleotide rules'.
 In a pair of nucleotide rules,
 one of the pair is 
@@ -219,11 +220,16 @@ The six pairs of
 `rule-X` is called the "base rule" of these nucleotides.
 The pseudo-code accessor `Base-rule(rule)` returns the base
 rule of a nucleotide rule.
+If `rule` is not a nucleotide rule,
+then
+```
+    Base-rule(rule) == rule
+```
 
 The base rule of a nucleotide must be unique.
 When two different base rules might otherwise produce
 the same nucleotide,
-the nucleobase symbol names should be changed to prevent
+the nucleobase symbol names must be changed to prevent
 this.
 One way to do this is to,
 when necessary,
@@ -233,7 +239,7 @@ the nucleobase symbol name
 with
 a unique numeric identifier.
 
-Each numbered pair of nucleotide contains a forward
+Each pair of nucleotides contains a forward
 and a reverse nucleotide.
 The forward nucleotide (shown as the left one
 in the pairs above)
@@ -252,16 +258,13 @@ the parse proceeds.
 Pairs 1, 3 and 5 are
 "inter-nucleotides" --
 nucleotides that split their base rule
-at a point between two symbols.
+at a point *between* two symbols.
 Pairs 2, 4 and 6 are
 "intra-nucleotides" --
 nucleotides that split their base rule
-at a point within a single symbol.
+at a point *within* a single symbol.
 
 Every nucleotide has a "base dotted rule".
-(As a reminder,
-a "dotted rule"
-is a BNF rule with one of its positions marked with a dot.)
 Dotted rules which are completions do not have nucleotides.
 For each rule in the pre-strand parse,
 every non-completion dotted rule,
@@ -298,7 +301,7 @@ For the example above,
 ```
 
 We use the pseudo-code accessor `Nucleotide-match(rule)` to match
-a nucleotide to its partner.
+a nucleotide to the other nucleotide in its pair.
 For every base dotted rule, `base-dr`
 ```
     Nucleotide-match(Forward-inter-nucleotide(base-dr))
@@ -313,7 +316,7 @@ For every base dotted rule, `base-dr`
 In all other cases, `Nucleotide-match(rule)` is undefined.
 
 The inter-nucleotide pair whose base dotted rule has its dot
-before the first non-nulled RHS symbol is called the "prediction nucleotide pair".
+before the first RHS symbol is called the "prediction nucleotide pair".
 In the above example,
 the prediction nucleotides are pair 1, these two rules:
 ```
@@ -325,6 +328,7 @@ The forward prediction nucleotide
 of every pre-strand rule is nulling.
 This rule is not used in parsing,
 but it is used in the bocage nodes.
+(The bocage structure is described [below](#BOCAGE).)
 Marpa internal grammars do not allow nulling rules,
 so 
 this is one case where the grammar used in the
@@ -357,7 +361,7 @@ is undefined unless
          
          Base-rule(to-rule) == Base-rule(from-dr)
 
-Otherwise, it is always such that
+Otherwise, `to-dr` is always such that
 
          Rule(to-dr) == to-rule
 
@@ -407,11 +411,11 @@ conversions from which it is composed.
 
 In the remaining cases, exactly one of `to-rule` and `Rule(from-dr)`
 is a nucleotide.
-If the nucleotide's direction is "forward",
+If that nucleotide's direction is "forward",
 then position is counted in traditional left-to-right,
 lexical order,
 so that 0 is the position before the first symbol of the RHS,
-and 0 is the position immediately after the first symbol of the RHS.
+and 1 is the position immediately after the first symbol of the RHS.
 As examples,
 
     [X-L ::= A . B ]
@@ -426,7 +430,7 @@ As examples,
 If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
 so that 0 is the position after the last symbol of the RHS,
-and 0 is the position immediately before the last symbol of the RHS.
+and 1 is the position immediately before the last symbol of the RHS.
 As examples,
 
     [X-R ::= C . D])
@@ -438,21 +442,25 @@ As examples,
     [X ::= A B C . D]
          = DR-convert([X ::= A B C D], [X-R ::= C-R . D])
 
-We know show an example of the most complex case,
+We now show an example of the most complex case,
 where one nucleotide
 is converted into another.
-Let the two nucleotides be
+We will converted the dotted rule
 ```
-    [X-L ::= A B C ] and
-    [X-R ::= B C D]
+    [X-R ::= B . C D]
 ```
-which share a common base rule
+to another nucleotide rule,
+```
+    [X-L ::= A B C ]
+```
+As required, these share a common base rule,
 ```
     [X-L ::= A B C D]
 ```
-Note that the two nucleotides
-in this example
-do *not* share the same base dotted rule.
+but it is not required that they share a common
+base dotted rule,
+and in this example, their base dotted rules are different.
+
 The conversion takes place as follows:
 ```
     DR-convert([X-L ::= A B C ]), [X-R ::= B . C D])
@@ -488,17 +496,7 @@ The idea is that
 `Straddle(dr)` "straddles" the point at which a nucleotide
 is split.
 
-As some more examples, let
-```
-    X-L ::= A B
-    X-R ::= C D
-```
-be forward and reverse inter-nucleotides,
-whose base dotted rule is
-```
-    X ::= A B . C D
-```
-In that case
+As examples,
 ```
     Straddle([X-L ::= . A B ]) = [X ::= . A B C D]
     Straddle([X-L ::= A . B ]) = [X ::= A . B C D]
@@ -571,7 +569,8 @@ rule of the suffix grammar will be
 
 ## The structure of an bocage
 
-Marpa::R2 uses a format called a "bocage" for
+<a name="BOCAGE"></a>Marpa::R2
+uses a format called a "bocage" for
 abstract syntax forests (ASFs).
 Marpa's bocage interface is essentially
 the same as Elizabeth Scott's SPFF format.
@@ -744,21 +743,21 @@ it is added
 to `old-node`.
 A node is never allowed to have two identical links.
 
-## Archetypal strand parsing
+## Using strand parsing
 
 Before getting into details of the algorithms for forming
-and winding strands,
+a prefix bocage and a suffix parse,
+and winding them together,
 it may be useful to outline 
 their main intended use.
-There are many ways in which strand parsing can be used,
-but
-the archetypal case is that where we
-are parsing from left-to-right,
-breaking the parse up at arbitrary "split points",
-and winding pairs of strands together as
+The archetypal case is the one
+in which we parse from left-to-right,
+breaking the parse up in pieces
+at arbitrary "split points",
+and winding the pieces together as
 we proceed.
 
-### Initializing an archetypal strand parse
+### Initializing an suffix parse
 
 We start by parsing the input normally with the pre-strand
 grammar.
@@ -776,22 +775,22 @@ The initial parse ends
   and wants to break off the parse.
 
 Regardless of the outcome, we continue into
-the following loop, which continues the strand parse.
+the following loop, which continues the suffix parse.
 
 ### Strand parsing loop
 
 <a name="STRAND-PARSING-LOOP"></a>
 
-When the loop that continues a strand parse begins,
-we assume that we have
-
-* A parse.  This may be the initial
-  parse.  This is called the *suffix parse*,
-  even when it is the initial parse.
+When the strand parsing loop begins,
+we will have
 
 * A bocage, called the *prefix bocage*.
   If the suffix parse is the initial parse,
   the prefix bocage will be empty.
+
+* A parse.  This may be the initial
+  parse.  This is called the *suffix parse*,
+  even when it is the initial parse.
 
 If the suffix parse failed,
 we deal with it
@@ -1490,9 +1489,6 @@ The implementation will require
 * A stack of "work items" to be processed.
   Work items are either Earley items in the suffix,
   or bocage nodes in the prefix.
-  Since the number of Earley items in a strand,
-  and the number nodes in the bocage, are both known,
-  either a fixed size stack or a dynamicly sized one could be used.
 
 * The memoization of the bocage nodes,
   discussed above.
