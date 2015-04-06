@@ -532,7 +532,7 @@ if the start rule of a pre-strand grammar is
 ```
     start ::= old-start
 ```
-then the start rule of a non-initial suffix grammar
+then the start rule of a proper suffix grammar
 derived from it will be
 ```
     start-R ::= old-start-R
@@ -677,7 +677,7 @@ its source is not tracked,
 and it will have zero links.
 All other non-terminal nodes have one or more links.
 If `node` is a node,
-then `Links(node)` is pseudo-code
+then `Links(node)` is the pseudo-code
 accessor that returns the set of links for `node`.
 
 Every link is a duple,
@@ -699,28 +699,28 @@ and the cause describing the source
 of the symbol which allowed the dot
 to be moved forward.
 
-The cause may be either a terminal node
-or a non-terminal node.
-If the cause is a non-terminal node,
-that node must be a completion.
+If a node is *not* a prediction,
 
-The predecessor is always
-a non-terminal node,
-and is never a completion.
-A cause can be a terminal node or
-a non-terminal node.
+* its cause may be either a terminal node
+  or a non-terminal node;
 
-Predictions never have predecessors.
-With one exception,
-predictions have causes.
-In the initial parse,
-the prediction of the start rule
-will not have a cause.
-All other predictions have causes.
-In the case of a non-nucleotide rule,
-the cause of an prediction
-is the medial rule from which it
-was created.
+* if its cause is a non-terminal node,
+  then its cause must also be a completion;
+
+* its predecessor is always
+  a non-terminal node,
+  and is never a completion.
+
+If a bocage node *is* a prediction,
+
+* its predecessor will always be undefined;
+
+* it will not have a cause, if the prediction
+  is of the start rule;
+
+* if the prediction is not of the start rule,
+  its cause will be the medial bocage node
+  from which it was created.
 
 Readers familiar with
 the links as currently implemented in
@@ -770,9 +770,9 @@ A node is never allowed to have two identical links.
 
 Before getting into details of the algorithms for forming
 a prefix bocage and a suffix parse,
-and winding them together,
+and for winding them together,
 it may be useful to outline 
-their main intended use.
+the main intended use.
 The archetypal case is the one
 in which we parse from left-to-right,
 breaking the parse up in pieces
@@ -802,18 +802,25 @@ the following loop, which continues the suffix parse.
 
 ### Strand parsing loop
 
-<a name="STRAND-PARSING-LOOP"></a>
-
-When the strand parsing loop begins,
+<a name="STRAND-PARSING-LOOP"></a>When
+the strand parsing loop begins,
 we will have
 
-* A bocage, called the *prefix bocage*.
-  If the suffix parse is the initial parse,
-  the prefix bocage will be empty.
+* a bocage, called the *prefix bocage*; and
 
-* A parse.  This may be the initial
-  parse.  This is called the *suffix parse*,
-  even when it is the initial parse.
+* a parse, called the *suffix parse*.
+
+On the first pass through, the prefix bocage will
+be empty.
+The "suffix" in suffix parse means that the parse
+is a suffix relative to a prefix bocage.
+This means that the initial parse is also considered
+to be a suffix parse,
+because the initial parse
+*is* a suffix relative to the (at that point empty)
+prefix bocage.
+A *proper suffix parse* is a suffix parse
+which is not the initial parse.
 
 If the suffix parse failed,
 we deal with it
@@ -918,7 +925,7 @@ call it `completed-start-yim`.
   Do not execute the following steps.
 
 * If `prefix-nodes` is not defined,
-  this is an non-initial parse, and `prefix-nodes`
+  this is an proper suffix parse, and `prefix-nodes`
   is a set containing a single bocage node.
   Call this node `prefix-node`.
 
@@ -934,7 +941,7 @@ call it `completed-start-yim`.
 
 ### The suffix grammar
 
-To create a non-initial suffix parse,
+To create a proper suffix parse,
 we use a special suffix grammar,
 created from the pre-strand grammar.
 The suffix grammar is the pre-strand grammar with these changes.
