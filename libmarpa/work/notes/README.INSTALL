@@ -1,0 +1,47 @@
+# Copyright 2015 Jeffrey Kegler
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+This is an autotools-built distribution, and is built and installed
+as described in the autotools documents.  The INSTALL file in this
+directory is the standard autotools INSTALL file, unaltered.  The rest
+of this document contains some notes that supplement it.
+
+TAGS
+====
+
+Libmarpa allows you to specify a "tag" at configure time.  This is
+compiled into the Libmarpa library and can be used to identify it.
+The archetypal use case is testing -- the tag is a convenent way to
+ensure that you are testing with the library that you think you are
+testing with.  By default, if you compile with GCC, the tag is a time
+stamp, recording when the preprocessor was run.  You can also set the
+tag explicitly:
+
+    ./configure MARPA_DEBUG_FLAG=-DMARPA_TAG=testing123
+
+The standard Marpa::R2 test suite prints the tag early in its test output:
+
+    t/00-load.t ............ 1/4 # Marpa::R2 version is 2.085_004 #
+    Libmarpa version is 6.0.3 # Libmarpa tag: testing123
+
+You can put spaces and other non-word characters into the tag, but
+you have to figure out how to make them run the guantlet from shell to
+Makefile to compiler command line.  Here's an example who works on Linux:
+
+    ./configure MARPA_DEBUG_FLAG="\"-DMARPA_TAG=*This is a test*\""
