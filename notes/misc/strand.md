@@ -949,7 +949,7 @@ call it `completed-start-yim`.
   Do not execute the following steps.
 
 * If `prefix-nodes` *is* defined,
-  this is an proper suffix parse, and `prefix-nodes`
+  this is a proper suffix parse, and `prefix-nodes`
   is a set containing a single bocage node.
   Call this node `prefix-node`.
 
