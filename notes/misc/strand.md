@@ -216,7 +216,7 @@ Nucleobase symbols exist to allow non-terminals to be split in half.
 Nucleobases come in right and left versions.
 For example, for the symbol `A`,
 the nucleobases will be `A-L` and `A-R`.
-The symbol `A` is called by *base symbol*
+The symbol `A` is called the *base symbol*
 of the nucleobases `A-L` and `A-R`.
 
 To extend the pre-strand grammar to a suffix grammar,
