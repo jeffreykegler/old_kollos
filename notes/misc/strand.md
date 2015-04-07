@@ -299,16 +299,16 @@ call it `base-dr`,
 has
 
 * a forward inter-nucleotide,
-  `Forward-Inter-Nucleotide(base-dr)`.
+  `Forward-inter-nucleotide(base-dr)`.
 
 * a reverse inter-nucleotide,
-  `Reverse-Inter-Nucleotide(base-dr)`,
+  `Reverse-inter-nucleotide(base-dr)`,
 
 * a forward intra-nucleotide,
-  `Forward-Intra-Nucleotide(base-dr)`, and
+  `Forward-intra-nucleotide(base-dr)`, and
 
 * a reverse intra-nucleotide,
-  `Reverse-Intra-Nucleotide(base-dr)`.
+  `Reverse-intra-nucleotide(base-dr)`.
 
 For the example above,
 
