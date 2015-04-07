@@ -620,12 +620,12 @@ All nodes are either terminal nodes
 or non-terminal nodes.
 A terminal node is a 4-tuple of
 
-* A symbol ID, which is one of the symbols
- of the grammar.
+* The symbol ID of one of the symbols
+  of the grammar.
 
 * A node value, which may be anything
- meaningful to the application,
- or which may be undefined.
+  meaningful to the application,
+  or which may be undefined.
 
 * A start position, which is an input location.
 
