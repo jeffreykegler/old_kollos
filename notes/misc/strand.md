@@ -1626,7 +1626,7 @@ The algorithm then proceeds as follows:
 
     - If we are here,
       then `work-item` is still on top of the stack,
-      We pop `work-item` from the top of the stack.
+      we pop `work-item` from the top of the stack.
 
     - We create the new bocage node from
       `work-item`, calling it `new-node`.
