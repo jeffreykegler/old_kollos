@@ -61,13 +61,15 @@ if (not IPC::Cmd::run(
 }
 
 if (not IPC::Cmd::run(
-        command => [ qw(make cm_dist) ],
+        command => [ qw(make test) ],
         verbose => 1
     )
     )
 {
     die qq{Could not make dist};
 } ## end if ( not IPC::Cmd::run( command => [ qw(git checkout)...]))
+
+die("Not yet finished");
 
 # CHDIR
 chdir 'cm_dist' || die "Could not chdir to cm_dist";
