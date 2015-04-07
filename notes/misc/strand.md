@@ -64,7 +64,7 @@ grammars.
 Externally, Marpa handles arbitrary grammars,
 which it rewrites into internal grammars which
 observe a number of restrictions.
-The restrictions that are relevant here are
+The restrictions that are relevant here are:
 
 * No cycles.
 
