@@ -23,8 +23,8 @@ and not to execute any of the following
 statements for the current iteration.
 
 The phrase `continue LOOP-X` means to not
-execute the any of the following statements for
-the current iteration of the loop,
+execute any of the following statements 
+in the loop for its current iteration,
 and instead to start
 a new iteration of LOOP-X,
 using the next item over which
