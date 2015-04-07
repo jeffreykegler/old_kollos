@@ -210,7 +210,7 @@ The rules of a pre-strand grammar are pre-strand rules
 and the symbols of a pre-strand grammar are pre-strand symbols.
 
 To extend the pre-strand grammar to a suffix grammar,
-we will define,
+we will define
 a set of *nucleobase symbols*,
 or *nucleobases*.
 Nucleobase symbols exist to allow non-terminals to be split in half.
