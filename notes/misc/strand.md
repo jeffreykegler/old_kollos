@@ -19,8 +19,9 @@ In the pseudo-code,
 loops are often named.
 The phrase `exit LOOP-X` means to not
 execute any iterations of `LOOP-X`,
-and not to execute any of the following
-statements for the current iteration.
+and not to execute 
+any of the following statements in the loop 
+for its current iteration.
 
 The phrase `continue LOOP-X` means to not
 execute any of the following statements 
