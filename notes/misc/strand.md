@@ -27,7 +27,7 @@ The phrase `continue LOOP-X` means to not
 execute any of the following statements 
 in the loop for its current iteration,
 and instead to start
-a new iteration of LOOP-X,
+a new iteration of `LOOP-X`,
 using the next item over which
 the loop traverses.
 At the end of the statements for any loop,
