@@ -700,7 +700,7 @@ If the node is a start rule prediction
 its source is not tracked,
 and it will have zero links.
 All other non-terminal nodes have one or more links.
-If `node` is a node,
+If `node` is a bocage node,
 then `Links(node)` is the pseudo-code
 accessor that returns the set of links for `node`.
 
