@@ -520,7 +520,7 @@ a dotted rule's straddling rule
 is its dotted rule when converted to
 its base rule.
 The idea is that
-`Straddle(dr)` "straddles" the point at which a nucleotide
+`Straddle(dr)` "straddles" the point at which a nucleotide's base rule
 is split.
 
 As examples,
