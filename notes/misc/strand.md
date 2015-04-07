@@ -62,8 +62,8 @@ A nucleotide may also have a nucleobase on its RHS.
 
 The grammars considered here are Marpa internal
 grammars.
-Externally, Marpa handles arbitrary grammars,
-which it rewrites into internal grammars which
+Externally, Marpa handles arbitrary grammars
+by rewriting them into internal grammars which
 observe a number of restrictions.
 The restrictions that are relevant here are
 
