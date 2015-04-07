@@ -471,7 +471,7 @@ As examples,
 We now show an example of the most complex case,
 where one nucleotide
 is converted into another.
-We will converted the dotted rule
+We will convert the dotted rule
 ```
     [X-R ::= B . C D]
 ```
