@@ -244,7 +244,7 @@ The six pairs of
     5: X-L ::= A B            X-R ::= C
     6: X-L ::= A B C-L        X-R ::= C-R
 ```
-`rule-X` is called the "base rule" of these nucleotides.
+`rule-X` is called the *base rule* of these nucleotides.
 The pseudo-code accessor `Base-rule(rule)` returns the base
 rule of a nucleotide rule.
 If `rule` is not a nucleotide rule,
