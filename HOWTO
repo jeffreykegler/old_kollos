@@ -1,0 +1,17 @@
+Kollos in its libmarpa/ directory has a copy of the "kollos" branch of
+the libmarpa repo, with full history.  To update it, you have to fetch the
+upstream, then "git mv" the files into the libmarpa directory, then merge.
+(I have yet to actually try this.)
+
+The "git mv" is tricky -- you have to avoid untracked files, and the
+libmarpa repo itself.  As I recall, I used these commands.
+
+  git mv [a-k]* libmarpa
+  git mv legal libmarpa
+  git mv [m-z]* libmarpa
+  git mv L* libmarpa
+  git mv $( git ls-files .g* ) libmarpa
+
+I will probably need to check that this catches everything.  Useful is
+the "-n" option of "git mv", which does a "dry run" -- showing the moves,
+without actually performing them.
