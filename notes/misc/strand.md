@@ -50,8 +50,8 @@ nucleobases.
 
 For our purposes,
 a *nucleobase* is a symbol
-used to match part of a second symbol,
-when that second symbol is
+used to match a part of another symbol,
+when such another symbol is
 divided between two parses.
 A *nucleotide* is a rule whose LHS
 is a nucleobase.
