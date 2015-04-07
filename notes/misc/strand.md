@@ -778,7 +778,7 @@ A memoization is used to prevent this.
 
 If `Add-node-to-bocage(new-node)` is called for a node
 already in the prefix bocage,
-`new-node` itself is ignored is favor of the existing node,
+`new-node` itself is ignored in favor of the existing node,
 but the links of `new-node` are examined.
 Call the existing node, `old-node`.
 If a link of `new-node`
