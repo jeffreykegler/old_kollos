@@ -625,7 +625,7 @@ A terminal node is a 4-tuple of
  meaningful to the application,
  or which may be undefined.
 
-* A start position, which an input location.
+* A start position, which is an input location.
 
 * An end position, which is an input location
   at or after the start position.
