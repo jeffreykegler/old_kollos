@@ -1543,7 +1543,7 @@ A recursive implementation might have acceptable
 speed, but only if the bocage nodes are memoized.
 The memoization can be either a hash or an AVL.
 
-Each keys of the memoization will be the signature
+Each key of the memoization will be the signature
 of a bocage node.
 A bocage node signature
 consists of
