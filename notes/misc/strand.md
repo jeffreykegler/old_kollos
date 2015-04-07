@@ -544,7 +544,7 @@ internal grammars are augmented with a start rule
 of a very strict form -- a dedicated symbol on its LHS,
 and a single symbol on the RHS.
 The RHS symbol is usually the start symbol
-of the pre-augment grammar.
+of the pre-augmented grammar.
 
 The start rule of a suffix grammar is the reverse
 prediction intra-nucleotide of the pre-strand grammar's
