@@ -1453,10 +1453,11 @@ it must be the case that
 
     + For every `[pred, succ]` in `Links(yim)`
 
-      - In the previous step, note that `succ` is must be after the reverse nucleobase;
-        therefore after the split point;
-        therefore entirely inside the suffix parse;
-        and therefore `Rule(succ)` will be a non-nucleotide rule.
+      - Note that `succ` is after the reverse nucleobase,
+        if there is one;
+        and is therefore after the split point;
+        and is therefore entirely inside the suffix parse;
+        so that `Rule(succ)` must be a non-nucleotide rule.
 
       - Let `link` be
 
