@@ -782,7 +782,7 @@ If `Add-node-to-bocage(new-node)` is called for a node
 already in the prefix bocage,
 `new-node` itself is ignored in favor of the existing node,
 but the links of `new-node` are examined.
-Call the existing node, `old-node`.
+Call the existing node `old-node`.
 If a link of `new-node`
 is not identical to a link
 already in `old-node`,
