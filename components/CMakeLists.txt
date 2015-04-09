@@ -23,7 +23,7 @@ endif ()
 # NOTE: The order matters! The most independent ones should go first.
 add_subdirectory(libmarpa) # static library
 add_subdirectory(lua) # interpreter
-add_subdirectory(kollos_core) # shared library
+add_subdirectory(main) # shared library
 add_subdirectory(json) # a sample executable
 add_subdirectory(test) # kollos-wide tests
 

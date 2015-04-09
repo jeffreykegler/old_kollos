@@ -1,4 +1,4 @@
-package.cpath = ';;../kollos_core/lib?.so'
-require "kollos_core";
+package.cpath = ';;../main/lib?.so'
+local k = require "kollos";
 
-g = kollos.grammar{}
+g = k.grammar{}

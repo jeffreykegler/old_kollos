@@ -570,7 +570,7 @@ static int l_grammar_new(lua_State *L)
    return 1;
 }
 
-static const struct luaL_Reg kollos_core_funcs[] = {
+static const struct luaL_Reg kollos_funcs[] = {
   { "grammar", l_grammar_new },
   { "error_description", l_error_description_by_code },
   { NULL, NULL }
@@ -584,8 +584,8 @@ static const struct luaL_Reg kollos_grammar_methods[] = {
   { NULL, NULL }
 };
 
-LUALIB_API int luaopen_kollos_core(lua_State *L);
-LUALIB_API int luaopen_kollos_core(lua_State *L)
+LUALIB_API int luaopen_kollos(lua_State *L);
+LUALIB_API int luaopen_kollos(lua_State *L)
 {
   /* Create the main kollos object */
    const int original_tos = lua_gettop(L);
