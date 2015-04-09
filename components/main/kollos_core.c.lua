@@ -563,7 +563,9 @@ static int l_grammar_new(lua_State *L)
           luif_err_throw2(L, LUIF_ERR_MICRO_VERSION_MISMATCH, library_mismatch);
   }
 
-   luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK);
+   /* For testing the error mechanism */
+   /* luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK); */
+
    g = (struct s_kollos_grammar *)lua_newuserdata(L, sizeof(*g));
    return 1;
 }
@@ -599,7 +601,9 @@ LUALIB_API int luaopen_kollos_core(lua_State *L)
   lua_pushvalue(L, -1);
   lua_setfield(L, original_tos+1, "error");
   /* [ kollos, error_mt ] */
-  kollos_throw( L, original_tos+2, LUIF_ERR_I_AM_NOT_OK, "test" );
+
+  /* For testing the error mechanism */
+  /* kollos_throw( L, original_tos+2, LUIF_ERR_I_AM_NOT_OK, "test" ); */
 
   /* Fail if not 5.1 ? */
 
