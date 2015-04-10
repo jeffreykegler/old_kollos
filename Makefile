@@ -11,4 +11,7 @@ libmarpa:
 	cd libmarpa && make test
 
 test:
-	cd build && ctest --output-on-failure
+	cd build && \
+	LUA_CPATH=';;../../build/main/lib?.so' \
+	LUA_PATH=';;../../build/main/?.lua' \
+	  ctest --output-on-failure
