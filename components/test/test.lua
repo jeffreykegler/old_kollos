@@ -1,5 +1,6 @@
-package.cpath = ';;../main/lib?.so'
+package.cpath = ';;../../build/main/lib?.so'
+package.path = ';;../../build/main/?.lua'
+
 local k = require "kollos";
 
-print "hi from test.lua"
 g = k.grammar{}
