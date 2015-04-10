@@ -1,4 +1,4 @@
 package.cpath = ';;../main/lib?.so'
-local k = require "kollos";
+local k = require "kollos_c";
 
 g = k.grammar{}

@@ -584,8 +584,8 @@ static const struct luaL_Reg kollos_grammar_methods[] = {
   { NULL, NULL }
 };
 
-LUALIB_API int luaopen_kollos(lua_State *L);
-LUALIB_API int luaopen_kollos(lua_State *L)
+LUALIB_API int luaopen_kollos_c(lua_State *L);
+LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
   /* Create the main kollos object */
    const int original_tos = lua_gettop(L);
