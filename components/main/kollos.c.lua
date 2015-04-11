@@ -604,7 +604,6 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* First set up Kollos error handling */
   lua_newtable(L);
   /* [ kollos, error_mt ] */
-  /* I don't think I will need the upvalues */
   lua_pushcclosure(L, l_error_tostring, 0);
   /* [ kollos, error_mt, tostring_fn ] */
   lua_setfield(L, -2, "__tostring");
@@ -617,6 +616,7 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
   /* Fail if not 5.1 ? */
 
+  /* [ kollos ] */
   return 1;
 }
 

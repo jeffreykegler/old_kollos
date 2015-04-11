@@ -19,12 +19,14 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
-require "kollos_c"
+local kollos_c = require "kollos_c"
 
 local M = {}
 
 function M.grammar()
-  return 1
+  local g = {}
+  g["_c"] = kollos_c
+  return g
 end
 
 return M
