@@ -46,6 +46,8 @@ io.write[=[
 #include "lua.h"
 #include "lauxlib.h"
 
+#include "compat-5.2.c"
+
 #define EXPECTED_LIBMARPA_MAJOR 7
 #define EXPECTED_LIBMARPA_MINOR 5
 #define EXPECTED_LIBMARPA_MICRO 0
