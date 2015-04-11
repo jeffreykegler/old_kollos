@@ -613,7 +613,7 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* [ kollos ] */
 
   /* For testing the error mechanism */
-  kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );
+  /* kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" ); */
 
   /* Fail if not 5.1 ? */
 

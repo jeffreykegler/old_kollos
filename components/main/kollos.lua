@@ -19,9 +19,13 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
+require "kollos_c"
+
 local M = {}
 
-require "kollos_c"
+function M.grammar()
+  return 1
+end
 
 return M
 
