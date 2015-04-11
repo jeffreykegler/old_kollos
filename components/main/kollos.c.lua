@@ -599,7 +599,6 @@ LUALIB_API int luaopen_kollos_c(lua_State *L);
 LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
   /* Create the main kollos object */
-   const int original_tos = lua_gettop(L);
   lua_newtable(L);
   /* First set up Kollos error handling */
   lua_newtable(L);
