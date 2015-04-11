@@ -281,15 +281,24 @@ static inline int l_error_description_by_code(lua_State* L)
    }
    return 1;
 }
+ 
+/* The contents of this location are never examined.
+   The location is used as a key in the Lua registry
+   for the kollos error object's metatable.
+   This guarantees that the key will be unique
+   within the Lua state.
+*/
+static char kollos_error_mt_key;
 
 /* Leaves the stack as before,
    except with the error object on top */
 static inline void kollos_error(lua_State* L,
-    int index, lua_Number code, const char* details)
+    lua_Number code, const char* details)
 {
    lua_newtable(L);
    /* [ ..., error_object ] */
-   lua_pushvalue(L, index);
+   lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
+   /* [ ..., error_object, error_metatable ] */
    lua_setmetatable(L, -2);
    /* [ ..., error_object ] */
    lua_pushnumber(L, code);
@@ -363,9 +372,9 @@ static inline void error_tostring(lua_State* L)
 }
   
 static inline void kollos_throw(lua_State* L,
-    int index, lua_Number code, const char* details)
+    lua_Number code, const char* details)
 {
-   kollos_error(L, index, code, details);
+   kollos_error(L, code, details);
    error_tostring(L);
    lua_error(L);
 }
@@ -600,12 +609,11 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* [ kollos, error_mt, tostring_fn ] */
   lua_setfield(L, -2, "__tostring");
   /* [ kollos, error_mt ] */
-  lua_pushvalue(L, -1);
-  lua_setfield(L, original_tos+1, "error");
-  /* [ kollos, error_mt ] */
+  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
+  /* [ kollos ] */
 
   /* For testing the error mechanism */
-  /* kollos_throw( L, original_tos+2, LUIF_ERR_I_AM_NOT_OK, "test" ); */
+  kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );
 
   /* Fail if not 5.1 ? */
 
