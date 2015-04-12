@@ -632,6 +632,10 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* [ kollos, mt_g, gc_function ] */
   lua_setfield(L, -2, "__gc");
   /* [ kollos, mt_g ] */
+
+  /* For debugging */
+  /* dump_table(L, -1); */
+
   lua_pop(L, 1);
   /* [ kollos ] */
 
@@ -639,6 +643,9 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" ); */
 
   /* Fail if not 5.1 ? */
+
+  /* For debugging */
+  /* dump_table(L, -1); */
 
   /* [ kollos ] */
   return 1;
