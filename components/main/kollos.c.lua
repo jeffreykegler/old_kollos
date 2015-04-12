@@ -547,6 +547,11 @@ static int l_grammar_new(lua_State *L)
    struct s_kollos_grammar *g;
    luaL_checkany(L, 1); /* expecting a table */
 
+   /* I have forked Libmarpa into Kollos, which makes version checking
+    * pointless.  But we may someday use the LuaJIT,
+    * and version checking will be needed there.
+    */
+
    {
        const char * const header_mismatch =
            "Header version does not match expected version";
@@ -581,6 +586,10 @@ static int l_grammar_new(lua_State *L)
    return 1;
 }
 
+static int l_grammar_mt_gc(lua_State *L) {
+   return 0;
+}
+
 static const struct luaL_Reg kollos_funcs[] = {
   { "grammar", l_grammar_new },
   { "error_description", l_error_description_by_code },
@@ -600,7 +609,8 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
   /* Create the main kollos object */
   lua_newtable(L);
-  /* First set up Kollos error handling */
+
+  /* Set up Kollos error handling metatable */
   lua_newtable(L);
   /* [ kollos, error_mt ] */
   lua_pushcclosure(L, l_error_tostring, 0);
@@ -608,6 +618,21 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_setfield(L, -2, "__tostring");
   /* [ kollos, error_mt ] */
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
+  /* [ kollos ] */
+
+  /* Set up Kollos grammar metatable */
+  lua_newtable(L);
+  /* [ kollos, mt_g ] */
+  /* dup top of stack */
+  lua_pushvalue(L, -1);
+  /* [ kollos, mt_g, mt_g ] */
+  lua_setfield(L, -3, "_mt_g");
+  /* [ kollos, mt_g ] */
+  lua_pushcfunction(L, l_grammar_mt_gc);
+  /* [ kollos, mt_g, gc_function ] */
+  lua_setfield(L, -2, "__gc");
+  /* [ kollos, mt_g ] */
+  lua_pop(L, 1);
   /* [ kollos ] */
 
   /* For testing the error mechanism */
