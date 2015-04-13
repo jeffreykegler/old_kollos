@@ -538,71 +538,68 @@ static void luif_err_throw2(lua_State *L, int error_code, const char *msg) {
     luaL_error(L, "%s\n    %s", msg, libmarpa_error_codes[error_code].description);
 }
 
-struct s_kollos_grammar {
-    int dummy;
-};
-
 static int l_grammar_new(lua_State *L)
 {
-   struct s_kollos_grammar *g;
-   luaL_checkany(L, 1); /* expecting a table */
+    /* expecting a table */
+    luaL_checktype(L, 1, LUA_TTABLE);
 
-   /* I have forked Libmarpa into Kollos, which makes version checking
-    * pointless.  But we may someday use the LuaJIT,
-    * and version checking will be needed there.
-    */
+  /* I have forked Libmarpa into Kollos, which makes version checking
+   * pointless.  But we may someday use the LuaJIT,
+   * and version checking will be needed there.
+   */
 
-   {
-       const char * const header_mismatch =
-           "Header version does not match expected version";
-       /* Make sure the header is from the version we want */
-       if (MARPA_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR)
-           luif_err_throw2(L, LUIF_ERR_MAJOR_VERSION_MISMATCH, header_mismatch);
-       if (MARPA_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR)
-           luif_err_throw2(L, LUIF_ERR_MINOR_VERSION_MISMATCH, header_mismatch);
-       if (MARPA_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
-          luif_err_throw2(L, LUIF_ERR_MICRO_VERSION_MISMATCH, header_mismatch);
+  {
+    const char *const header_mismatch =
+      "Header version does not match expected version";
+    /* Make sure the header is from the version we want */
+    if (MARPA_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR)
+      luif_err_throw2 (L, LUIF_ERR_MAJOR_VERSION_MISMATCH, header_mismatch);
+    if (MARPA_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR)
+      luif_err_throw2 (L, LUIF_ERR_MINOR_VERSION_MISMATCH, header_mismatch);
+    if (MARPA_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
+      luif_err_throw2 (L, LUIF_ERR_MICRO_VERSION_MISMATCH, header_mismatch);
   }
 
   {
-      /* Now make sure the library is from the version we want */
-      const char * const library_mismatch =
-          "Library version does not match expected version";
-      int version[3];
-      const Marpa_Error_Code error_code = marpa_version (version);
-      if (error_code != MARPA_ERR_NONE) luif_err_throw2(L, error_code, "marpa_version() failed");
-      if (version[0] != EXPECTED_LIBMARPA_MAJOR)
-          luif_err_throw2(L, LUIF_ERR_MAJOR_VERSION_MISMATCH, library_mismatch);
-      if (version[1] != EXPECTED_LIBMARPA_MINOR)
-          luif_err_throw2(L, LUIF_ERR_MINOR_VERSION_MISMATCH, library_mismatch);
-      if (version[2] != EXPECTED_LIBMARPA_MICRO)
-          luif_err_throw2(L, LUIF_ERR_MICRO_VERSION_MISMATCH, library_mismatch);
+    /* Now make sure the library is from the version we want */
+    const char *const library_mismatch =
+      "Library version does not match expected version";
+    int version[3];
+    const Marpa_Error_Code error_code = marpa_version (version);
+    if (error_code != MARPA_ERR_NONE)
+      luif_err_throw2 (L, error_code, "marpa_version() failed");
+    if (version[0] != EXPECTED_LIBMARPA_MAJOR)
+      luif_err_throw2 (L, LUIF_ERR_MAJOR_VERSION_MISMATCH, library_mismatch);
+    if (version[1] != EXPECTED_LIBMARPA_MINOR)
+      luif_err_throw2 (L, LUIF_ERR_MINOR_VERSION_MISMATCH, library_mismatch);
+    if (version[2] != EXPECTED_LIBMARPA_MICRO)
+      luif_err_throw2 (L, LUIF_ERR_MICRO_VERSION_MISMATCH, library_mismatch);
   }
 
-   /* For testing the error mechanism */
-   /* luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK); */
+  /* For testing the error mechanism */
+  /* luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK); */
 
-   g = (struct s_kollos_grammar *)lua_newuserdata(L, sizeof(*g));
-   return 1;
+  /* [ kollos ] */
+  {
+    Marpa_Grammar *p_g;
+    p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
+    /* [ kollos, userdata ] */
+    lua_getfield (L, -2, "_mt_g_ud");
+    /* [ kollos, userdata, mt_g_ud ] */
+    lua_setmetatable (L, -2);
+    /* [ kollos, userdata ] */
+    lua_pop (L, 1);
+    /* [ kollos ] */
+  }
+  return 1;
 }
 
-static int l_grammar_mt_gc(lua_State *L) {
+static int l_grammar_ud_mt_gc(lua_State *L) {
+    Marpa_Grammar *p_g;
+    p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
+    if (*p_g) { /* Unref Libmarpa grammar */ }
    return 0;
 }
-
-static const struct luaL_Reg kollos_funcs[] = {
-  { "grammar", l_grammar_new },
-  { "error_description", l_error_description_by_code },
-  { NULL, NULL }
-};
-
-static const struct luaL_Reg kollos_error_methods[] = {
-  { NULL, NULL }
-};
-
-static const struct luaL_Reg kollos_grammar_methods[] = {
-  { NULL, NULL }
-};
 
 LUALIB_API int luaopen_kollos_c(lua_State *L);
 LUALIB_API int luaopen_kollos_c(lua_State *L)
@@ -620,32 +617,32 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
   /* [ kollos ] */
 
-  /* Set up Kollos grammar metatable */
+  /* Set up Kollos grammar userdata metatable */
   lua_newtable(L);
   /* [ kollos, mt_g ] */
   /* dup top of stack */
   lua_pushvalue(L, -1);
-  /* [ kollos, mt_g, mt_g ] */
-  lua_setfield(L, -3, "_mt_g");
-  /* [ kollos, mt_g ] */
-  lua_pushcfunction(L, l_grammar_mt_gc);
-  /* [ kollos, mt_g, gc_function ] */
+  /* [ kollos, mt_g_ud, mt_g_ud ] */
+  lua_setfield(L, -3, "_mt_g_ud");
+  /* [ kollos, mt_g_ud ] */
+  lua_pushcfunction(L, l_grammar_ud_mt_gc);
+  /* [ kollos, mt_g_ud, gc_function ] */
   lua_setfield(L, -2, "__gc");
-  /* [ kollos, mt_g ] */
+  /* [ kollos, mt_g_ud ] */
 
   /* For debugging */
-  /* dump_table(L, -1); */
+  if (0) dump_table(L, -1);
 
   lua_pop(L, 1);
   /* [ kollos ] */
 
   /* For testing the error mechanism */
-  /* kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" ); */
+  if (0) kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );
 
   /* Fail if not 5.1 ? */
 
   /* For debugging */
-  /* dump_table(L, -1); */
+  if (0) dump_table(L, -1);
 
   /* [ kollos ] */
   return 1;

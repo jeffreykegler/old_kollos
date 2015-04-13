@@ -1,0 +1,10 @@
+# Abbreviations make code hard to read, and it has been
+# suggested to throw them away altogether.  While an enticing
+# idea, this is not practical IMHO.  What *is* practical is
+# to limit their use to a list.  This list is for the
+# current directory.
+gc -- garbage collect
+l_ -- at beginning, indicates a Lua wrapper
+p_ -- at beginning, indicates a pointer
+mt -- metatable
+ud -- userdata
