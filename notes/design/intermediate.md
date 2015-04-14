@@ -25,6 +25,22 @@ This document describes
 * the KHIL "callbacks", which allow the KLOL to get information
   from the KHIL for error messages, tracing, debugging, etc.
 
+## Motivation
+
+An important reason for the KIR is to allow the LUIF to be
+self-describing and self-generating.
+This will be quite possible in theory,
+the circular dependency has the potential
+to make
+maintenance and debugging so difficult
+that self-generation
+is not a wise to do in practice.
+The solution is to have the self-generation take place
+through an intermediate language.
+In a pinch,
+self-generation can be bypassed
+by editing the KIR directly.
+
 ## The Kollos higher layer
 
 The basic transformation needed to obtain the KIR from the LUIF is
