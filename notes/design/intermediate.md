@@ -123,6 +123,24 @@ symbol and `sym2` to be a medial symbol.
 (A symbol is medial if and only if
 it is not the start symbol and not a terminal).
 
+### Symbol mutator
+```
+    kir.counted(sym1)
+```
+Marks `sym1`, which must have already been
+declared, as a "counted" symbol.
+"Counted" means that it occurs on the
+RHS of a sequence rule.
+
+Jeffrey is inclined to leave it up
+to the implementors of the KHOL and
+LUIF whether or not separators are
+considered.
+"counted" symbols.
+Currently, Marpa::R2 does
+treat separators
+as counted symbols.
+
 ### Rule declarators
 
 ```
@@ -265,6 +283,20 @@ integers.
 These are line and column in the LUIF.
 Line and column should be as defined
 by the Unicode Consortium.
+
+## Implementing the callbacks
+
+The "callbacks" may be best implemented via
+a Lua table,
+rather than function calls.
+The table can be part of the KIR, or a
+separate file accompanying it.
+However the table is delivered,
+it may be best to arrange for
+it to be
+interpreted only when and if required.
+Normal processing will not require these callbacks,
+and their overhead may be measureable.
 
 <!---
 vim: expandtab shiftwidth=4
