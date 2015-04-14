@@ -184,7 +184,61 @@ returns the
 external symbol to which it corresponds.
 Return `nil` if `isym` is a mortar symbol.
 
-*[ to be continued ]*
+### External symbol accessors
+```
+    khol.lhs(xsym)
+    khol.rhs(xsym)
+```
+The first statement (`khol.lhs()`) returns a list of the alternatives
+which have `xsym` on their LHS.
+The second statement (`khol.rhs()`) returns a list of the alternatives
+which have `xsym` on their RHS.
+
+### Alternative accessors
+```
+    khol.alternative_rule(alt)
+    khol.alternative_text(alt)
+    khol.alternative_pos(alt)
+```
+In the above statements, `alt` is the ID of an alternative.
+The first call, `khol_alternative_rule()`,
+returns the ID of the external rule to which `alt` belongs.
+The second call, `khol_alternative_text()`,
+returns a string which contains the text
+of `alt` in the LUIF.
+The second call, `khol_alternative_pos()`,
+returns a list of two integers,
+representing the start and end lexical positions of the
+text returned by
+`khol_alternative_text()`.
+
+### External rule accessors
+```
+    khol.rule_text(xrule)
+    khol.rule_pos(xrule)
+```
+In the above statements, `xrule` is the ID
+of an external rule.
+The first call, `khol.rule_text()`,
+returns a string which contains the text
+of `xrule` in the LUIF.
+The second call, `khol.rule_pos()`,
+returns a list of two integers,
+representing the start and end lexical positions of the
+text returned by
+`khol.rule_text()`.
+
+### Position accessors
+```
+   khol.lc(pos)
+```
+Given `pos`, a position in the LUIF,
+as returned by the other KHOL callbacks,
+`khol.lc(pos)` returns a list of two
+integers.
+These are line and column in the LUIF.
+Line and column should be as defined
+by the Unicode Consortium.
 
 <!---
 vim: expandtab shiftwidth=4
