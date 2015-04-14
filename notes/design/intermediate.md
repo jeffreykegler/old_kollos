@@ -5,12 +5,14 @@
 Kollos's interface language will be the LUIF, essentially
 Lua 5.1 extended with BNF.
 A top layer, called the Kollos high layer, or KHIL,
-will parse this into the "Kollos intermediate representation",
-or KIR,
-which is pure Lua 5.1 with some calls to the kollos Lua package.
+will parse this into the "Kollos intermediate representation".
+The Kollos intermediate representation,
+also called the KIR,
+is pure Lua 5.1 with some calls to the kollos Lua package.
 
 Since the KIR is pure Lua 5.1, it can be run with Lua.
-Calls in the kollos package, which I expect I will write,
+The KIR calls in the kollos package,
+which at this point Jeffrey expects that he will write,
 will then do lower level transformations to make the grammar
 ready for Libmarpa.
 These lower level transformations are called the Kollos lower
@@ -26,44 +28,48 @@ This document describes
 ## The Kollos higher layer
 
 The basic transformation needed to obtain the KIR from the LUIF is
-translation of the LUIF rules, which may include precedented and
+translation of the LUIF rules, which may include precedenced and
 sequence rules, into a form which allows only BNF rules.
-I will describe the transformations necessary to translate from
-precedented rules to BNF rules,
-and from sequence rules to BNF rules,
-in separate documents.
+In separate documents.
+Jeffrey will describe the transformations necessary to translate from
+precedenced rules to BNF rules,
+and from sequence rules to BNF rules.
 
 ## Symbols, alternatives, and rules
 
 The KHIL will find *external* rules, alternatives and symbols
 in the LUIF,
 which it will turn into *internal* rules and symbols.
-The external rules are the sequence, precedented and
+The external rules are the sequence, precedenced and
 BNF rules in the LUIF, one per statement.
 
-An *alternative* is a part of a rule consisting of
+An *alternative* is a part of
+an external rule consisting of
 a single LHS and a single RHS.
-An ordinary BNF rule contains a single alternative.
-A sequence rule also contains only one alternative.
-Precedenced rules, however, may contain many alternatives.
+Internal rules do not have alternatives.
+An ordinary BNF external rule
+contains a single alternative.
+An external sequence rule also contains only one alternative.
+Precedenced external rules,
+however, may contain many alternatives.
 In the SLIF, the alternatives of precedenced
-statements are separated by the bar (`|`)
+statements were separated by the bar (`|`)
 and double bar (`||`) symbols.
 
-Internal symbols are either *brick* symbols or mortar
+Internal symbols are either *brick* symbols or *mortar*
 symbols.
 Every brick symbol has a corresponding external symbol.
 A mortar symbol does not have
 a corresponding external symbol.
 
-As of this writing, I am undecided whether rules, alternatives
+As of this writing, Jeffrey is undecided whether rules, alternatives
 and symbols should represented as integers or strings.
 If strings, the representation for external symbols should
 clearly be their lexical equivalent in the LUIF,
 but the format of the others is also undecided.
 
-The motivation of the above will, I hope,
-be clearer when I outline the
+The motivation of the above will, we hope,
+be clearer when we outline the
 transformations the KHIL must perform.
 
 ## KIR calls
@@ -81,10 +87,12 @@ has already been executed.
 ```
      g = kir.grammar(start)
 ```
-Here `start` is an internal symbol, which is
-declared to be the start symbol of the grammar.
+Constructs and returns a grammar.
+`start` is declared to be an internal symbol,
+and the start symbol of the grammar.
 The grammar `g` is returned.
-It is an opaque object, only to be used in other KIR
+The grammar is an opaque object,
+only to be used in other KIR
 calls.
 
 ### Symbol declarators
@@ -95,42 +103,43 @@ calls.
 Internal symbols need to be declared before they
 are used in a KIR rule.
 These two calls declare `sym1` to be a terminal
-symbol and `sym2` to be a medial symbol
-(that is, not the start symbol and not a terminal).
+symbol and `sym2` to be a medial symbol.
+(A symbol is medial if and only if
+it is not the start symbol and not a terminal).
 
 ### Rule declarators
 
 ```
-    kir.rule(g, id, xid, lhs, rhs1, rhs2)
-    kir.xalternative(g, xid, id, action, options)
+    kir.rule(g, id, xid, options, lhs, rhs1, rhs2)
 ```
-The first of the statements above
-(`kir.rule()`)
+The
+`kir.rule()` statement
 declares a rule for grammar `g`.
 The ID of the internal rule is `id`.
 The ID of the external alternative is `xid`.
+`options` is either a table of options,
+or `nil`,
 Its LHS is `lhs`.
 Its RHS symbols are `rhs1` and `rhs2`.
 The number of RHS symbols may vary from 0 on up.
 
-The first of the two statements above (`kir.alternative()`),
-declares the external alternative ID, `xid`,
-whose "top" internal rule is `id`.
-`action` specified a LUA function which contains the
-action for the alternative.
-`options` is a Lua table specified the options.
-
-It may turn out that actions need to be other things
-besides Lua functions.
-Often it is desirable to implement "built-in" actions,
-for example.
-
-As we will see when I describe the rewrites, alternatives
+As we will see when Jeffrey describes the
+grammar rewrites, alternatives
 may be broken up into many internal rules.
 Of the rules into which an alternative is broken up,
 one and only one will be the "top" rule.
 Only the top rule of an alternative will have a semantics
 associated with it.
+
+The `options` argument must be defined if and only if
+the rule being declared is a top rule.
+If `options` is defined, it must be a table.
+If one of its keys is `action`,
+it specifies the action of the rule.
+The action may represent a built-in action,
+or may be a LUA function.
+Details of the built-in action are left unspecified,
+for the moment.
 
 ### Compile grammar
 ```
@@ -151,32 +160,33 @@ However, for error messages, debugging, etc.,
 the KLOL needs to have more information available.
 
 As a first guess,
-the KHOL needs to make available the callbacks listed
+the KHIL needs to make available the callbacks listed
 in this section.
 The examples assume that the Lua statement
 ```
-    local khol = kollos.khol
+    local khil = kollos.khil
 ```
 has already been executed.
 
 ### Internal symbol accessors
 
 ```
-    khol.provenance(isym)
+    khil.provenance(isym)
 ```
 Given an internal symbol `isym`, returns its
 provenance.
 The provenance is a history of the steps by
 which this internal symbol was created.
-Those brick symbols, which correspond exactly to external
+Brick symbols, if they correspond exactly to external
 symbols, may have a provenance of
 a single step.
 What the provenance might consist of,
-will become clearer when I detail the transformation
-the KHOL needs to perform.
+will become clearer when Jeffrey
+details the grammar rewrites
+that the KHIL needs to perform.
 
 ```
-    khol.brick(isym)
+    khil.brick(isym)
 ```
 Given an internal symbol `isym`,
 if `isym` is a brick symbol,
@@ -186,55 +196,55 @@ Return `nil` if `isym` is a mortar symbol.
 
 ### External symbol accessors
 ```
-    khol.lhs(xsym)
-    khol.rhs(xsym)
+    khil.lhs(xsym)
+    khil.rhs(xsym)
 ```
-The first statement (`khol.lhs()`) returns a list of the alternatives
+`khil.lhs()` returns a list of the alternatives
 which have `xsym` on their LHS.
-The second statement (`khol.rhs()`) returns a list of the alternatives
+`khil.rhs()` returns a list of the alternatives
 which have `xsym` on their RHS.
 
 ### Alternative accessors
 ```
-    khol.alternative_rule(alt)
-    khol.alternative_text(alt)
-    khol.alternative_pos(alt)
+    khil.alternative_rule(alt)
+    khil.alternative_text(alt)
+    khil.alternative_pos(alt)
 ```
 In the above statements, `alt` is the ID of an alternative.
-The first call, `khol_alternative_rule()`,
+The first call, `khil_alternative_rule()`,
 returns the ID of the external rule to which `alt` belongs.
-The second call, `khol_alternative_text()`,
+The second call, `khil_alternative_text()`,
 returns a string which contains the text
 of `alt` in the LUIF.
-The second call, `khol_alternative_pos()`,
+The third call, `khil_alternative_pos()`,
 returns a list of two integers,
 representing the start and end lexical positions of the
 text returned by
-`khol_alternative_text()`.
+`khil_alternative_text()`.
 
 ### External rule accessors
 ```
-    khol.rule_text(xrule)
-    khol.rule_pos(xrule)
+    khil.rule_text(xrule)
+    khil.rule_pos(xrule)
 ```
 In the above statements, `xrule` is the ID
 of an external rule.
-The first call, `khol.rule_text()`,
+The first call, `khil.rule_text()`,
 returns a string which contains the text
 of `xrule` in the LUIF.
-The second call, `khol.rule_pos()`,
+The second call, `khil.rule_pos()`,
 returns a list of two integers,
 representing the start and end lexical positions of the
 text returned by
-`khol.rule_text()`.
+`khil.rule_text()`.
 
 ### Position accessors
 ```
-   khol.lc(pos)
+   khil.lc(pos)
 ```
 Given `pos`, a position in the LUIF,
-as returned by the other KHOL callbacks,
-`khol.lc(pos)` returns a list of two
+as returned by the other KHIL callbacks,
+`khil.lc(pos)` returns a list of two
 integers.
 These are line and column in the LUIF.
 Line and column should be as defined
