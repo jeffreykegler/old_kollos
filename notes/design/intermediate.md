@@ -114,7 +114,7 @@ calls.
 ### Symbol declarators
 ```
     kir.terminal(sym1)
-    kir.medial(sym2)
+    kir.medial(sym2, brick_flag)
 ```
 Internal symbols need to be declared before they
 are used in a KIR rule.
@@ -122,6 +122,11 @@ These two calls declare `sym1` to be a terminal
 symbol and `sym2` to be a medial symbol.
 (A symbol is medial if and only if
 it is not the start symbol and not a terminal).
+
+If `brick_flag` is not `nil`,
+`sym2` is a brick symbol.
+Terminals and the start symbol are always brick
+symbols.
 
 ### Symbol mutator
 ```
@@ -218,15 +223,6 @@ What the provenance might consist of,
 will become clearer when Jeffrey
 details the grammar rewrites
 that the KHIL needs to perform.
-
-```
-    khil.brick(isym)
-```
-Given an internal symbol `isym`,
-if `isym` is a brick symbol,
-returns the
-external symbol to which it corresponds.
-Return `nil` if `isym` is a mortar symbol.
 
 ### External symbol accessors
 ```
