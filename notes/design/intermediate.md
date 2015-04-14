@@ -143,12 +143,46 @@ it may be better to simply have the KLOL attach
 a postamble to the KIR to implement the "compilation"
 of the grammar.
 
-## KHIL callbacks
+## Callbacks to the KHIL
 
-For error messages, debugging, etc.,
-the KIR will need to be able to access the original LUIF
-text, given a rule, an alternative or a symbol.
-These calls allow that.
+The KIR calls pass sufficient information down to the
+KLOL for normal processing.
+However, for error messages, debugging, etc.,
+the KLOL needs to have more information available.
+
+As a first guess,
+the KHOL needs to make available the callbacks listed
+in this section.
+The examples assume that the Lua statement
+```
+    local khol = kollos.khol
+```
+has already been executed.
+
+### Internal symbol accessors
+
+```
+    khol.provenance(isym)
+```
+Given an internal symbol `isym`, returns its
+provenance.
+The provenance is a history of the steps by
+which this internal symbol was created.
+Those brick symbols, which correspond exactly to external
+symbols, may have a provenance of
+a single step.
+What the provenance might consist of,
+will become clearer when I detail the transformation
+the KHOL needs to perform.
+
+```
+    khol.brick(isym)
+```
+Given an internal symbol `isym`,
+if `isym` is a brick symbol,
+returns the
+external symbol to which it corresponds.
+Return `nil` if `isym` is a mortar symbol.
 
 *[ to be continued ]*
 
