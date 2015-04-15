@@ -94,7 +94,7 @@ But it is best to shorten the RHS's in a
 context which
 is aware of the intuitive structure of the grammar.
 
-## Describing the rewrite
+## The rewrite
 
 The rewrite will be a recursive function,
 which we will call, `Doseq()`, so that
@@ -156,7 +156,7 @@ we convert it into
 For the rest of this procedure, we can assume
 that separation is either `proper` or `none`.
 
-### Eliminate nullables
+#### Eliminate nullables
 
 If we have
 ```
@@ -172,7 +172,7 @@ we convert it into
 We may now assume that the minimum of our
 6-tuple is at least 1.
 
-## Normalize separated ranges
+### Normalize separated ranges
 
 If we have
 ```
@@ -186,7 +186,7 @@ we convert it into
     Doseq( sym2, item, 1, n-m, sep, 'proper' )
 ```
 
-## Normalize unseparated ranges
+### Normalize unseparated ranges
 
 If we have
 ```
@@ -200,7 +200,7 @@ we convert it into
     Doseq( sym2, item, 1, n-m, nul, 'none' )
 ```
 
-## Eliminate separated open ranges
+### Eliminate separated open ranges
 
 As a result of the above steps,
 all ranges now have a minimum of exactly 1.
@@ -215,7 +215,7 @@ we convert it to a left recursion, as follows
     seq ::= seq sep item
 ```
 
-## Eliminate unseparated open ranges
+### Eliminate unseparated open ranges
 
 If we have
 ```
@@ -227,7 +227,7 @@ we convert it to a left recursion, as follows
     seq ::= seq item
 ```
 
-## Some definitions
+### Some definitions
 
 As a result of the previous steps
 all ranges are now closed.
@@ -249,7 +249,7 @@ A span is called an "j-span",
 for some integer `j`,
 if `n` is equal to `j`.
 
-## Eliminate large spans
+### Eliminate large spans
 
 As a reminder,
 at this point all ranges are normalized --
@@ -269,7 +269,7 @@ smaller ranges, as follows
     Doseq( sym2, item, 1, n-pow2(n), sep, sep_type )
 ```
 
-## Eliminate spans
+### Eliminate spans
 
 Since `Doseq()` is recursive,
 the previous step will eliminate all spans
@@ -291,7 +291,7 @@ With this step, we have eliminated all spans.
 Only blocks remain to be converted
 into BNF rules.
 
-## Eliminate large blocks
+### Eliminate large blocks
 
 If we have
 ```
@@ -318,7 +318,7 @@ the conversion is
     Doseq( sym2, item, n-pow2(n), n-pow2(n), 'nil', 'none' )
 ```
 
-## Eliminate separated 2-blocks
+### Eliminate separated 2-blocks
 
 Again,
 since `Doseq()` is recursive,
@@ -343,7 +343,7 @@ we convert it to
     seq ::= item item
 ```
 
-## Eliminate all blocks
+### Eliminate all blocks
 
 At this point the only 6-tuples left to
 reduce to BNF rules,
@@ -361,11 +361,18 @@ we convert it to
 With this final step, we have reduced all sequence
 rules to BNF rules.
 
-### Implementation
+## Implementation
 
-## Avoid duplication of rules
+### Avoid duplication of rules
 
-## Memoize calls to `Doseq()`
+In the above, it is assumed that duplicate rules
+are not added.
+This imposes no additional burden on the KHIL,
+which needs to avoid duplicating rules in
+general,
+not just for this rewrite of sequence rules.
+
+### Memoize calls to `Doseq()`
 
 Reductions of the 6-tuples should be memoized.
 That is, for every call to `Doseq()`,
