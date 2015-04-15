@@ -135,8 +135,8 @@ If we have
 ```
 we convert it into
 ```
-    top ::= sym1
-    top ::= sym2
+    seq ::= sym1
+    seq ::= sym2
     Doseq( sym1, item, m, n, sep, 'proper' )
     Doseq( sym2, item, m, n, sep, 'terminator' )
 ```
@@ -149,10 +149,9 @@ If we have
 ```
 we convert it into
 ```
-    top ::= sym1 sep
+    seq ::= sym1 sep
     Doseq( sym1, item, m, n, sep, 'proper' )
 ```
-where `top`, and `sym1` are new symbols.
 
 For the rest of this procedure, we can assume
 that separation is either `proper` or `none`.
@@ -165,8 +164,8 @@ If we have
 ```
 we convert it into
 ```
-    top ::= 
-    top ::= sym1
+    seq ::= 
+    seq ::= sym1
     Doseq( sym1, item, 1, n, sep, 'proper' )
 ```
 
@@ -182,23 +181,23 @@ If we have
 where m is 2 or more,
 we convert it into
 ```
-    top ::= sym1 sym2
-    Doseq( sym1, item, 1, (m-1), sep, 'terminator' )
-    Doseq( sym2, item, 1, n, sep, 'proper' )
+    seq ::= sym1 sym2
+    Doseq( sym1, item, m, m, sep, 'terminator' )
+    Doseq( sym2, item, 1, n-m, sep, 'proper' )
 ```
 
 ## Normalize unseparated ranges
 
 If we have
 ```
-    Doseq( seq, item, m, n, nil, 'none' )
+    Doseq( seq, item, m, n, 'nil', 'none' )
 ```
 where m is 2 or more, we convert it to
 we convert it into
 ```
-    top ::= sym1 sym2
-    Doseq( sym1, item, 1, (m-1), nil, 'none' )
-    Doseq( sym2, item, 1, n, nul, 'none' )
+    seq ::= sym1 sym2
+    Doseq( sym1, item, m, m), 'nil', 'none' )
+    Doseq( sym2, item, 1, n-m, nul, 'none' )
 ```
 
 ## Eliminate separated open ranges
@@ -212,20 +211,20 @@ If we have
 ```
 we convert it to a left recursion, as follows
 ```
-    top ::= item
-    top ::= top sep item
+    seq ::= item
+    seq ::= seq sep item
 ```
 
 ## Eliminate unseparated open ranges
 
 If we have
 ```
-    Doseq( seq, item, 1, 'inf', nil, 'none' )
+    Doseq( seq, item, 1, 'inf', 'nil', 'none' )
 ```
 we convert it to a left recursion, as follows
 ```
-    top ::= item
-    top ::= top item
+    seq ::= item
+    seq ::= seq item
 ```
 
 ## Some definitions
@@ -252,36 +251,115 @@ if `n` is equal to `j`.
 
 ## Eliminate large spans
 
-At this point all ranges are normalized --
+As a reminder,
+at this point all ranges are normalized --
 that is, their minimum is 1.
 
 If we have
 ```
     Doseq( seq, item, 1, n, sep, 'proper' )
 ```
-where m is 2 or more,
-we convert it into
+where n is greater than 2,
+we convert it into a choice of two
+smaller ranges, as follows
 ```
-    top ::= sym1 sym2
-    Doseq( sym1, item, 1, (m-1), sep, 'terminator' )
-    Doseq( sym2, item, 1, n, sep, 'proper' )
+    seq ::= sym1
+    seq ::= sym2
+    Doseq( sym1, item, 1, pow2(n), sep, sep_type )
+    Doseq( sym2, item, 1, n-pow2(n), sep, sep_type )
 ```
 
 ## Eliminate spans
 
-## Eliminate large separated blocks
+Since `Doseq()` is recursive,
+the previous step will eliminate all spans
+whose maximum is greater than 2.
+So the only possible span at this point is
+```
+    Doseq( seq, item, 1, 2, sep, sep_type )
+```
+which we convert to a choice of blocks,
+as follows:
+```
+    seq ::= sym1
+    seq ::= sym2
+    Doseq( sym1, item, 1, 1, sep, sep_type )
+    Doseq( sym2, item, 2, 2, sep, sep_type )
+```
 
-## Eliminate large unseparated blocks
+With this step, we have eliminated all spans.
+Only blocks remain to be converted
+into BNF rules.
+
+## Eliminate large blocks
+
+If we have
+```
+    Doseq( seq, item, n, n, sep, 'proper' )
+```
+where n is 2 or more,
+we convert it into a sequence of two
+smaller blocks, as follows
+```
+    seq ::= sym1 sym2
+    Doseq( sym1, item, pow2(n), pow2(n), sep, 'termination' )
+    Doseq( sym2, item, n-pow2(n), n-pow2(n), sep, 'proper' )
+```
+
+If we have
+```
+    Doseq( seq, item, n, n, 'nil', 'none' )
+```
+where n is more than 2,
+the conversion is
+```
+    seq ::= sym1 sym2
+    Doseq( sym1, item, pow2(n), pow2(n), 'nil', 'none' )
+    Doseq( sym2, item, n-pow2(n), n-pow2(n), 'nil', 'none' )
+```
 
 ## Eliminate separated 2-blocks
 
-## Eliminate unseparated 2-blocks
+Again,
+since `Doseq()` is recursive,
+the previous step converted all blocks to blocks
+whose length is at most 2.
+
+If we have
+```
+    Doseq( seq, item, 2, 2, sep, 'proper' )
+```
+we convert it to
+```
+    seq ::= item sep item
+```
+
+If we have
+```
+    Doseq( seq, item, 2, 2, 'nil', 'none' )
+```
+we convert it to
+```
+    seq ::= item item
+```
 
 ## Eliminate all blocks
 
 At this point the only 6-tuples left to
 reduce to BNF rules,
 are 1-blocks.
+
+If we have
+```
+    Doseq( seq, item, 1, 1, sep, sep_type )
+```
+we convert it to
+```
+    seq ::= item
+```
+
+With this final step, we have reduced all sequence
+rules to BNF rules.
 
 ### Implementation
 
