@@ -66,7 +66,7 @@ if and only if
 it is true of the range of the 6-tuple.
 As examples, a 6-tuple is open if
 and only if its range is open,
-and a 6-tuple is a block if and only'
+and a 6-tuple is a block if and only
 if its range is a block.
 
 Letting `sep` and `sep_type` stand in
