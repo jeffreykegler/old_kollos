@@ -86,9 +86,8 @@ than two symbols,
 unless such a rewrite does real violence
 to the clarity of the result.
 
-In fact,
-conversion to Chomsky form during this
-rewrite will never be necessary --
+Conversion to Chomsky form during this
+rewrite is not necessary --
 it would be done at a later point anyway.
 But it is best to shorten the RHS's in a
 context which
