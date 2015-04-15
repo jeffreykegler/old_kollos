@@ -29,7 +29,7 @@ where
     `sep` is not defined;
 
   - `proper`, which means the separator
-    must be between symbols and only between
+    must occur only between
     `item`'s;
 
   - `terminator`, which means the separator
@@ -68,22 +68,31 @@ That is
     pow2(6) == 3
 ```
 and so on.
-We do not need to define
-`pow2(1)`
-or `pow2(0)`.
+We leave
+`pow2(0)`
+and `pow2(1)` undefined.
 
 ## Chomsky form
 
-Readers will note that the rewrite below
-leaves the rule in a form where no RHS is longer
-than 2 symbols.
+Chomsky showed that context-free
+grammars can be reduced
+to rules whose length is two or less.
 Libmarpa's internal form will eventually be
-converted to this "Chomsky form".
-Conversion to Chomsky form during this
-rewrite is not necessary --
-it would happen anyway at a later stage --
-but doing it here results in a more
-natural grammar.
+converted to obey this resriction.
+The procedure in this document
+rewrites rules into a form
+where no RHS is longer
+than two symbols,
+unless such a rewrite does real violence
+to the clarity of the result.
+
+In fact,
+conversion to Chomsky form during this
+rewrite will never be necessary --
+it would be done at a later point anyway.
+But it is best to shorten the RHS's in a
+context which
+is aware of the intuitive structure of the grammar.
 
 ## Describing the rewrite
 
@@ -95,25 +104,28 @@ which we will call, `Doseq()`, so that
 produces the rewrite for one or our 6-tuples.
 In the rewrite, one or more new symbols will
 be introduced.
-One of these will be `top`,
-and the others will be of the form
+In the descriptions below,
+one of these will be represented as `seq`,
+and the others will be represented by names
+of the form
 `sym1`, `sym2`, etc.
-In the actual rewrite, their names
-must always be such
-that those names are
+In fact, the actual rewrite,
+these names
+must such that they are
 unique to that step of the rewrite.
-The symbol called `top`
+
+The symbol called `seq`
 will be
 the LHS of the "highest level"
 rule in that stage of the
 rewrite.
-The `top` symbol is the return value of
-`Doseq()`.
 
 The algorithm must track
 the current rules,
 so that no rule is ever added
 more than once.
+It must also memoize the results of
+`Doseq()`.
 
 ### Eliminate liberal separation
 
@@ -125,10 +137,9 @@ we convert it into
 ```
     top ::= sym1
     top ::= sym2
-    sym1 ::= sym2 sep
-    Doseq( sym2, item, m, n, sep, 'proper' )
+    Doseq( sym1, item, m, n, sep, 'proper' )
+    Doseq( sym2, item, m, n, sep, 'terminator' )
 ```
-where `sym1`, `sym2` and `sym3` are new symbols.
 
 ### Eliminate termination
 
@@ -162,29 +173,25 @@ we convert it into
 We may now assume that the minimum of our
 6-tuple is at least 1.
 
-## Normalize separated open ranges
-
-By an "open range", we mean one where the maximum
-is `inf`.
+## Normalize separated ranges
 
 If we have
 ```
-    Doseq( seq, item, m, 'inf', sep, 'proper' )
+    Doseq( seq, item, m, n, sep, 'proper' )
 ```
-where m is 2 or more, we convert it to
+where m is 2 or more,
 we convert it into
 ```
     top ::= sym1 sym2
-    sym2 ::= sep sym3
-    Doseq( sym1, item, 1, (m-1), sep, 'proper' )
-    Doseq( sym3, item, 1, n, sep, 'proper' )
+    Doseq( sym1, item, 1, (m-1), sep, 'terminator' )
+    Doseq( sym2, item, 1, n, sep, 'proper' )
 ```
 
-## Normalize unseparated open ranges
+## Normalize unseparated ranges
 
 If we have
 ```
-    Doseq( seq, item, m, 'inf', nil, 'none' )
+    Doseq( seq, item, m, n, nil, 'none' )
 ```
 where m is 2 or more, we convert it to
 we convert it into
@@ -197,7 +204,7 @@ we convert it into
 ## Eliminate separated open ranges
 
 As a result of the above steps,
-all open ranges now have a minimum of exactly 1.
+all ranges now have a minimum of exactly 1.
 
 If we have
 ```
@@ -206,8 +213,7 @@ If we have
 we convert it to a left recursion, as follows
 ```
     top ::= item
-    top ::= top sym1
-    sym1 ::= sep item
+    top ::= top sep item
 ```
 
 ## Eliminate unseparated open ranges
@@ -222,92 +228,96 @@ we convert it to a left recursion, as follows
     top ::= top item
 ```
 
+## Some definitions
+
 As a result of the previous steps
 all ranges are now closed.
 (A closed range is one with an explicit maximum.)
 
-## Some definitions
+The range `(m,n)`
+is called a block if `m` and `n`
+are equal.
+A block is called an "j-block",
+for some integer `j`,
+if `n` is equal to `j`.
+The range `(m,n)`
+is called a span if `m` and `n`
+if it is not a block.
+If a range is a span,
+then we know that `n` is greater
+than `m`.
+A span is called an "j-span",
+for some integer `j`,
+if `n` is equal to `j`.
 
-In what follows, we'll need some definitions:
+## Eliminate large spans
 
-+ The *span* of the closed range `A ** N..M` is `(M-N)+1`.
+At this point all ranges are normalized --
+that is, their minimum is 1.
 
-* A block is a closed range with a span of one, for example,
-`A**42`.
-
-## Closed ranges with a minimum of two or more
-
-Rewrite them so all ranges are either blocks or 1-based.
-For `A**N..M % punct`, where N is 2 or more,
-introduce these new rules.
+If we have
 ```
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** N-1 % punct
-   Rep2 ::= A ** 1 .. (M-N+1) % punct
+    Doseq( seq, item, 1, n, sep, 'proper' )
 ```
-
-## One-based non-block ranges
-
-At this point,
-all ranges are either one-based or blocks.
-
-For a range of the form
-For `A**1..M % punct`, where M is 5 or more,
-rewrite as follows:
+where m is 2 or more,
+we convert it into
 ```
-   Rep ::= A ** 1 .. (pow(M)-1) % punct
-   Rep ::= Rep1
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** pow(M) % punct
-   Rep2 ::= A**1..(M-pow(M)) % punct
+    top ::= sym1 sym2
+    Doseq( sym1, item, 1, (m-1), sep, 'terminator' )
+    Doseq( sym2, item, 1, n, sep, 'proper' )
 ```
 
-This step should be repeated until
-all ranges are either blocks,
-or have an span of four or less.
+## Eliminate spans
 
-## Short one-based ranges
+## Eliminate large separated blocks
 
-Ranges of 4 or less should be turned
-into a sets of fixed length alernatives.
-For example `A**1..4 % punct` should
-be rewritten as
+## Eliminate large unseparated blocks
+
+## Eliminate separated 2-blocks
+
+## Eliminate unseparated 2-blocks
+
+## Eliminate all blocks
+
+At this point the only 6-tuples left to
+reduce to BNF rules,
+are 1-blocks.
+
+### Implementation
+
+## Avoid duplication of rules
+
+## Memoize calls to `Doseq()`
+
+Reductions of the 6-tuples should be memoized.
+That is, for every call to `Doseq()`,
 ```
-    Rep ::= A
-    Rep ::= A punct A
-    Rep ::= A punct A punct A
-    Rep ::= A punct A punct A punct A
+    Doseq( seq, item, 0, inf, sep, sep_type )
 ```
-
-# Large blocks
-
-The only remaining ranges are now blocks,
-that is,
-they have the same minimum and maximum,
-and so are of the form `A**N..N % punct`
-or simply `A**N % punct`.
-If N is greater than 4,
-we binarize the block, much as we did with
-ranges:
+the algorithm should first look in the memoization
+for the 5-tuple composed of the its last 5 elements
 ```
-   Rep ::= Rep1 punct Rep2
-   Rep1 ::= A ** pow(M) % punct
-   Rep2 ::= A ** 1..(M-pow(M)) % punct
+    [ item, 0, inf, sep, sep_type ]
 ```
+If this 5-tuple is present in the memoization,
+its value of the memoization
+will be the value of `seq` for a previous call
+of `Doseq()` with this 5-tuple.
+The memoized value
+value of `seq` of `seq` should be used
+as the new value of `seq`,
+and the steps of `Doseq()`
+for that 5-tuple should not be re-run.
 
-This step should be repeated until
-all ranges are blocks,
-and have a maximum of four or less.
-
-## Small blocks
-
-Blocks of 4 or less should be turned
-into a single NF rule.
-For example, `A**4 % punct` should
-be rewritten as
-```
-    Rep ::= A punct A punct A punct A
-```
+If the 5-tuple is not present,
+the steps of `Doseq()`,
+as described above,
+should be performed.
+The 5-tuple
+should then be added as a key
+in the memoization,
+with the new value of `seq` as the key's
+value.
 
 <!---
 vim: expandtab shiftwidth=4
