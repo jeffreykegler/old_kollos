@@ -272,25 +272,6 @@ we reduce it to a left recursion:
     seq ::= seq item
 ```
 
-### Some definitions
-
-
-The range `(m,n)`
-is called a block if `m` and `n`
-are equal.
-A block is called an "j-block",
-for some integer `j`,
-if `n` is equal to `j`.
-The range `(m,n)`
-is called a span if `m` and `n`
-if it is not a block.
-If a range is a span,
-then we know that `n` is greater
-than `m`.
-A span is called an "j-span",
-for some integer `j`,
-if `n` is equal to `j`.
-
 ### Eliminate large spans
 
 As a reminder,
