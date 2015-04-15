@@ -40,6 +40,35 @@ where
     be either `proper` or `terminator`,
     at the user's choice.
 
+The minimum and maximum elements
+of a 6-tuple are its range.
+The range `m,n`
+is called open if `n` is `inf`.
+The range `m,n`
+is called closed if `n` is an integer.
+
+The range `m,n`
+is called a block if it is closed
+and its length is equal to 1.
+A block is called a "j-block",
+for some integer `j`,
+if its maximum is equal to `j`.
+
+The range `m,n`
+is called a span if it is open,
+or if its length is equal to 1.
+A span is called a "j-span",
+for some integer `j`,
+if `n` is equal to `j`.
+
+A range notion is true of a 6-tuple,
+if and only if
+it is true of the range of the 6-tuple.
+As examples, a 6-tuple is open if
+and only if its range is open,
+and a 6-tuple is a block if and only'
+if its range is a block.
+
 Letting `sep` and `sep_type` stand in
 for the appropriate type of separation,
 rules of the form
@@ -72,19 +101,35 @@ We leave
 `pow2(0)`
 and `pow2(1)` undefined.
 
-## Chomsky form
+## Binarization and Chomsky form
 
-Chomsky showed that context-free
-grammars can be reduced
-to rules whose length is two or less.
+The naive way of to rewrite a span is to
+convert it to a block, one
+for each possible length.
+For a long span, such as `42,8675309`,
+this would result in a number rules
+which is linear in the length of the span.
+
+The procedure in this document uses binarization --
+it repeatedly divides the span into halves.
+This converts a span in a number of rules
+that is logarithmic in the length of the span.
+
+Chomsky showed that any context-free
+grammars can be rewritten into a from
+where all of its rules
+have RHS's
+whose length is two or less.
 Libmarpa's internal form will eventually be
 converted to obey this resriction.
 The procedure in this document
-rewrites rules into a form
-where no RHS is longer
+reduces sequence rules to BNF
+rules show RHS is not longer
 than two symbols,
-unless such a rewrite does real violence
-to the clarity of the result.
+with a few exceptions.
+The exceptions are cases
+where a very short RHS
+is a real problem for readability.
 
 Conversion to Chomsky form during this
 rewrite is not necessary --
@@ -93,63 +138,64 @@ But it is best to shorten the RHS's in a
 context which
 is aware of the intuitive structure of the grammar.
 
-## The rewrite
+## Reducing sequence rules to BNF rules
 
 The rewrite will be a recursive function,
-which we will call, `Doseq()`, so that
+which we will call, `Reduce()`, so that
 ```
-    Doseq( seq, item, 0, inf, sep, sep_type )
+    Reduce( seq, item, 0, inf, sep, sep_type )
 ```
 produces the rewrite for one or our 6-tuples.
-In the rewrite, one or more new symbols will
-be introduced.
-In the descriptions below,
-one of these will be represented as `seq`,
-and the others will be represented by names
-of the form
-`sym1`, `sym2`, etc.
-In fact, the actual rewrite,
-these names
-must such that they are
-unique to that step of the rewrite.
 
 The symbol called `seq`
 will be
-the LHS of the "highest level"
-rule in that stage of the
+the LHS of the "highest level",
+"top", or "parent"
+rule in that step of the
 rewrite.
+Other symbols,
+represented as
+`sym1`, `sym2`, etc.,
+may need to
+be introduced.
+In the actual rewrite,
+the actual names of the symbols
+represented as
+`sym1`, `sym2`, etc.,
+must be
+unique to that step of the rewrite.
 
 The algorithm must track
 the current rules,
 so that no rule is ever added
 more than once.
 It must also memoize the results of
-`Doseq()`.
+`Reduce()`.
 
 ### Eliminate liberal separation
 
 If we have
 ```
-    Doseq( seq, item, m, n, sep, 'liberal' )
+    Reduce( seq, item, m, n, sep, 'liberal' )
 ```
 we convert it into
 ```
     seq ::= sym1
     seq ::= sym2
-    Doseq( sym1, item, m, n, sep, 'proper' )
-    Doseq( sym2, item, m, n, sep, 'terminator' )
+    Reduce( sym1, item, m, n, sep, 'proper' )
+    Reduce( sym2, item, m, n, sep, 'terminator' )
 ```
 
 ### Eliminate termination
 
 If we have
 ```
-    Doseq( seq, item, m, n, sep, 'terminator' )
+    Reduce( seq, item, m, n, sep, 'terminator' )
 ```
 we convert it into
 ```
     seq ::= sym1 sep
-    Doseq( sym1, item, m, n, sep, 'proper' )
+    Reduce( sym1, item, m, n, sep, 'proper' )
 ```
 
 For the rest of this procedure, we can assume
@@ -159,13 +205,13 @@ that separation is either `proper` or `none`.
 
 If we have
 ```
-    Doseq( seq, item, 0, n, sep, seq_type )
+    Reduce( seq, item, 0, n, sep, seq_type )
 ```
 we convert it into
 ```
     seq ::= 
     seq ::= sym1
-    Doseq( sym1, item, 1, n, sep, 'proper' )
+    Reduce( sym1, item, 1, n, sep, 'proper' )
 ```
 
 We may now assume that the minimum of our
@@ -175,28 +221,28 @@ We may now assume that the minimum of our
 
 If we have
 ```
-    Doseq( seq, item, m, n, sep, 'proper' )
+    Reduce( seq, item, m, n, sep, 'proper' )
 ```
 where m is 2 or more,
-we convert it into
+we convert it into a block and a range:
 ```
     seq ::= sym1 sym2
-    Doseq( sym1, item, m, m, sep, 'terminator' )
-    Doseq( sym2, item, 1, n-m, sep, 'proper' )
+    Reduce( sym1, item, m, m, sep, 'terminator' )
+    Reduce( sym2, item, 1, n-m, sep, 'proper' )
 ```
 
 ### Normalize unseparated ranges
 
 If we have
 ```
-    Doseq( seq, item, m, n, 'nil', 'none' )
+    Reduce( seq, item, m, n, 'nil', 'none' )
 ```
-where m is 2 or more, we convert it to
-we convert it into
+where m is 2 or more,
+we convert it into a block and a range:
 ```
     seq ::= sym1 sym2
-    Doseq( sym1, item, m, m), 'nil', 'none' )
-    Doseq( sym2, item, 1, n-m, nul, 'none' )
+    Reduce( sym1, item, m, m), 'nil', 'none' )
+    Reduce( sym2, item, 1, n-m, nul, 'none' )
 ```
 
 ### Eliminate separated open ranges
@@ -206,9 +252,9 @@ all ranges now have a minimum of exactly 1.
 
 If we have
 ```
-    Doseq( seq, item, 1, 'inf', sep, 'proper' )
+    Reduce( seq, item, 1, 'inf', sep, 'proper' )
 ```
-we convert it to a left recursion, as follows
+we reduce it to a left recursion:
 ```
     seq ::= item
     seq ::= seq sep item
@@ -218,9 +264,9 @@ we convert it to a left recursion, as follows
 
 If we have
 ```
-    Doseq( seq, item, 1, 'inf', 'nil', 'none' )
+    Reduce( seq, item, 1, 'inf', 'nil', 'none' )
 ```
-we convert it to a left recursion, as follows
+we reduce it to a left recursion:
 ```
     seq ::= item
     seq ::= seq item
@@ -228,9 +274,6 @@ we convert it to a left recursion, as follows
 
 ### Some definitions
 
-As a result of the previous steps
-all ranges are now closed.
-(A closed range is one with an explicit maximum.)
 
 The range `(m,n)`
 is called a block if `m` and `n`
@@ -251,93 +294,94 @@ if `n` is equal to `j`.
 ### Eliminate large spans
 
 As a reminder,
-at this point all ranges are normalized --
+at this point all spans are normalized --
 that is, their minimum is 1.
+Also, as a result of the previous steps,
+all ranges are now closed.
 
 If we have
 ```
-    Doseq( seq, item, 1, n, sep, 'proper' )
+    Reduce( seq, item, 1, n, sep, 'proper' )
 ```
 where n is greater than 2,
-we convert it into a choice of two
-smaller ranges, as follows
+we binarize it into a choice of two
+smaller ranges:
 ```
     seq ::= sym1
     seq ::= sym2
-    Doseq( sym1, item, 1, pow2(n), sep, sep_type )
-    Doseq( sym2, item, 1, n-pow2(n), sep, sep_type )
+    Reduce( sym1, item, 1, pow2(n), sep, sep_type )
+    Reduce( sym2, item, 1, n-pow2(n), sep, sep_type )
 ```
 
 ### Eliminate spans
 
-Since `Doseq()` is recursive,
+Since `Reduce()` is recursive,
 the previous step will eliminate all spans
 whose maximum is greater than 2.
 So the only possible span at this point is
 ```
-    Doseq( seq, item, 1, 2, sep, sep_type )
+    Reduce( seq, item, 1, 2, sep, sep_type )
 ```
-which we convert to a choice of blocks,
-as follows:
+which we convert to a choice of blocks:
 ```
     seq ::= sym1
     seq ::= sym2
-    Doseq( sym1, item, 1, 1, sep, sep_type )
-    Doseq( sym2, item, 2, 2, sep, sep_type )
+    Reduce( sym1, item, 1, 1, sep, sep_type )
+    Reduce( sym2, item, 2, 2, sep, sep_type )
 ```
 
 With this step, we have eliminated all spans.
-Only blocks remain to be converted
+Only blocks remain to be reduced
 into BNF rules.
 
 ### Eliminate large blocks
 
 If we have
 ```
-    Doseq( seq, item, n, n, sep, 'proper' )
+    Reduce( seq, item, n, n, sep, 'proper' )
 ```
-where n is 2 or more,
-we convert it into a sequence of two
-smaller blocks, as follows
+where n is more than 2,
+we binarize it into a sequence of two
+smaller blocks:
 ```
     seq ::= sym1 sym2
-    Doseq( sym1, item, pow2(n), pow2(n), sep, 'termination' )
-    Doseq( sym2, item, n-pow2(n), n-pow2(n), sep, 'proper' )
+    Reduce( sym1, item, pow2(n), pow2(n), sep, 'termination' )
+    Reduce( sym2, item, n-pow2(n), n-pow2(n), sep, 'proper' )
 ```
 
 If we have
 ```
-    Doseq( seq, item, n, n, 'nil', 'none' )
+    Reduce( seq, item, n, n, 'nil', 'none' )
 ```
 where n is more than 2,
 the conversion is
 ```
     seq ::= sym1 sym2
-    Doseq( sym1, item, pow2(n), pow2(n), 'nil', 'none' )
-    Doseq( sym2, item, n-pow2(n), n-pow2(n), 'nil', 'none' )
+    Reduce( sym1, item, pow2(n), pow2(n), 'nil', 'none' )
+    Reduce( sym2, item, n-pow2(n), n-pow2(n), 'nil', 'none' )
 ```
 
 ### Eliminate separated 2-blocks
 
 Again,
-since `Doseq()` is recursive,
+since `Reduce()` is recursive,
 the previous step converted all blocks to blocks
 whose length is at most 2.
 
 If we have
 ```
-    Doseq( seq, item, 2, 2, sep, 'proper' )
+    Reduce( seq, item, 2, 2, sep, 'proper' )
 ```
-we convert it to
+we reduce it to
 ```
     seq ::= item sep item
 ```
 
 If we have
 ```
-    Doseq( seq, item, 2, 2, 'nil', 'none' )
+    Reduce( seq, item, 2, 2, 'nil', 'none' )
 ```
-we convert it to
+we reduce it to
 ```
     seq ::= item item
 ```
@@ -350,9 +394,9 @@ are 1-blocks.
 
 If we have
 ```
-    Doseq( seq, item, 1, 1, sep, sep_type )
+    Reduce( seq, item, 1, 1, sep, sep_type )
 ```
-we convert it to
+we reduce it to
 ```
     seq ::= item
 ```
@@ -371,12 +415,12 @@ which needs to avoid duplicating rules in
 general,
 not just for this rewrite of sequence rules.
 
-### Memoize calls to `Doseq()`
+### Memoize calls to `Reduce()`
 
 Reductions of the 6-tuples should be memoized.
-That is, for every call to `Doseq()`,
+That is, for every call to `Reduce()`,
 ```
-    Doseq( seq, item, 0, inf, sep, sep_type )
+    Reduce( seq, item, 0, inf, sep, sep_type )
 ```
 the algorithm should first look in the memoization
 for the 5-tuple composed of the its last 5 elements
@@ -386,15 +430,15 @@ for the 5-tuple composed of the its last 5 elements
 If this 5-tuple is present in the memoization,
 its value of the memoization
 will be the value of `seq` for a previous call
-of `Doseq()` with this 5-tuple.
+of `Reduce()` with this 5-tuple.
 The memoized value
 value of `seq` of `seq` should be used
 as the new value of `seq`,
-and the steps of `Doseq()`
+and the steps of `Reduce()`
 for that 5-tuple should not be re-run.
 
 If the 5-tuple is not present,
-the steps of `Doseq()`,
+the steps of `Reduce()`,
 as described above,
 should be performed.
 The 5-tuple
