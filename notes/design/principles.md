@@ -23,8 +23,8 @@ you need multi-tasking and I/O, so you in fact have a nice running start.
 All of the target apps I mention are long forgotten, but they kept their
 projects focused.
 
-Get as user base as soon as reasonable, and be loyal to it
-==========================================================
+Get user base as soon as reasonable, and be loyal to it
+=======================================================
 
 Marpa::R2 bug fixes (mercifully rare) are not my first love,
 but they are my first priority.
