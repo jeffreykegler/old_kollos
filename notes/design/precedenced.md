@@ -138,6 +138,22 @@ add the rule
 ```
    exp[x] ::= exp[tighter(x)]
 ```
+For example, if the precedence ran from
+`loosest == 0` to `tightest == 4`,
+we would all the rules
+```
+    exp[0] ::= exp[1]
+    exp[1] ::= exp[2]
+    exp[2] ::= exp[3]
+    exp[3] ::= exp[4]
+```
+
+### Left association
+
+We now can deal with the RHS alternatives in the work list.
+Let `curr` be the precedence of the RHS alternative.
+If a RHS alternative has left association, the default,
+we rewrite the RHS, replacing all occurrences of `exp`.
 
 <!---
 vim: expandtab shiftwidth=4
