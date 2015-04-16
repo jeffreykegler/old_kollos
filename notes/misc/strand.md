@@ -99,7 +99,7 @@ Dotted rules are of several kinds:
 * medial dotted rules,
   or *medials*,
   which are those dotted rules which are neither
-  predictions or completions.
+  predictions nor completions.
 
 If `rule` is a rule, then
 
