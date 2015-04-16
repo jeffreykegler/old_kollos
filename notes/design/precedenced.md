@@ -154,6 +154,68 @@ We now can deal with the RHS alternatives in the work list.
 Let `curr` be the precedence of the RHS alternative.
 If a RHS alternative has left association, the default,
 we rewrite the RHS, replacing all occurrences of `exp`.
+We replace the leftmost occurrence of `exp` with `exp[curr]`,
+and the others with `exp[tighter(curr)]`.
+We then add a rule with the rewritten RHS,
+and `exp[curr]` as the LHS.
+
+For example, if the RHS alternative is
+```
+    exp + exp
+```
+we add the rule
+```
+    exp[curr] ::= exp[curr] + exp[tighter(curr)]
+```
+
+Note that `exp` may not occur on the RHS, in which
+case no RHS replacements will be necessary.
+
+### Right association
+
+Right association is handled in a way that is
+symmetric with left association.
+Again, let `curr` be the precedence of the RHS alternative.
+If a RHS alternative has right association,
+we rewrite the RHS, replacing all occurrences of `exp`.
+We replace the *rightmost* occurrence of `exp` with `exp[curr]`,
+and the others with `exp[tighter(curr)]`.
+We then add a rule with the rewritten RHS,
+and `exp[curr]` as the LHS.
+
+For example, if the RHS alternative is
+```
+    exp ** exp
+```
+we add the rule
+```
+    exp[curr] ::= exp[tighter(curr)] ** exp[curr]
+```
+
+### Group association
+
+The archetypal case for
+group association is the parenthesis operator.
+Intuitively, group association allows any expression
+to occur inside another "surrounding" expression.
+In the case of the parentheses, of course,
+they actually surround their contents lexically.
+
+Let `curr` be the precedence of the RHS alternative.
+If a RHS alternative has group association,
+we rewrite the RHS, replacing all occurrences of `exp`
+with `exp[0]`,
+We then add a rule with the rewritten RHS,
+and `exp[curr]` as the LHS.
+
+For example, if the RHS alternative is
+```
+    ( exp )
+```
+we add the rule
+```
+    exp[curr] ::= ( exp[0] )
+```
 
 <!---
 vim: expandtab shiftwidth=4
