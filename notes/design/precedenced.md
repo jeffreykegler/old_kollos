@@ -26,6 +26,8 @@ The rewrite outlined in this document should *not*
 be applied to a rule, if all of its alternatives
 are at a single precedence.
 
+## Numbering the precedences
+
 In the Marpa::R2, the precedenced ("prioritized")
 rules list precedences, from tightest to loosest,
 separated by double bar
@@ -40,9 +42,10 @@ priority is called the "tightest",
 and what is traditionally called the "lowest" priority
 is called "loosest" priority.
 
-In the perlop man page, the priority are numbered from
+In the perlop man page, the priorities (as they are
+called on that page) are numbered from
 "highest" to "lowest", with 0 being the highest,
-so that the lowest prioriity is the highest-numbered.
+so that the lowest priority is the highest-numbered.
 That kind of confusion is common in the literature,
 which is why I have preferred the terms "tight" and
 "loose" over "high" and "low".
@@ -59,9 +62,31 @@ The tightest priority,
 traditionally called the highest,
 will be the highest-numbered.
 
+In what follows, we will call the number
+of the tightest precedence `tightest`.
+The number of the loosest precedence will
+be called `loosest`.
+`loosest` will always be 0.
+
+If `x` is a precedence,
+```
+    looser(x) == x-1 if x > 0
+    looser(0) == 0
+    tighter(x) == x+1 if x < tightest
+    tighter(tightest) == tightest
+```
+Intuitively,
+`looser(x)` and `tighter(x)` are
+used for stepping up and down the
+precedences.
+`looser(x)` is the
+next-loosest predenence,
+and `tighter(x)` is the
+next-tightest predenence.
+
 ## Rewriting precedenced rules
 
-### Preparing the work list the precedence levels
+### Preparing the work list
 
 In a first pass over a precedenced rule,
 we produce a work list
@@ -82,6 +107,37 @@ We have been ignoring the adverbs, or options,
 but this is a case where they are relevant --
 the adverbs may specify associativity.
 By default, associativity is `left`.
+
+### The top level rule
+
+In what follows, `exp` will represent the LHS symbol
+of the precedenced rule.
+We will need to have a unique symbols for 
+`exp` at each level of precedence.
+We will represent the symbol for `exp`
+at level `x` as `exp[x]`.
+
+The top level rule for the precedenced rule
+will be a rule with the precedenced rule's LHS
+as its LHS,
+and the unique symbol for the lowest precedence
+as its RHS.
+That is, the top level rule will be
+```
+     exp ::= exp[0]
+```
+
+### The "spine"
+
+In many expressions, there is no logic at a given
+precedence level, so that we need to simply "fall through"
+to the next-tighter (or next-higher) level of precedence.
+Therefore, for every precedence `x`, such
+that `x` is less than `tightest`, we
+add the rule
+```
+   exp[x] ::= exp[tighter(x)]
+```
 
 <!---
 vim: expandtab shiftwidth=4
