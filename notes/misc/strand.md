@@ -214,11 +214,11 @@ we will define
 a set of *nucleobase symbols*,
 or *nucleobases*.
 Nucleobase symbols exist to allow non-terminals to be split in half.
-Nucleobases come in right and left versions.
+Nucleobases come in "forward" and "reverse" versions.
 For example, for the symbol `A`,
-the nucleobases will be `A-L` and `A-R`.
+the nucleobases will be `A-F` and `A-R`.
 The symbol `A` is called the *base symbol*
-of the nucleobases `A-L` and `A-R`.
+of the nucleobases `A-F` and `A-R`.
 
 To extend the pre-strand grammar to a suffix grammar,
 we also define pairs of 'nucleotide rules'.
@@ -237,12 +237,12 @@ Call this rule `rule-X`.
 The six pairs of
 "nucleotide rules" that we will need for `rule-X` are
 ```
-    1: X-L ::=                X-R ::= A B C
-    2: X-L ::= A-L            X-R ::= A-R B C
-    3: X-L ::= A              X-R ::= B C
-    4: X-L ::= A B-L          X-R ::= B-R C
-    5: X-L ::= A B            X-R ::= C
-    6: X-L ::= A B C-L        X-R ::= C-R
+    1: X-F ::=                X-R ::= A B C
+    2: X-F ::= A-F            X-R ::= A-R B C
+    3: X-F ::= A              X-R ::= B C
+    4: X-F ::= A B-F          X-R ::= B-R C
+    5: X-F ::= A B            X-R ::= C
+    6: X-F ::= A B C-F        X-R ::= C-R
 ```
 `rule-X` is called the *base rule* of these nucleotides.
 The pseudo-code accessor `Base-rule(rule)` returns the base
@@ -313,17 +313,17 @@ has
 For the example above,
 
 ```
-    Forward-inter-nucleotide([X ::= . A B C]) = [X-L ::= ]
+    Forward-inter-nucleotide([X ::= . A B C]) = [X-F ::= ]
     Reverse-inter-nucleotide([X ::= . A B C]) = [X-R ::= A B C]
-    Forward-intra-nucleotide([X ::= . A B C]) = [X-L ::= A-L]
+    Forward-intra-nucleotide([X ::= . A B C]) = [X-F ::= A-F]
     Reverse-intra-nucleotide([X ::= . A B C]) = [X-R ::= A-R B C]
-    Forward-inter-nucleotide([X ::= A . B C]) = [X-L ::= A]
+    Forward-inter-nucleotide([X ::= A . B C]) = [X-F ::= A]
     Reverse-inter-nucleotide([X ::= A . B C]) = [X-R ::= B C]
-    Forward-intra-nucleotide([X ::= A . B C]) = [X-L ::= A B-L]
+    Forward-intra-nucleotide([X ::= A . B C]) = [X-F ::= A B-F]
     Reverse-intra-nucleotide([X ::= A . B C]) = [X-R ::= B-R C]
-    Forward-inter-nucleotide([X ::= A B . C]) = [X-L ::= A B]
+    Forward-inter-nucleotide([X ::= A B . C]) = [X-F ::= A B]
     Reverse-inter-nucleotide([X ::= A B . C]) = [X-R ::= C]
-    Forward-intra-nucleotide([X ::= A B . C]) = [X-L ::= A B C-L ]
+    Forward-intra-nucleotide([X ::= A B . C]) = [X-F ::= A B C-F ]
     Reverse-intra-nucleotide([X ::= A B . C]) = [X-R ::= C-R]
 ```
 
@@ -347,7 +347,7 @@ before the first RHS symbol is called the "prediction nucleotide pair".
 In the above example,
 the prediction nucleotides are pair 1, these two rules:
 ```
-    X-L ::=
+    X-F ::=
     X-R ::= A B C
 ```
 
@@ -445,14 +445,14 @@ so that 0 is the position before the first symbol of the RHS,
 and 1 is the position immediately after the first symbol of the RHS.
 As examples,
 
-    [X-L ::= A . B ]
-         = DR-convert([X-L ::= A B ], [X ::= A . B C D])
+    [X-F ::= A . B ]
+         = DR-convert([X-F ::= A B ], [X ::= A . B C D])
     [X ::= A . B C D]
-         = DR-convert([X ::= A B C D], [X-L ::= A . B ])
-    [X-L ::= A . B-L ]
-         = DR-convert([X-L ::= A B-L ], [X ::= A . B C D])
+         = DR-convert([X ::= A B C D], [X-F ::= A . B ])
+    [X-F ::= A . B-F ]
+         = DR-convert([X-F ::= A B-F ], [X ::= A . B C D])
     [X ::= A . B C D]
-         = DR-convert([X ::= A B C D], [X-L ::= A . B-L ])
+         = DR-convert([X ::= A B C D], [X-F ::= A . B-F ])
 
 If the nucleotide's direction is "reverse",
 then position is counted in reverse lexical order,
@@ -478,11 +478,11 @@ We will convert the dotted rule
 ```
 to another nucleotide rule,
 ```
-    [X-L ::= A B C ]
+    [X-F ::= A B C ]
 ```
 As required, these share a common base rule,
 ```
-    [X-L ::= A B C D]
+    [X-F ::= A B C D]
 ```
 but it is not required that they share a common
 base dotted rule,
@@ -490,20 +490,20 @@ and in this example, their base dotted rules are different.
 
 The conversion takes place as follows:
 ```
-    DR-convert([X-L ::= A B C ]), [X-R ::= B . C D])
-         = DR-convert([X-L ::= A B C ]),
+    DR-convert([X-F ::= A B C ]), [X-R ::= B . C D])
+         = DR-convert([X-F ::= A B C ]),
                   DR-convert([X ::= A B C D], [X-R ::= B . C D])
-         = DR-convert([X-L ::= A B C ]), [X ::= A B . C D])
-         = [X-L ::= A B . C ]
+         = DR-convert([X-F ::= A B C ]), [X ::= A B . C D])
+         = [X-F ::= A B . C ]
 ```
 
 Here is another example of a "double conversion"
 ```
-    DR-convert([X-L ::= A B C-L ]), [X-R ::= . B-R C D])
-         = DR-convert([X-L ::= A B C-L ]),
+    DR-convert([X-F ::= A B C-F ]), [X-R ::= . B-R C D])
+         = DR-convert([X-F ::= A B C-F ]),
              DR-convert([X ::= A B C D], [X-R ::= . B-R C D])
-         = DR-convert([X-L ::= A B C-L ]), [X ::= A . B C D])
-         = [X-L ::= A . B C-L ]
+         = DR-convert([X-F ::= A B C-F ]), [X ::= A . B C D])
+         = [X-F ::= A . B C-F ]
 ```
 
 ### The straddling dotted rule
@@ -526,9 +526,9 @@ is split.
 
 As examples,
 ```
-    Straddle([X-L ::= . A B ]) = [X ::= . A B C D]
-    Straddle([X-L ::= A . B ]) = [X ::= A . B C D]
-    Straddle([X-L ::= A B . ]) = [X ::= A B . C D]
+    Straddle([X-F ::= . A B ]) = [X ::= . A B C D]
+    Straddle([X-F ::= A . B ]) = [X ::= A . B C D]
+    Straddle([X-F ::= A B . ]) = [X ::= A B . C D]
     Straddle([X-R ::= . C D]) = [X ::= A B . C D]
     Straddle([X-R ::= C . D]) = [X ::= A B C . D]
     Straddle([X-R ::= C D .]) = [X ::= A B C D .]
@@ -1213,7 +1213,7 @@ the suffix parse, we do the following:
     (its "cause");
     and every cause-effect chain will
     eventually reach a effect node that
-    is the left nucleotide of the start rule,
+    is the forward nucleotide of the start rule,
     which will not be the cause of any effect node.
 
   - Pop a node from the working stack.
