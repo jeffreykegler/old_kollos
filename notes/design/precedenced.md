@@ -4,27 +4,27 @@ This document describes how the KHIL rewrites
 precedenced rules for the KIR.
 Kollos's precedenced rules are what are called
 in Marpa::R2 "prioritized rules".
-The change in names is because
-the term "priority" is already heavily overloaded in
-the Marpa context, and in general.
+The term "priority" is very heavily overloaded in
+the Marpa context, and in general,
+so Jeffrey changed the name.
 
 It is assumed the reader is familiar with Marpa::R2's
 prioritized rules.
 A reader who is rusty should glance at one of the
 examples in the Marpa::R2 synopses.
 
-In this document we will ignore actions and adverbs.
+In this document,
+we will mostly ignore actions and adverbs.
 Without those,
-a precedenced rule, consists of a LHS,
+a precedenced rule consists of a LHS,
 and two or more RHS alternatives.
 At least two of these RHS alternatives should be
 at different precedences.
-If all the RHS alternatives are at a single
-the rule, from the point of view of this document,
-should be treated as a special case.
 The rewrite outlined in this document should *not*
 be applied to a rule, if all of its alternatives
 are at a single precedence.
+Instead, rules with a single precedence should be
+handled as a simpler special case.
 
 ## Numbering the precedences
 
@@ -38,16 +38,16 @@ by the single bar operator (`|`).
 Readers who want to be reminded of how a precedence
 scheme works should look at the perlop man page.
 In this document what is traditionally called "highest"
-priority is called the "tightest",
+priority is called the "tightest" priority,
 and what is traditionally called the "lowest" priority
-is called "loosest" priority.
+is called the "loosest" priority.
 
 In the perlop man page, the priorities (as they are
 called on that page) are numbered from
 "highest" to "lowest", with 0 being the highest,
 so that the lowest priority is the highest-numbered.
 That kind of confusion is common in the literature,
-which is why I have preferred the terms "tight" and
+which is why Jeffrey prefers the terms "tight" and
 "loose" over "high" and "low".
 
 In this document,
@@ -112,16 +112,15 @@ By default, associativity is `left`.
 
 In what follows, `exp` will represent the LHS symbol
 of the precedenced rule.
-We will need to have a unique symbols for 
+We will need to have a unique symbol for 
 `exp` at each level of precedence.
 We will represent the symbol for `exp`
 at level `x` as `exp[x]`.
 
 The top level rule for the precedenced rule
-will be a rule with the precedenced rule's LHS
-as its LHS,
-and the unique symbol for the lowest precedence
-as its RHS.
+will be a rule whose LHS is the precedenced rule's LHS,
+and whose RHS is
+the symbol for `exp` at the the lowest precedence.
 That is, the top level rule will be
 ```
      exp ::= exp[0]
@@ -131,7 +130,7 @@ That is, the top level rule will be
 
 In many expressions, there is no logic at a given
 precedence level, so that we need to simply "fall through"
-to the next-tighter (or next-higher) level of precedence.
+to the next-tighter level of precedence.
 Therefore, for every precedence `x`, such
 that `x` is less than `tightest`, we
 add the rule
@@ -140,7 +139,7 @@ add the rule
 ```
 For example, if the precedence ran from
 `loosest == 0` to `tightest == 4`,
-we would all the rules
+we would add the BNF rules
 ```
     exp[0] ::= exp[1]
     exp[1] ::= exp[2]
@@ -152,7 +151,7 @@ we would all the rules
 
 We now can deal with the RHS alternatives in the work list.
 Let `curr` be the precedence of the RHS alternative.
-If a RHS alternative has left association, the default,
+If a RHS alternative has left association (the default)
 we rewrite the RHS, replacing all occurrences of `exp`.
 We replace the leftmost occurrence of `exp` with `exp[curr]`,
 and the others with `exp[tighter(curr)]`.
@@ -163,7 +162,7 @@ For example, if the RHS alternative is
 ```
     exp + exp
 ```
-we add the rule
+we add the BNF rule
 ```
     exp[curr] ::= exp[curr] + exp[tighter(curr)]
 ```
@@ -187,7 +186,7 @@ For example, if the RHS alternative is
 ```
     exp ** exp
 ```
-we add the rule
+we add the BNF rule
 ```
     exp[curr] ::= exp[tighter(curr)] ** exp[curr]
 ```
@@ -212,7 +211,7 @@ For example, if the RHS alternative is
 ```
     ( exp )
 ```
-we add the rule
+we add the BNF rule
 ```
     exp[curr] ::= ( exp[0] )
 ```
