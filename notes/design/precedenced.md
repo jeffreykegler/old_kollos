@@ -80,9 +80,9 @@ Intuitively,
 used for stepping up and down the
 precedences.
 `looser(x)` is the
-next-loosest predenence,
+next-loosest precedence,
 and `tighter(x)` is the
-next-tightest predenence.
+next-tightest precedence.
 
 ## Rewriting precedenced rules
 
