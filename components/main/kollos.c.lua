@@ -391,122 +391,6 @@ static int l_error_tostring(lua_State* L)
 ]=]
 
 -- functions
-io.write[=[
-#if 0
-
-void
-new( ... )
-PPCODE:
-{
-  Marpa_Grammar g;
-  G_Wrapper *g_wrapper;
-  int throw = 1;
-  Marpa_Config marpa_configuration;
-  Marpa_Error_Code error_code;
-
-      {
-	I32 retlen;
-	char *key;
-	SV *arg_value;
-	SV *arg = ST (1);
-	HV *named_args;
-	if (!SvROK (arg) || SvTYPE (SvRV (arg)) != SVt_PVHV)
-	  croak ("Problem in $g->new(): argument is not hash ref");
-	named_args = (HV *) SvRV (arg);
-	hv_iterinit (named_args);
-	while ((arg_value = hv_iternextsv (named_args, &key, &retlen)))
-	  {
-	    if ((*key == 'i') && strnEQ (key, "if", (unsigned) retlen))
-	      {
-		interface = SvIV (arg_value);
-		if (interface != 1)
-		  {
-		    croak ("Problem in $g->new(): interface value must be 1");
-		  }
-		continue;
-	      }
-	    croak ("Problem in $g->new(): unknown named argument: %s", key);
-	  }
-	if (interface != 1)
-	  {
-	    croak
-	      ("Problem in $g->new(): 'interface' named argument is required");
-	  }
-      }
-
-  /* Make sure the header is from the version we want */
-  if (MARPA_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR
-      || MARPA_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR
-      || MARPA_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
-    {
-      croak
-	("Problem in $g->new(): want Libmarpa %d.%d.%d, header was from Libmarpa %d.%d.%d",
-	 EXPECTED_LIBMARPA_MAJOR, EXPECTED_LIBMARPA_MINOR,
-	 EXPECTED_LIBMARPA_MICRO,
-	 MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION,
-	 MARPA_MICRO_VERSION);
-    }
-
-  {
-    /* Now make sure the library is from the version we want */
-    int version[3];
-    error_code = marpa_version (version);
-    if (error_code != MARPA_ERR_NONE
-	|| version[0] != EXPECTED_LIBMARPA_MAJOR
-	|| version[1] != EXPECTED_LIBMARPA_MINOR
-	|| version[2] != EXPECTED_LIBMARPA_MICRO)
-      {
-	croak
-	  ("Problem in $g->new(): want Libmarpa %d.%d.%d, using Libmarpa %d.%d.%d",
-	   EXPECTED_LIBMARPA_MAJOR, EXPECTED_LIBMARPA_MINOR,
-	   EXPECTED_LIBMARPA_MICRO, version[0], version[1], version[2]);
-      }
-  }
-
-  marpa_c_init (&marpa_configuration);
-  g = marpa_g_new (&marpa_configuration);
-
-  /* force valued !!!! */
-  if (g)
-    {
-      SV *sv;
-      Newx (g_wrapper, 1, G_Wrapper);
-      g_wrapper->throw = throw;
-      g_wrapper->g = g;
-      g_wrapper->message_buffer = NULL;
-      g_wrapper->libmarpa_error_code = MARPA_ERR_NONE;
-      g_wrapper->libmarpa_error_string = NULL;
-      g_wrapper->message_is_marpa_thin_error = 0;
-      sv = sv_newmortal ();
-      sv_setref_pv (sv, grammar_c_class_name, (void *) g_wrapper);
-      XPUSHs (sv);
-    }
-  else
-    {
-      error_code = marpa_c_error (&marpa_configuration, NULL);
-    }
-
-  if (error_code != MARPA_ERR_NONE)
-    {
-      const char *error_description = "Error code out of bounds";
-      if (error_code >= 0 && error_code < MARPA_ERROR_COUNT)
-	{
-	  error_description = marpa_error_description[error_code].name;
-	}
-      if (throw)
-	croak ("Problem in Marpa::R2->new(): %s", error_description);
-      if (GIMME != G_ARRAY)
-	{
-	  XSRETURN_UNDEF;
-	}
-      XPUSHs (&PL_sv_undef);
-      XPUSHs (sv_2mortal (newSViv (error_code)));
-    }
-}
-
-#endif
-
-]=]
 
 io.write[=[
 
@@ -581,7 +465,9 @@ static int l_grammar_new(lua_State *L)
 
   /* [ kollos ] */
   {
+    Marpa_Config marpa_config;
     Marpa_Grammar *p_g;
+    int result;
     p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
     /* [ kollos, userdata ] */
     lua_getfield (L, -2, "_mt_g_ud");
@@ -590,6 +476,17 @@ static int l_grammar_new(lua_State *L)
     /* [ kollos, userdata ] */
     lua_pop (L, 1);
     /* [ kollos ] */
+    marpa_c_init(&marpa_config);
+    *p_g = marpa_g_new(&marpa_config);
+    if (!*p_g) {
+        Marpa_Error_Code marpa_error = marpa_c_error(&marpa_config, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_new()" );
+    }
+    result = marpa_g_force_valued(*p_g);
+    if (result < 0) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_force_valued()" );
+    }
   }
   return 1;
 }
@@ -597,7 +494,7 @@ static int l_grammar_new(lua_State *L)
 static int l_grammar_ud_mt_gc(lua_State *L) {
     Marpa_Grammar *p_g;
     p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
-    if (*p_g) { /* Unref Libmarpa grammar */ }
+    if (*p_g) marpa_g_unref(*p_g);
    return 0;
 }
 
