@@ -461,29 +461,34 @@ That is, for every call to `Reduce()`,
     Reduce( item, 0, inf, sep, sep_type )
 ```
 the algorithm should first look in the memoization
-for the 5-tuple composed of the its last 5 elements
+for the 5-tuple composed of its arguments
 ```
     [ item, 0, inf, sep, sep_type ]
 ```
 If this 5-tuple is present in the memoization,
 its value of the memoization
-will be the value of `seq` for a previous call
+will be the value returned by the previous call
 of `Reduce()` with this 5-tuple.
-The memoized value
-value of `seq` of `seq` should be used
-as the new value of `seq`,
-and the steps of `Reduce()`
-for that 5-tuple should not be re-run.
+The memoized return value
+as the new return value,
+and the procedure of `Reduce()`
+for that condition should *not*
+be carried out.
 
 If the 5-tuple is not present,
-the steps of `Reduce()`,
+the procedure for the appropriate
+condition,
 as described above,
-should be performed.
-The 5-tuple
-should then be added as a key
-in the memoization,
-with the new value of `seq` as the key's
-value.
+should be carried out,
+and its return value
+should be recorded.
+A new key-value pair should then
+be added to the memoization,
+where the
+5-tuple is the key half of the key-value pair,
+and the procedure's return value
+is the value half
+of the key-value pair.
 
 <!---
 vim: expandtab shiftwidth=4
