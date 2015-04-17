@@ -143,7 +143,7 @@ is aware of the intuitive structure of the grammar.
 The rewrite will be a recursive function,
 which we will call, `Reduce()`, so that
 ```
-    Reduce( seq, item, 0, inf, sep, sep_type )
+    seq = Reduce( item, 0, inf, sep, sep_type )
 ```
 produces the rewrite for one or our 6-tuples.
 
@@ -172,46 +172,103 @@ more than once.
 It must also memoize the results of
 `Reduce()`.
 
+### Format
+
+Each step will state a
+condition,
+which will be a `Reduce()`
+pseudo-code function
+in a restricted form.
+
+Following the condition
+will be the procedure to be followed
+if it holds.
+This procedure
+will consist of zero or
+more recursive calls to `Reduce()`,
+of the form,
+```
+    Let sym1 = Reduce( item, m, n, sep, 'proper' )
+```
+followed by one or more BNF rules
+to be added.
+The addition of BNF rules is stated in the form
+```
+    Add rule seq ::= sym1
+```
+The values produced
+by the `Reduce()` calls
+are used in the BNF rules.
+
+Only the procedure in the first
+condition that applies
+is carried out,
+so that each pass through this logic
+invokes the procedure
+of one and only one of the steps.
+
+The assumption is made that the
+result of the `Reduce()` functions
+can be used in the BNF rules.
+In all the procedures, this is always
+the case, since the BNF rules are either created
+at that point,
+or else exactly
+duplicate other BNF rules already created.
+
+An exception, however is the top-level `Reduce()`
+call of the sequence rule, whose result must be
+fit into an existing context.
+That context may want the LHS of the top-level
+rule to have a pre-determined name,
+call it `wanted-seq`.
+If `Reduce()` instead returns `returned-seq`,
+the incompatibility can worked around
+by adding a unit rule:
+```
+    wanted-seq ::= returned-seq`
+```
+
 ### Eliminate liberal separation
 
 If we have
 ```
-    Reduce( seq, item, m, n, sep, 'liberal' )
+    Reduce( item, m, n, sep, 'liberal' )
 ```
-we convert it into
+our procedure is
 ```
-    seq ::= sym1
-    seq ::= sym2
-    Reduce( sym1, item, m, n, sep, 'proper' )
-    Reduce( sym2, item, m, n, sep, 'terminator' )
+    Let sym1 = Reduce( item, m, n, sep, 'proper' )
+    Let sym2 = Reduce( item, m, n, sep, 'terminator' )
+    Add rule seq ::= sym1
+    Add rule seq ::= sym2
 ```
 
 ### Eliminate termination
 
 If we have
 ```
-    Reduce( seq, item, m, n, sep, 'terminator' )
+    Reduce( item, m, n, sep, 'terminator' )
 ```
-we convert it into
+our procedure is
 ```
-    seq ::= sym1 sep
-    Reduce( sym1, item, m, n, sep, 'proper' )
+    Let sym1 = Reduce( item, m, n, sep, 'proper' )
+    Add rule seq ::= sym1 sep
 ```
 
-For the rest of this procedure, we can assume
+For the following steps, we can now assume
 that separation is either `proper` or `none`.
 
 #### Eliminate nullables
 
 If we have
 ```
-    Reduce( seq, item, 0, n, sep, seq_type )
+    Reduce( item, 0, n, sep, seq_type )
 ```
-we convert it into
+our procedure is
 ```
-    seq ::= 
-    seq ::= sym1
-    Reduce( sym1, item, 1, n, sep, 'proper' )
+    Let sym1 = Reduce( item, 1, n, sep, 'proper' )
+    Add rule seq ::= 
+    Add rule seq ::= sym1
 ```
 
 We may now assume that the minimum of our
@@ -221,28 +278,28 @@ We may now assume that the minimum of our
 
 If we have
 ```
-    Reduce( seq, item, m, n, sep, 'proper' )
+    Reduce( item, m, n, sep, 'proper' )
 ```
 where m is 2 or more,
 we convert it into a block and a range:
 ```
-    seq ::= sym1 sym2
-    Reduce( sym1, item, m, m, sep, 'terminator' )
-    Reduce( sym2, item, 1, n-m, sep, 'proper' )
+    Let sym1 = Reduce( item, m, m, sep, 'terminator' )
+    Let sym2 = Reduce( item, 1, n-m, sep, 'proper' )
+    Add rule seq ::= sym1 sym2
 ```
 
 ### Normalize unseparated ranges
 
 If we have
 ```
-    Reduce( seq, item, m, n, 'nil', 'none' )
+    Reduce( item, m, n, 'nil', 'none' )
 ```
 where m is 2 or more,
 we convert it into a block and a range:
 ```
-    seq ::= sym1 sym2
-    Reduce( sym1, item, m, m), 'nil', 'none' )
-    Reduce( sym2, item, 1, n-m, nul, 'none' )
+    Let sym1 = Reduce( item, m, m), 'nil', 'none' )
+    Let sym2 = Reduce( item, 1, n-m, nul, 'none' )
+    Add rule seq ::= sym1 sym2
 ```
 
 ### Eliminate separated open ranges
@@ -252,24 +309,24 @@ all ranges now have a minimum of exactly 1.
 
 If we have
 ```
-    Reduce( seq, item, 1, 'inf', sep, 'proper' )
+    Reduce( item, 1, 'inf', sep, 'proper' )
 ```
 we reduce it to a left recursion:
 ```
-    seq ::= item
-    seq ::= seq sep item
+    Add rule seq ::= item
+    Add rule seq ::= seq sep item
 ```
 
 ### Eliminate unseparated open ranges
 
 If we have
 ```
-    Reduce( seq, item, 1, 'inf', 'nil', 'none' )
+    Reduce( item, 1, 'inf', 'nil', 'none' )
 ```
 we reduce it to a left recursion:
 ```
-    seq ::= item
-    seq ::= seq item
+    Add rule seq ::= item
+    Add rule seq ::= seq item
 ```
 
 ### Eliminate large spans
@@ -282,16 +339,16 @@ all ranges are now closed.
 
 If we have
 ```
-    Reduce( seq, item, 1, n, sep, 'proper' )
+    Reduce( item, 1, n, sep, 'proper' )
 ```
 where n is greater than 2,
 we binarize it into a choice of two
 smaller ranges:
 ```
-    seq ::= sym1
-    seq ::= sym2
-    Reduce( sym1, item, 1, pow2(n), sep, sep_type )
-    Reduce( sym2, item, 1, n-pow2(n), sep, sep_type )
+    Let sym1 = Reduce( item, 1, pow2(n), sep, sep_type )
+    Let sym2 = Reduce( item, 1, n-pow2(n), sep, sep_type )
+    Add rule seq ::= sym1
+    Add rule seq ::= sym2
 ```
 
 ### Eliminate spans
@@ -301,14 +358,14 @@ the previous step will eliminate all spans
 whose maximum is greater than 2.
 So the only possible span at this point is
 ```
-    Reduce( seq, item, 1, 2, sep, sep_type )
+    Reduce( item, 1, 2, sep, sep_type )
 ```
 which we convert to a choice of blocks:
 ```
-    seq ::= sym1
-    seq ::= sym2
-    Reduce( sym1, item, 1, 1, sep, sep_type )
-    Reduce( sym2, item, 2, 2, sep, sep_type )
+    Let sym1 = Reduce( item, 1, 1, sep, sep_type )
+    Let sym2 = Reduce( item, 2, 2, sep, sep_type )
+    Add rule seq ::= sym1
+    Add rule seq ::= sym2
 ```
 
 With this step, we have eliminated all spans.
@@ -319,27 +376,27 @@ into BNF rules.
 
 If we have
 ```
-    Reduce( seq, item, n, n, sep, 'proper' )
+    Reduce( item, n, n, sep, 'proper' )
 ```
 where n is more than 2,
 we binarize it into a sequence of two
 smaller blocks:
 ```
-    seq ::= sym1 sym2
-    Reduce( sym1, item, pow2(n), pow2(n), sep, 'termination' )
-    Reduce( sym2, item, n-pow2(n), n-pow2(n), sep, 'proper' )
+    Let sym1 = Reduce( item, pow2(n), pow2(n), sep, 'termination' )
+    Let sym2 = Reduce( item, n-pow2(n), n-pow2(n), sep, 'proper' )
+    Add rule seq ::= sym1 sym2
 ```
 
 If we have
 ```
-    Reduce( seq, item, n, n, 'nil', 'none' )
+    Reduce( item, n, n, 'nil', 'none' )
 ```
 where n is more than 2,
 the conversion is
 ```
-    seq ::= sym1 sym2
-    Reduce( sym1, item, pow2(n), pow2(n), 'nil', 'none' )
-    Reduce( sym2, item, n-pow2(n), n-pow2(n), 'nil', 'none' )
+    Let sym1 = Reduce( item, pow2(n), pow2(n), 'nil', 'none' )
+    Let sym2 = Reduce( item, n-pow2(n), n-pow2(n), 'nil', 'none' )
+    Add rule seq ::= sym1 sym2
 ```
 
 ### Eliminate separated 2-blocks
@@ -351,20 +408,20 @@ whose length is at most 2.
 
 If we have
 ```
-    Reduce( seq, item, 2, 2, sep, 'proper' )
+    Reduce( item, 2, 2, sep, 'proper' )
 ```
 we reduce it to
 ```
-    seq ::= item sep item
+    Add rule seq ::= item sep item
 ```
 
 If we have
 ```
-    Reduce( seq, item, 2, 2, 'nil', 'none' )
+    Reduce( item, 2, 2, 'nil', 'none' )
 ```
 we reduce it to
 ```
-    seq ::= item item
+    Add rule seq ::= item item
 ```
 
 ### Eliminate all blocks
@@ -375,11 +432,11 @@ are 1-blocks.
 
 If we have
 ```
-    Reduce( seq, item, 1, 1, sep, sep_type )
+    Reduce( item, 1, 1, sep, sep_type )
 ```
 we reduce it to
 ```
-    seq ::= item
+    Add rule seq ::= item
 ```
 
 With this final step, we have reduced all sequence
@@ -401,7 +458,7 @@ not just for this rewrite of sequence rules.
 Reductions of the 6-tuples should be memoized.
 That is, for every call to `Reduce()`,
 ```
-    Reduce( seq, item, 0, inf, sep, sep_type )
+    Reduce( item, 0, inf, sep, sep_type )
 ```
 the algorithm should first look in the memoization
 for the 5-tuple composed of the its last 5 elements
