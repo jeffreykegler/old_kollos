@@ -424,6 +424,7 @@ static void luif_err_throw2(lua_State *L, int error_code, const char *msg) {
 
 static int l_grammar_new(lua_State *L)
 {
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     /* expecting a table */
     luaL_checktype(L, 1, LUA_TTABLE);
 
@@ -488,11 +489,13 @@ static int l_grammar_new(lua_State *L)
         kollos_throw( L, marpa_error, "marpa_g_force_valued()" );
     }
   }
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   return 1;
 }
 
 static int l_grammar_ud_mt_gc(lua_State *L) {
     Marpa_Grammar *p_g;
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
     if (*p_g) marpa_g_unref(*p_g);
    return 0;
@@ -526,20 +529,21 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* [ kollos, mt_g_ud, gc_function ] */
   lua_setfield(L, -2, "__gc");
   /* [ kollos, mt_g_ud ] */
-
-  /* For debugging */
-  if (0) dump_table(L, -1);
-
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_pop(L, 1);
   /* [ kollos ] */
+  lua_pushcfunction(L, l_grammar_new);
+  /* [ kollos, grammar_new_function ] */
+  lua_setfield(L, -2, "grammar");
+  /* [ kollos ] */
+
+  /* For debugging */
+  if (1) dump_table(L, -1);
 
   /* For testing the error mechanism */
   if (0) kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );
 
   /* Fail if not 5.1 ? */
-
-  /* For debugging */
-  if (0) dump_table(L, -1);
 
   /* [ kollos ] */
   return 1;

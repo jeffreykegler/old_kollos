@@ -21,14 +21,14 @@
 
 local kollos_c = require "kollos_c"
 
-local M = {}
+local kollos_external = {}
 
-function M.grammar()
-  local g = {}
+function kollos_external.grammar()
+  local g = kollos_c.grammar({})
   g["_c"] = kollos_c
   return g
 end
 
-return M
+return kollos_external
 
 -- vim: expandtab shiftwidth=4:

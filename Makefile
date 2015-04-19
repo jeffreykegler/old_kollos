@@ -10,6 +10,12 @@ code:
 libmarpa:
 	cd libmarpa && make test
 
+verbose_test:
+	cd build && \
+	LUA_CPATH=';;../../build/main/lib?.so' \
+	LUA_PATH=';;../../build/main/?.lua' \
+	  ctest --output-on-failure --verbose
+
 test:
 	cd build && \
 	LUA_CPATH=';;../../build/main/lib?.so' \
