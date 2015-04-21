@@ -464,19 +464,15 @@ static int l_grammar_new(lua_State *L)
   /* For testing the error mechanism */
   /* luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK); */
 
-  /* [ kollos ] */
+  /* [ grammar_table ] */
   {
     Marpa_Config marpa_config;
     Marpa_Grammar *p_g;
     int result;
     p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
-    /* [ kollos, userdata ] */
-    lua_getfield (L, -2, "_mt_g_ud");
-    /* [ kollos, userdata, mt_g_ud ] */
-    lua_setmetatable (L, -2);
-    /* [ kollos, userdata ] */
-    lua_pop (L, 1);
-    /* [ kollos ] */
+    /* [ grammar_table, userdata ] */
+    lua_setfield (L, -2, "_ud");
+    /* [ grammar_table ] */
     marpa_c_init(&marpa_config);
     *p_g = marpa_g_new(&marpa_config);
     if (!*p_g) {
@@ -517,24 +513,14 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
   /* [ kollos ] */
 
-  /* Set up Kollos grammar userdata metatable */
-  lua_newtable(L);
-  /* [ kollos, mt_g ] */
-  /* dup top of stack */
-  lua_pushvalue(L, -1);
-  /* [ kollos, mt_g_ud, mt_g_ud ] */
-  lua_setfield(L, -3, "_mt_g_ud");
-  /* [ kollos, mt_g_ud ] */
   lua_pushcfunction(L, l_grammar_ud_mt_gc);
-  /* [ kollos, mt_g_ud, gc_function ] */
-  lua_setfield(L, -2, "__gc");
-  /* [ kollos, mt_g_ud ] */
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-  lua_pop(L, 1);
+  /* [ kollos, c_function ] */
+  lua_setfield(L, -2, "grammar_ud_mt_gc");
   /* [ kollos ] */
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_pushcfunction(L, l_grammar_new);
   /* [ kollos, grammar_new_function ] */
-  lua_setfield(L, -2, "grammar");
+  lua_setfield(L, -2, "grammar_new");
   /* [ kollos ] */
 
   /* For debugging */

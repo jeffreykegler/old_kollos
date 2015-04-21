@@ -21,11 +21,13 @@
 
 local kollos_c = require "kollos_c"
 
+local g_userdata_metatable = { ["__gc"] = kollos_c.g_ud_mt_gc}
+
 local kollos_external = {}
 
-function kollos_external.grammar()
-  local g = kollos_c.grammar({})
-  g["_c"] = kollos_c
+function kollos_external:grammar()
+  local c_g = kollos_c.grammar_new({})
+  setmetatable(g["_ud"], g_userdata_metatable)
   return g
 end
 
