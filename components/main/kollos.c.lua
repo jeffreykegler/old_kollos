@@ -48,8 +48,8 @@ io.write[=[
 
 #include "compat-5.2.c"
 
-#define EXPECTED_LIBMARPA_MAJOR 7
-#define EXPECTED_LIBMARPA_MINOR 5
+#define EXPECTED_LIBMARPA_MAJOR 8
+#define EXPECTED_LIBMARPA_MINOR 3
 #define EXPECTED_LIBMARPA_MICRO 0
 
 /* For debugging */
@@ -282,13 +282,16 @@ static inline int l_error_description_by_code(lua_State* L)
    return 1;
 }
  
-/* The contents of this location are never examined.
-   The location is used as a key in the Lua registry
-   for the kollos error object's metatable.
+/* The contents of these locations are never examined.
+   These location are used as a key in the Lua registry.
    This guarantees that the key will be unique
    within the Lua state.
 */
+
+/* error metatable key */
 static char kollos_error_mt_key;
+/* grammar userdata metatable key */
+static char kollos_g_ud_mt_key;
 
 /* Leaves the stack as before,
    except with the error object on top */
@@ -471,7 +474,15 @@ static int l_grammar_new(lua_State *L)
     int result;
     p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
     /* [ grammar_table, userdata ] */
-    lua_setfield (L, -2, "_ud");
+    /* dup top of stack */
+    lua_pushvalue(L, -1);
+    /* [ grammar_table, userdata, userdata ] */
+    lua_setfield (L, -3, "_ud");
+    /* [ grammar_table, userdata ] */
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
+    lua_setmetatable (L, -2);
+    /* [ grammar_table, userdata ] */
+    lua_pop (L, 1);
     /* [ grammar_table ] */
     marpa_c_init(&marpa_config);
     *p_g = marpa_g_new(&marpa_config);
@@ -513,10 +524,17 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
   /* [ kollos ] */
 
+  /* Set up Kollos grammar userdata metatable */
+  lua_newtable(L);
+  /* [ kollos, mt_ud_g ] */
+  /* dup top of stack */
   lua_pushcfunction(L, l_grammar_ud_mt_gc);
-  /* [ kollos, c_function ] */
-  lua_setfield(L, -2, "grammar_ud_mt_gc");
+  /* [ kollos, mt_g_ud, gc_function ] */
+  lua_setfield(L, -2, "__gc");
+  /* [ kollos, mt_g_ud ] */
+  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
   /* [ kollos ] */
+
         printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_pushcfunction(L, l_grammar_new);
   /* [ kollos, grammar_new_function ] */
