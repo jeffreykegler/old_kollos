@@ -23,9 +23,16 @@ local kollos_c = require "kollos_c"
 
 local kollos_external = {}
 
+local grammar_class  = {
+    ["rule_new"] = kollos_c.grammar_rule_new,
+}
+
 function kollos_external:grammar()
-  local c_grammar = kollos_c.grammar_new({})
-  return c_grammar
+  local grammar_object = kollos_c.grammar_new({})
+  setmetatable(grammar_object, {
+      __index = grammar_class,
+  })
+  return grammar_object
 end
 
 return kollos_external

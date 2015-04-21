@@ -508,6 +508,26 @@ static int l_grammar_ud_mt_gc(lua_State *L) {
    return 0;
 }
 
+static int l_grammar_symbol_new(lua_State *L)
+{
+    Marpa_Grammar *p_g;
+    Marpa_Symbol_ID result;
+
+    /* Should I check types?  After all, this
+     * will not be an external interface.
+     */
+    if (0) luaL_checktype(L, 1, LUA_TTABLE); 
+
+    p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
+    result = marpa_g_symbol_new(*p_g);
+    if (result <= -1) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_force_valued()" );
+    }
+    lua_pushinteger(L, (lua_Integer)result);
+    return 1;
+}
+
 LUALIB_API int luaopen_kollos_c(lua_State *L);
 LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
@@ -535,11 +555,13 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
   /* [ kollos ] */
 
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_pushcfunction(L, l_grammar_new);
   /* [ kollos, grammar_new_function ] */
   lua_setfield(L, -2, "grammar_new");
   /* [ kollos ] */
+  lua_pushcfunction(L, l_grammar_symbol_new);
+  /* [ kollos, grammar_new_function ] */
+  lua_setfield(L, -2, "grammar_rule_new");
 
   /* For debugging */
   if (1) dump_table(L, -1);
