@@ -21,14 +21,14 @@
 
 local kollos_c = require "kollos_c"
 
-local kollos_external = {}
+local _khil = {}
 
 local grammar_class  = {
     ["rule_new"] = kollos_c.grammar_rule_new,
     ["symbol_new"] = kollos_c.grammar_symbol_new,
 }
 
-function kollos_external:grammar()
+function _khil:grammar()
   local grammar_object = kollos_c.grammar_new({})
   setmetatable(grammar_object, {
       __index = grammar_class,
@@ -36,6 +36,6 @@ function kollos_external:grammar()
   return grammar_object
 end
 
-return kollos_external
+return { ["_khil"] =_khil }
 
 -- vim: expandtab shiftwidth=4:
