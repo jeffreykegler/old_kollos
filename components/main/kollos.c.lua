@@ -500,15 +500,7 @@ static int l_grammar_new(lua_State *L)
   return 1;
 }
 
-static int l_grammar_ud_mt_gc(lua_State *L) {
-    Marpa_Grammar *p_g;
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-    p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
-    if (*p_g) marpa_g_unref(*p_g);
-   return 0;
-}
-
-static int l_grammar_symbol_new(lua_State *L)
+static int l_grammar_precompute(lua_State *L)
 {
     Marpa_Grammar *p_g;
     Marpa_Symbol_ID result;
@@ -521,7 +513,7 @@ static int l_grammar_symbol_new(lua_State *L)
     if (1) {
       if (!lua_istable (L, 1))
         {
-          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
+          luaL_error (L, "grammar_precompute expected table as arg #1, got ",
                       lua_typename (L, lua_type (L, 1)));
         }
     }
@@ -529,10 +521,10 @@ static int l_grammar_symbol_new(lua_State *L)
     lua_getfield (L, -1, "_ud");
     /* [ grammar_object, grammar_ud ] */
     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
-    result = marpa_g_symbol_new(*p_g);
+    result = marpa_g_precompute(*p_g);
     if (result <= -1) {
         Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_symbol_new()" );
+        kollos_throw( L, marpa_error, "marpa_g_precompute()" );
     }
     lua_pushinteger(L, (lua_Integer)result);
     return 1;
@@ -584,6 +576,83 @@ static int l_grammar_rule_new(lua_State *L)
     return 1;
 }
 
+static int l_grammar_start_symbol_set(lua_State *L)
+{
+    Marpa_Grammar *p_g;
+    Marpa_Symbol_ID start_symbol;
+    Marpa_Symbol_ID result;
+    /* [ grammar_object, start_symbol ] */
+
+    /* This will not be an external interface,
+     * so eventually we will run unsafe.
+     * This checking code is for debugging.
+     */
+    if (1) {
+      if (!lua_istable (L, 1))
+        {
+          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
+                      lua_typename (L, lua_type (L, 1)));
+        }
+    }
+
+    start_symbol = (Marpa_Symbol_ID)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    /* [ grammar_object ] */
+
+    lua_getfield (L, -1, "_ud");
+    /* [ grammar_object, grammar_ud ] */
+    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+    result = marpa_g_start_symbol_set(*p_g, start_symbol);
+    if (result < -1) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_start_symbol_set()" );
+    }
+    lua_pushinteger(L, (lua_Integer)result);
+    return 1;
+}
+
+static int l_grammar_symbol_new(lua_State *L)
+{
+    Marpa_Grammar *p_g;
+    Marpa_Symbol_ID result;
+    /* [ grammar_object ] */
+
+    /* This will not be an external interface,
+     * so eventually we will run unsafe.
+     * This checking code is for debugging.
+     */
+    if (1) {
+      if (!lua_istable (L, 1))
+        {
+          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
+                      lua_typename (L, lua_type (L, 1)));
+        }
+    }
+
+    lua_getfield (L, -1, "_ud");
+    /* [ grammar_object, grammar_ud ] */
+    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+    result = marpa_g_symbol_new(*p_g);
+    if (result <= -1) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_symbol_new()" );
+    }
+    lua_pushinteger(L, (lua_Integer)result);
+    return 1;
+}
+
+/*
+ * Userdata metatable methods
+ */
+
+static int l_grammar_ud_mt_gc(lua_State *L) {
+    Marpa_Grammar *p_g;
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
+    if (*p_g) marpa_g_unref(*p_g);
+   return 0;
+}
+
 LUALIB_API int luaopen_kollos_c(lua_State *L);
 LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
@@ -620,6 +689,10 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_setfield(L, -2, "grammar_symbol_new");
   lua_pushcfunction(L, l_grammar_rule_new);
   lua_setfield(L, -2, "grammar_rule_new");
+  lua_pushcfunction(L, l_grammar_start_symbol_set);
+  lua_setfield(L, -2, "grammar_start_symbol_set");
+  lua_pushcfunction(L, l_grammar_precompute);
+  lua_setfield(L, -2, "grammar_precompute");
 
   /* [ kollos ] */
   /* For debugging */

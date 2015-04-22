@@ -25,6 +25,8 @@ local _khil = {}
 
 local grammar_class  = {
     ["rule_new"] = kollos_c.grammar_rule_new,
+    ["precompute"] = kollos_c.grammar_precompute,
+    ["start_symbol_set"] = kollos_c.grammar_start_symbol_set,
     ["symbol_new"] = kollos_c.grammar_symbol_new,
 }
 
