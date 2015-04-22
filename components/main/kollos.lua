@@ -25,6 +25,7 @@ local kollos_external = {}
 
 local grammar_class  = {
     ["rule_new"] = kollos_c.grammar_rule_new,
+    ["symbol_new"] = kollos_c.grammar_symbol_new,
 }
 
 function kollos_external:grammar()

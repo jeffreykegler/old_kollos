@@ -512,17 +512,73 @@ static int l_grammar_symbol_new(lua_State *L)
 {
     Marpa_Grammar *p_g;
     Marpa_Symbol_ID result;
+    /* [ grammar_object ] */
 
-    /* Should I check types?  After all, this
-     * will not be an external interface.
+    /* This will not be an external interface,
+     * so eventually we will run unsafe.
+     * This checking code is for debugging.
      */
-    if (0) luaL_checktype(L, 1, LUA_TTABLE); 
+    if (1) {
+      if (!lua_istable (L, 1))
+        {
+          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
+                      lua_typename (L, lua_type (L, 1)));
+        }
+    }
 
-    p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
+    lua_getfield (L, -1, "_ud");
+    /* [ grammar_object, grammar_ud ] */
+    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
     result = marpa_g_symbol_new(*p_g);
     if (result <= -1) {
         Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_force_valued()" );
+        kollos_throw( L, marpa_error, "marpa_g_symbol_new()" );
+    }
+    lua_pushinteger(L, (lua_Integer)result);
+    return 1;
+}
+
+static int l_grammar_rule_new(lua_State *L)
+{
+    Marpa_Grammar *p_g;
+    Marpa_Rule_ID result;
+    Marpa_Symbol_ID lhs;
+    Marpa_Symbol_ID rhs[2];
+    int rhs_length;
+    int stack_ix;
+    /* [ grammar_object, lhs, rhs ... ] */
+
+    /* This will not be an external interface,
+     * so eventually we will run unsafe.
+     * This checking code is for debugging.
+     */
+    if (1) {
+      if (!lua_istable (L, 1))
+        {
+          luaL_error (L, "grammar_rule_new expected table as arg #1, got ",
+                      lua_typename (L, lua_type (L, 1)));
+        }
+    }
+
+    lhs = (Marpa_Symbol_ID)lua_tointeger(L, 2);
+    /* Unsafe, no arg count checking */
+    stack_ix = lua_gettop(L);
+    while (stack_ix >= 3)
+      {
+        rhs[stack_ix - 3] = (Marpa_Symbol_ID) lua_tointeger (L, stack_ix);
+        stack_ix--;
+      }
+    lua_pop(L, lua_gettop(L)-1);
+    /* [ grammar_object ] */
+
+    lua_getfield (L, -1, "_ud");
+    /* [ grammar_object, grammar_ud ] */
+    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+
+    result = (Marpa_Rule_ID)marpa_g_rule_new(*p_g, lhs, rhs, rhs_length);
+    if (result <= -1) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+        kollos_throw( L, marpa_error, "marpa_g_rule_new()" );
     }
     lua_pushinteger(L, (lua_Integer)result);
     return 1;
@@ -561,8 +617,11 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   /* [ kollos ] */
   lua_pushcfunction(L, l_grammar_symbol_new);
   /* [ kollos, grammar_new_function ] */
+  lua_setfield(L, -2, "grammar_symbol_new");
+  lua_pushcfunction(L, l_grammar_rule_new);
   lua_setfield(L, -2, "grammar_rule_new");
 
+  /* [ kollos ] */
   /* For debugging */
   if (1) dump_table(L, -1);
 
