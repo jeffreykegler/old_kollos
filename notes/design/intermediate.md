@@ -42,19 +42,19 @@ by editing the KIR directly.
 
 The basic transformation needed to obtain the KIR from the LUIF is
 translation of the LUIF rules, which may include precedenced and
-sequence rules, into a form which allows only BNF rules.
+counted rules, into a form which allows only BNF rules.
 In separate documents.
 Jeffrey will describe the transformations necessary
 for the KHIL to translate from
 precedenced rules to BNF rules,
-and from sequence rules to BNF rules.
+and from counted rules to BNF rules.
 
 ## Symbols, alternatives, and rules
 
 The KHIL will find *external* rules, alternatives and symbols
 in the LUIF,
 which it will turn into *internal* rules and symbols.
-The external rules are the sequence, precedenced and
+The external rules are the counted, precedenced and
 BNF rules in the LUIF, one per statement.
 
 An *alternative* is a part of
@@ -63,7 +63,7 @@ a single LHS and a single RHS.
 Internal rules do not have alternatives.
 An ordinary BNF external rule
 contains a single alternative.
-An external sequence rule also contains only one alternative.
+An external counted rule also contains only one alternative.
 Precedenced external rules,
 however, may contain many alternatives.
 In the SLIF, the alternatives of precedenced
@@ -214,7 +214,7 @@ must be a brick
 created directly from an external
 symbol.
 Or a mortar symbol may be
-a LHS created for a sequence
+a LHS created for a counted
 rule, and may have unchanged
 from that point.
 In other cases, symbols
@@ -236,8 +236,14 @@ the keys are
 
 * 'type` -- the type of the external rule.
   Required.
-  This is one of `sequence`, `precedenced`,
+  This is one of `counted`, `precedenced`,
   or `BNF`.
+
+* 'container` --
+  The ID of
+  another external rule that contains this
+  one.
+  `nil` if this is the outermost rule.
 
 ### The alternative database
 
@@ -249,13 +255,13 @@ the keys are
 * 'location` -- Required.
   A location object.
 
-* 'xrule` -- Required.
-  The external rule of which this
-  alternative forms a part.
+* 'container` -- Required.
+  The external rule that contains this
+  alternative.
 
 * 'type` -- the type of the alternative.
   Required.
-  one of `sequence`, `precedenced`,
+  one of `counted`, `precedenced`,
   or `BNF`.
   Because rules can occur within rules,
   this is not necessarily the same
@@ -303,6 +309,58 @@ Of the rules into which an alternative is broken up,
 one and only one will be the "top" rule.
 Only the top rule of an alternative will have a semantics
 associated with it.
+
+## Restrictions
+
+Even when the restrictions are
+enforced in terms of external symbols,
+enforcing
+many restrictions must be the job of the KLOL,
+and *not* the KHIL.
+In some cases this is for safety,
+or efficiency,
+but it other cases it is simply necessary.
+Nullability is important in many restrictions,
+and the KHIL does not know whether a symbol
+is nullable or not.
+
+Restrictions which should be enforced by the KLOL
+include
+
+* The LHS of a precedenced rule must not be nulling.
+
+* The LHS of a precedenced rule must not be the LHS
+  of any other rule.
+
+* The LHS of a counted rule must not be the LHS
+  of any other rule.
+
+* A RHS symbol of a counted rule must not be nulling.
+
+* The separator symbol of a counted rule must not be nulling.
+  (But we may experiment with lifting this restriction
+  in Kollos.)
+
+* There must be no cycles.  (Someday this restriction may
+  be lifted in favor of a rewrite, if the user chooses.)
+
+* Nulling semantics must be unambiguous.
+  If there is only one nulling rule, it provides
+  the nulling semantics.
+  Otherwise, if there is a simple nulling rule, it provides
+  the nulling semantics, overriding all others.
+  All other cases are fatal errors.
+
+A rule is a *simple nulling rule* if
+and only if
+
+* it is not a counted rule or contained in one;
+
+* it is not a precedenced rule or contained in one;
+
+* it has a single alternative; and
+
+* all of its containers have a single alternative.
 
 <!---
 vim: expandtab shiftwidth=4
