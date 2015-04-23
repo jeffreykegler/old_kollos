@@ -205,13 +205,22 @@ local c_fn_signatures = {
   {"_marpa_b_top_or_node"},
 }
 
+io.write([=[
+#define LUA_LIB
+#include "marpa.h"
+#include "lua.h"
+#include "lauxlib.h"
+
+#include "compat-5.2.c"
+
+]=])
+
 for ix = 1, #c_fn_signatures do
    local signature = c_fn_signatures[ix]
    local c_fn = signature[1]
    local unprefixed_name = string.gsub(c_fn, "^[_]?marpa_", "");
    class_letter = string.gsub(unprefixed_name, "_.*$", "");
-   print( c_fn )
-   print( class_letter )
+   -- print( class_letter )
    local wrapper_name = "wrap_" .. unprefixed_name;
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
