@@ -224,12 +224,13 @@ for ix = 1, #c_fn_signatures do
    local wrapper_name = "wrap_" .. unprefixed_name;
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
-   io.write("    ", class_type[class_letter], "* self;\n");
+   io.write("  ", class_type[class_letter], "* self;\n");
    local arg_ix = 2;
    while (arg_ix <= #signature) do
-     io.write("    ", signature[arg_ix], " ", signature[arg_ix+1], ";\n");
+     io.write("  ", signature[arg_ix], " ", signature[arg_ix+1], ";\n");
      arg_ix = arg_ix + 2;
    end
+   io.write("    int result;\n\n");
 
    -- These wrappers will not be external interfaces
    -- so eventually they will run unsafe.
@@ -237,22 +238,23 @@ for ix = 1, #c_fn_signatures do
    -- the possibility for debugging
    local safe = true;
    if (safe) then
-      io.write("   if (1) {\n")
+      io.write("  if (1) {\n")
+
       local check_for_table = [=[
     if (!lua_istable (L, 1))
     {
-        luaL_error (L,
-	    "!!FUNCNAME!!() expected table as arg #1, got ",
-            lua_typename (L, lua_type (L, 1)));
+      luaL_error (L,
+	"!!FUNCNAME!!() expected table as arg #1, got ",
+        lua_typename (L, lua_type (L, 1)));
     }
 ]=]
+
       check_for_table =
            string.gsub(check_for_table, "!!FUNCNAME!!", wrapper_name);
       io.write(check_for_table);
-      io.write("   }\n");
+      io.write("  }\n");
    end -- if (!unsafe)
 
-   io.write("    int result;\n\n");
    io.write("}\n\n");
 end
 
