@@ -94,7 +94,7 @@
 --     return $outp"],
 -- } ## end sub gp_generate
 
-libmarpa_class = {
+local libmarpa_class = {
   g = "Marpa_Grammar",
   r = "Marpa_Recognizer",
   b = "Marpa_Bocage",
@@ -103,7 +103,7 @@ libmarpa_class = {
   v = "Marpa_Value",
 };
 
-c_fn_signatures = {
+local c_fn_signatures = {
   {"marpa_g_completion_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "activate"},
   {"marpa_g_error_clear"},
   {"marpa_g_event_count"},
@@ -204,3 +204,15 @@ c_fn_signatures = {
   {"_marpa_b_or_node_set", "Marpa_Or_Node_ID", "ordinal"},
   {"_marpa_b_top_or_node"},
 }
+
+for ix = 1, #c_fn_signatures do
+   local signature = c_fn_signatures[ix]
+   local c_fn = signature[1]
+   local unprefixed_name = string.gsub(c_fn, "^[_]?marpa_", "");
+   class_letter = string.gsub(unprefixed_name, "_.*$", "");
+   print( c_fn )
+   print( class_letter )
+   io.write("static int wrap_", unprefixed_name, "(lua_State *L)\n");
+   io.write("{\n");
+   io.write("}\n\n");
+end
