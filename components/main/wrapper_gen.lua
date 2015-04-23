@@ -212,7 +212,8 @@ for ix = 1, #c_fn_signatures do
    class_letter = string.gsub(unprefixed_name, "_.*$", "");
    print( c_fn )
    print( class_letter )
-   io.write("static int wrap_", unprefixed_name, "(lua_State *L)\n");
+   local wrapper_name = "wrap_" .. unprefixed_name;
+   io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
    io.write("    ", class_type[class_letter], "* self;\n");
    local arg_ix = 2;
@@ -220,6 +221,57 @@ for ix = 1, #c_fn_signatures do
      io.write("    ", signature[arg_ix], " ", signature[arg_ix+1], ";\n");
      arg_ix = arg_ix + 2;
    end
+
+   -- These wrappers will not be external interfaces
+   -- so eventually they will run unsafe.
+   -- But for now we check arguments, and we'll leave
+   -- the possibility for debugging
+   local safe = true;
+   if (safe) then
+      io.write("   if (1) {\n")
+      local check_for_table = [=[
+    if (!lua_istable (L, 1))
+    {
+        luaL_error (L,
+	    "!!FUNCNAME!!() expected table as arg #1, got ",
+            lua_typename (L, lua_type (L, 1)));
+    }
+]=]
+      check_for_table =
+           string.gsub(check_for_table, "!!FUNCNAME!!", wrapper_name);
+      io.write(check_for_table);
+      io.write("   }\n");
+   end -- if (!unsafe)
+
    io.write("    int result;\n\n");
    io.write("}\n\n");
 end
+
+-- static int l_grammar_start_symbol_set(lua_State *L)
+-- {
+--     Marpa_Grammar *p_g;
+--     Marpa_Symbol_ID start_symbol;
+--     Marpa_Symbol_ID result;
+--     /* [ grammar_object, start_symbol ] */
+-- 
+--     /* This will not be an external interface,
+--      * so eventually we will run unsafe.
+--      * This checking code is for debugging.
+--      */
+-- 
+--     start_symbol = (Marpa_Symbol_ID)lua_tointeger(L, -1);
+--     lua_pop(L, 1);
+--     /* [ grammar_object ] */
+-- 
+--     lua_getfield (L, -1, "_ud");
+--     /* [ grammar_object, grammar_ud ] */
+--     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+--     result = marpa_g_start_symbol_set(*p_g, start_symbol);
+--     if (result < -1) {
+--         Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
+--         kollos_throw( L, marpa_error, "marpa_g_start_symbol_set()" );
+--     }
+--     lua_pushinteger(L, (lua_Integer)result);
+--     return 1;
+-- }
+-- 
