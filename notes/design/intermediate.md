@@ -2,28 +2,25 @@
 
 ## Overview
 
+[ This document is under construction.
+Skimming should give some idea of the kinds of
+information the KIR will need, at least.
+]
+
 Kollos's interface language will be the LUIF, essentially
 Lua 5.1 extended with BNF.
 A top layer, called the Kollos high layer, or KHIL,
 will parse this into the "Kollos intermediate representation".
 The Kollos intermediate representation,
 also called the KIR,
-is pure Lua 5.1 with some calls to the kollos Lua package.
+is a Lua 5.1 table.
 
-Since the KIR is pure Lua 5.1, it can be run with Lua.
-The KIR calls in the kollos package,
-which at this point Jeffrey expects that he will write,
-will then do lower level transformations to make the grammar
-ready for Libmarpa.
-These lower level transformations are called the Kollos lower
-layer, or KLOL.
-
-This document describes
-
-* the "kollos" Lua package calls in the KIR.
-
-* the KHIL "callbacks", which allow the KLOL to get information
-  from the KHIL for error messages, tracing, debugging, etc.
+Since the KIR is a Lua 5.1 table, it can be read directly
+by a Lua interpreter.
+The KIR table will be the input to the lower
+layer of Kollos, the KLOL,
+which at this point Jeffrey expects that he will write.
+The KLOL will do make it ready for Libmarpa.
 
 ## Motivation
 
@@ -47,7 +44,8 @@ The basic transformation needed to obtain the KIR from the LUIF is
 translation of the LUIF rules, which may include precedenced and
 sequence rules, into a form which allows only BNF rules.
 In separate documents.
-Jeffrey will describe the transformations necessary to translate from
+Jeffrey will describe the transformations necessary
+for the KHIL to translate from
 precedenced rules to BNF rules,
 and from sequence rules to BNF rules.
 
@@ -88,79 +86,215 @@ The motivation of the above will, we hope,
 be clearer when we outline the
 transformations the KHIL must perform.
 
-## KIR calls
+## The KIR table
 
-The KIR will be Lua 5.1, and will assume that there is a "kollos.kir"
-package with the calls listed in this section.
-The examples assume that the Lua statement
-```
-    local kir = kollos.kir
-```
-has already been executed.
+The KIR table consists of a key-value pair
+for each grammar.
+While the LUIF will be able to define many
+grammars,
+the most important setup will be the
+case where there are two:
 
-### Grammar constructor
+* a structural grammar named `g1`; and
 
-```
-     g = kir.grammar(start)
-```
-Constructs and returns a grammar.
-`start` is declared to be an internal symbol,
-and the start symbol of the grammar.
-The grammar `g` is returned.
-The grammar is an opaque object,
-only to be used in other KIR
-calls.
+* a lexical grammar named `l0`,
+  which is linked to `g1`.
 
-### Symbol declarators
-```
-    kir.terminal(sym1)
-    kir.medial(sym2, brick_flag)
-```
-Internal symbols need to be declared before they
-are used in a KIR rule.
-These two calls declare `sym1` to be a terminal
-symbol and `sym2` to be a medial symbol.
-(A symbol is medial if and only if
-it is not the start symbol and not a terminal).
+The value of the KIR tables key-value
+pairs will be another table,
+the KIR grammar table.
 
-If `brick_flag` is not `nil`,
-`sym2` is a brick symbol.
-Terminals and the start symbol are always brick
-symbols.
+## Terminology
 
-### Symbol mutator
-```
-    kir.counted(sym1)
-```
-Marks `sym1`, which must have already been
-declared, as a "counted" symbol.
-"Counted" means that it occurs on the
-RHS of a sequence rule.
+In what follows, an *ID*, such
+as a rule ID or a symbol ID
+is always an integer.
 
-Jeffrey is inclined to leave it up
-to the implementors of the KHOL and
-LUIF whether or not separators are
-considered.
-"counted" symbols.
-Currently, Marpa::R2 does
-treat separators
-as counted symbols.
+A *property table*
+is a Lua table
+in which the key
+of the key-value pair
+is the name
+of a property,
+and the value
+of the key-value pair
+is the property's value.
 
-### Rule declarators
+A *database table* is a
+Lua table
+whose keys are IDs or symbol
+names,
+and whose values are property
+tables.
 
-```
-    kir.rule(g, id, xid, options, lhs, rhs1, rhs2)
-```
-The
-`kir.rule()` statement
-declares a rule for grammar `g`.
-The ID of the internal rule is `id`.
-The ID of the external alternative is `xid`.
-`options` is either a table of options,
-or `nil`,
-Its LHS is `lhs`.
-Its RHS symbols are `rhs1` and `rhs2`.
-The number of RHS symbols may vary from 0 on up.
+### KIR grammar tables
+
+A KIR grammar table is
+a property table,
+some of whose property values
+are databases.
+Its contents are not fully
+worked out, but some of its
+keys are:
+
+* `xrule`.  Required.
+  The value is the external rule
+  database, described below.
+
+* `alt`.  Required.
+  The value is the alternative
+  database, described below.
+
+* `irule`.  Required.
+  The value is the internal rule
+  database, described below.
+
+* `xsym`.  Required.
+  The value is the external symbol
+  database, described below.
+
+* `isym`.  Required.
+  The value is the internal symbol
+  database, described below.
+
+* `structural`  Optional.
+  Non-nil if and only if this is
+  a structural grammar.
+
+### The external symbol database
+
+The external symbol database table
+is keyed by symbol name.
+
+* 'location` -- Required.
+  A location object.
+
+### The internal symbol database
+
+The internal symbol database table
+is keyed by symbol name.
+In its property tables,
+the keys are
+
+* 'terminal` -- Optional.
+  Present and true if and only
+  if the internal symbol
+  is a terminal.
+
+* 'start` -- Optional.
+  Present and true if and only
+  if the internal symbol
+  is the start symbol.
+
+* 'brick` -- Optional.
+  Present and true if and only
+  if the internal symbol
+  is a brick symbol.
+  If present, its value
+  is the name of the external
+  symbol to which the
+  internal symbol corresponds.
+
+* `provenance` -- Required.
+  Not fully worked out.
+  An array describing how the
+  internal symbols was created.
+
+### Provenance
+
+For tracing and debugging,
+it may be necessary to know where
+an internal symbol came from.
+Its provenance describes this.
+
+Many provenances will contain only
+one entry.
+A terminal symbol, for example,
+must be a brick
+created directly from an external
+symbol.
+Or a mortar symbol may be
+a LHS created for a sequence
+rule, and may have unchanged
+from that point.
+In other cases, symbols
+may be created from
+other created symbols,
+and the provenance could be
+quite lengthy.
+
+### The external rule database
+
+The external rule database is a Lua table.
+Each key
+is an external rule ID.
+In its property tables,
+the keys are
+
+* 'location` -- Required.
+  A location object.
+
+* 'type` -- the type of the external rule.
+  Required.
+  This is one of `sequence`, `precedenced`,
+  or `BNF`.
+
+### The alternative database
+
+The alternative database is a Lua table.
+Each key is an alternative ID.
+In its property tables,
+the keys are
+
+* 'location` -- Required.
+  A location object.
+
+* 'xrule` -- Required.
+  The external rule of which this
+  alternative forms a part.
+
+* 'type` -- the type of the alternative.
+  Required.
+  one of `sequence`, `precedenced`,
+  or `BNF`.
+  Because rules can occur within rules,
+  this is not necessarily the same
+  as the type of `xrule`.
+
+* `lhs` -- the symbol name of the LHS symbol
+
+* `rhs` -- an array of the names of the RHS
+  symbols.
+
+* 'semantics` -- Required?
+  Not fully worked out,
+  but a property table describing
+  the semantics.
+
+### The internal rule database
+
+The internal rule database is a Lua table.
+Each key
+is an internal rule ID.
+Rule IDs are integers.
+The values in the database are "property tables",
+Lua tables in which the key
+of the key-value pair
+is the name
+of a property,
+and the value
+of the key-value pair
+is the property's value.
+
+* `lhs` -- the symbol name of the LHS symbol
+
+* `rhs` -- an array of the names of the RHS
+  symbols.
+
+* `alt` -- The ID of the corresponding alternative.
+
+* `top` -- Non-nil if and only if this is the
+  top rule of the alternative.
 
 As we will see when Jeffrey describes the
 grammar rewrites, alternatives
@@ -169,130 +303,6 @@ Of the rules into which an alternative is broken up,
 one and only one will be the "top" rule.
 Only the top rule of an alternative will have a semantics
 associated with it.
-
-The `options` argument must be defined if and only if
-the rule being declared is a top rule.
-If `options` is defined, it must be a table.
-If one of its keys is `action`,
-it specifies the action of the rule.
-The action may represent a built-in action,
-or may be a LUA function.
-Details of the built-in action are left unspecified,
-for the moment.
-
-### Compile grammar
-```
-    kir.compile(g)
-```
-This compiles the grammar `g` into a form ready for
-parsing.
-This call may be unnecessary  --
-it may be better to simply have the KLOL attach
-a postamble to the KIR to implement the "compilation"
-of the grammar.
-
-## Callbacks to the KHIL
-
-The KIR calls pass sufficient information down to the
-KLOL for normal processing.
-However, for error messages, debugging, etc.,
-the KLOL needs to have more information available.
-
-As a first guess,
-the KHIL needs to make available the callbacks listed
-in this section.
-The examples assume that the Lua statement
-```
-    local khil = kollos.khil
-```
-has already been executed.
-
-### Internal symbol accessors
-
-```
-    khil.provenance(isym)
-```
-Given an internal symbol `isym`, returns its
-provenance.
-The provenance is a history of the steps by
-which this internal symbol was created.
-Brick symbols, if they correspond exactly to external
-symbols, may have a provenance of
-a single step.
-What the provenance might consist of,
-will become clearer when Jeffrey
-details the grammar rewrites
-that the KHIL needs to perform.
-
-### External symbol accessors
-```
-    khil.lhs(xsym)
-    khil.rhs(xsym)
-```
-`khil.lhs()` returns a list of the alternatives
-which have `xsym` on their LHS.
-`khil.rhs()` returns a list of the alternatives
-which have `xsym` on their RHS.
-
-### Alternative accessors
-```
-    khil.alternative_rule(alt)
-    khil.alternative_text(alt)
-    khil.alternative_pos(alt)
-```
-In the above statements, `alt` is the ID of an alternative.
-The first call, `khil_alternative_rule()`,
-returns the ID of the external rule to which `alt` belongs.
-The second call, `khil_alternative_text()`,
-returns a string which contains the text
-of `alt` in the LUIF.
-The third call, `khil_alternative_pos()`,
-returns a list of two integers,
-representing the start and end lexical positions of the
-text returned by
-`khil_alternative_text()`.
-
-### External rule accessors
-```
-    khil.rule_text(xrule)
-    khil.rule_pos(xrule)
-```
-In the above statements, `xrule` is the ID
-of an external rule.
-The first call, `khil.rule_text()`,
-returns a string which contains the text
-of `xrule` in the LUIF.
-The second call, `khil.rule_pos()`,
-returns a list of two integers,
-representing the start and end lexical positions of the
-text returned by
-`khil.rule_text()`.
-
-### Position accessors
-```
-   khil.lc(pos)
-```
-Given `pos`, a position in the LUIF,
-as returned by the other KHIL callbacks,
-`khil.lc(pos)` returns a list of two
-integers.
-These are line and column in the LUIF.
-Line and column should be as defined
-by the Unicode Consortium.
-
-## Implementing the callbacks
-
-The "callbacks" may be best implemented via
-a Lua table,
-rather than function calls.
-The table can be part of the KIR, or a
-separate file accompanying it.
-However the table is delivered,
-it may be best to arrange for
-it to be
-interpreted only when and if required.
-Normal processing will not require these callbacks,
-and their overhead may be measureable.
 
 <!---
 vim: expandtab shiftwidth=4
