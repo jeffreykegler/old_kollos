@@ -94,7 +94,7 @@
 --     return $outp"],
 -- } ## end sub gp_generate
 
-local libmarpa_class = {
+local class_type = {
   g = "Marpa_Grammar",
   r = "Marpa_Recognizer",
   b = "Marpa_Bocage",
@@ -214,5 +214,12 @@ for ix = 1, #c_fn_signatures do
    print( class_letter )
    io.write("static int wrap_", unprefixed_name, "(lua_State *L)\n");
    io.write("{\n");
+   io.write("    ", class_type[class_letter], "* self;\n");
+   local arg_ix = 2;
+   while (arg_ix <= #signature) do
+     io.write("    ", signature[arg_ix], " ", signature[arg_ix+1], ";\n");
+     arg_ix = arg_ix + 2;
+   end
+   io.write("    int result;\n\n");
    io.write("}\n\n");
 end
