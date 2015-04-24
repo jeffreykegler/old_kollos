@@ -48,6 +48,13 @@ io.write[=[
 
 #include "compat-5.2.c"
 
+#undef UNUSED
+#if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
 #define EXPECTED_LIBMARPA_MAJOR 8
 #define EXPECTED_LIBMARPA_MINOR 3
 #define EXPECTED_LIBMARPA_MICRO 0
@@ -425,7 +432,255 @@ static void luif_err_throw2(lua_State *L, int error_code, const char *msg) {
     luaL_error(L, "%s\n    %s", msg, libmarpa_error_codes[error_code].description);
 }
 
-static int l_grammar_new(lua_State *L)
+]=]
+
+-- Here are the meta-programmed wrappers --
+-- this is Lua code which writes the C code based on
+-- a "signature" for the wrapper
+--
+-- This meta-programming does not attempt to work for
+-- all of the wrappers.  It works only when
+--   1.) The number of arguments is fixed.
+--   2.) Their type is from a fixed list.
+--   3.) Converting the return value to int is a good thing to do.
+--   4.) Non-negatvie return values indicate success
+--   5.) Return values less than -1 indicate failure
+--   6.) Return values less than -1 set the error code
+--   7.) Return value of -1 is "soft" and returning nil is
+--       the right thing to do
+
+local function c_type_of_libmarpa_type(libmarpa_type)
+    if (libmarpa_type == 'int') then return 'int' end
+    if (libmarpa_type == 'Marpa_Assertion_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_IRL_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_NSY_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Or_Node_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_And_Node_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Rank') then return 'int' end
+    if (libmarpa_type == 'Marpa_Rule_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Symbol_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Earley_Set_ID') then return 'int' end
+    return "!UNIMPLEMENTED!";
+end
+
+local libmarpa_class_type = {
+  g = "Marpa_Grammar",
+  r = "Marpa_Recognizer",
+  b = "Marpa_Bocage",
+  o = "Marpa_Order",
+  t = "Marpa_Tree",
+  v = "Marpa_Value",
+};
+
+local libmarpa_class_name = {
+  g = "grammar",
+  r = "recognizer",
+  b = "bocage",
+  o = "order",
+  t = "tree",
+  v = "value",
+};
+
+local c_fn_signatures = {
+  {"marpa_g_completion_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "activate"},
+  {"marpa_g_error_clear"},
+  {"marpa_g_event_count"},
+  {"marpa_g_force_valued"},
+  {"marpa_g_has_cycle"},
+  {"marpa_g_highest_rule_id"},
+  {"marpa_g_highest_symbol_id"},
+  {"marpa_g_is_precomputed"},
+  {"marpa_g_nulled_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "activate"},
+  {"marpa_g_precompute"},
+  {"marpa_g_prediction_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "activate"},
+  {"marpa_g_rule_is_accessible", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_is_loop", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_is_nullable", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_is_nulling", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_is_productive", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_is_proper_separation", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_length", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_lhs", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_null_high", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_rule_null_high_set", "Marpa_Rule_ID", "rule_id", "int", "flag"},
+  {"marpa_g_rule_rhs", "Marpa_Rule_ID", "rule_id", "int", "ix"},
+  {"marpa_g_sequence_min", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_sequence_separator", "Marpa_Rule_ID", "rule_id"},
+  {"marpa_g_start_symbol"},
+  {"marpa_g_start_symbol_set", "Marpa_Symbol_ID", "id"},
+  {"marpa_g_symbol_is_accessible", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_completion_event", "Marpa_Symbol_ID", "sym_id"},
+  {"marpa_g_symbol_is_completion_event_set", "Marpa_Symbol_ID", "sym_id", "int", "value"},
+  {"marpa_g_symbol_is_counted", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_nullable", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_nulled_event", "Marpa_Symbol_ID", "sym_id"},
+  {"marpa_g_symbol_is_nulled_event_set", "Marpa_Symbol_ID", "sym_id", "int", "value"},
+  {"marpa_g_symbol_is_nulling", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_prediction_event", "Marpa_Symbol_ID", "sym_id"},
+  {"marpa_g_symbol_is_prediction_event_set", "Marpa_Symbol_ID", "sym_id", "int", "value"},
+  {"marpa_g_symbol_is_productive", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_start", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_terminal", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_terminal_set", "Marpa_Symbol_ID", "symbol_id", "int", "boolean"},
+  {"marpa_g_symbol_is_valued", "Marpa_Symbol_ID", "symbol_id"},
+  {"marpa_g_symbol_is_valued_set", "Marpa_Symbol_ID", "symbol_id", "int", "boolean"},
+  {"marpa_g_symbol_new"},
+  {"marpa_g_zwa_new", "int", "default_value"},
+  {"marpa_g_zwa_place", "Marpa_Assertion_ID", "zwaid", "Marpa_Rule_ID", "xrl_id", "int", "rhs_ix"},
+  {"marpa_r_completion_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "reactivate"},
+  {"marpa_r_current_earleme"},
+  {"marpa_r_earleme", "Marpa_Earley_Set_ID", "ordinal"},
+  {"marpa_r_earleme_complete"},
+  {"marpa_r_earley_item_warning_threshold"},
+  {"marpa_r_earley_item_warning_threshold_set", "int", "too_many_earley_items"},
+  {"marpa_r_earley_set_value", "Marpa_Earley_Set_ID", "ordinal"},
+  {"marpa_r_expected_symbol_event_set", "Marpa_Symbol_ID", "xsyid", "int", "value"},
+  {"marpa_r_furthest_earleme"},
+  {"marpa_r_is_exhausted"},
+  {"marpa_r_latest_earley_set"},
+  {"marpa_r_latest_earley_set_value_set", "int", "value"},
+  {"marpa_r_nulled_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "reactivate"},
+  {"marpa_r_prediction_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "reactivate"},
+  {"marpa_r_progress_report_finish"},
+  {"marpa_r_progress_report_start", "Marpa_Earley_Set_ID", "ordinal"},
+  {"marpa_r_terminal_is_expected", "Marpa_Symbol_ID", "xsyid"},
+  {"marpa_r_zwa_default", "Marpa_Assertion_ID", "zwaid"},
+  {"marpa_r_zwa_default_set", "Marpa_Assertion_ID", "zwaid", "int", "default_value"},
+  {"marpa_b_ambiguity_metric"},
+  {"marpa_b_is_null"},
+  {"marpa_o_ambiguity_metric"},
+  {"marpa_o_high_rank_only_set", "int", "flag"},
+  {"marpa_o_high_rank_only"},
+  {"marpa_o_is_null"},
+  {"marpa_o_rank"},
+  {"marpa_t_next"},
+  {"marpa_t_parse_count"},
+  {"marpa_v_valued_force"},
+  {"marpa_v_rule_is_valued_set", "Marpa_Rule_ID", "symbol_id", "int", "value"},
+  {"marpa_v_symbol_is_valued_set", "Marpa_Symbol_ID", "symbol_id", "int", "value"},
+  {"_marpa_g_rule_is_keep_separation", "Marpa_Rule_ID", "rule_id"},
+  {"_marpa_g_irl_lhs", "Marpa_IRL_ID", "rule_id"},
+  {"_marpa_g_irl_rhs", "Marpa_IRL_ID", "rule_id", "int", "ix"},
+  {"_marpa_g_irl_length", "Marpa_IRL_ID", "rule_id"},
+  {"_marpa_g_irl_rank", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_nsy_rank", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_is_semantic", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_b_and_node_cause", "Marpa_And_Node_ID", "ordinal"},
+  {"_marpa_b_and_node_count"},
+  {"_marpa_b_and_node_middle", "Marpa_And_Node_ID", "and_node_id"},
+  {"_marpa_b_and_node_parent", "Marpa_And_Node_ID", "and_node_id"},
+  {"_marpa_b_and_node_predecessor", "Marpa_And_Node_ID", "ordinal"},
+  {"_marpa_b_and_node_symbol", "Marpa_And_Node_ID", "and_node_id"},
+  {"_marpa_b_or_node_and_count", "Marpa_Or_Node_ID", "or_node_id"},
+  {"_marpa_b_or_node_first_and", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_or_node_irl", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_or_node_is_semantic", "Marpa_Or_Node_ID", "or_node_id"},
+  {"_marpa_b_or_node_is_whole", "Marpa_Or_Node_ID", "or_node_id"},
+  {"_marpa_b_or_node_last_and", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_or_node_origin", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_or_node_position", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_or_node_set", "Marpa_Or_Node_ID", "ordinal"},
+  {"_marpa_b_top_or_node"},
+}
+
+local check_for_table_template = [=[
+!!INDENT!!if (!lua_istable (L, 1))
+!!INDENT!! {
+!!INDENT!!    luaL_error (L,
+!!INDENT!!       "!!FUNCNAME!!() expected table as arg #1, got ",
+!!INDENT!!       lua_typename (L, lua_type (L, 1)));
+!!INDENT!!  }
+]=]
+
+for ix = 1, #c_fn_signatures do
+   local signature = c_fn_signatures[ix]
+   local arg_count = math.floor(#signature/2)
+   local function_name = signature[1]
+   local unprefixed_name = string.gsub(function_name, "^[_]?marpa_", "");
+   class_letter = string.gsub(unprefixed_name, "_.*$", "");
+   -- print( class_letter )
+   local wrapper_name = "wrap_" .. unprefixed_name;
+   io.write("static int ", wrapper_name, "(lua_State *L)\n");
+   io.write("{\n");
+   io.write("  ", libmarpa_class_type[class_letter], " self;\n");
+   io.write("  Marpa_Grammar grammar;\n");
+   local arg_ix = 2;
+   for arg_ix = 1, arg_count do
+     local arg_type = signature[arg_ix*2]
+     local arg_name = signature[1 + arg_ix*2]
+     io.write("  ", arg_type, " ", arg_name, ";\n");
+   end
+   io.write("  int result;\n\n");
+
+   -- These wrappers will not be external interfaces
+   -- so eventually they will run unsafe.
+   -- But for now we check arguments, and we'll leave
+   -- the possibility for debugging
+   local safe = true;
+   if (safe) then
+      io.write("  if (1) {\n")
+
+      local check_for_table =
+           string.gsub(check_for_table_template, "!!FUNCNAME!!", wrapper_name);
+      check_for_table =
+           string.gsub(check_for_table, "!!INDENT!!", "    ");
+      io.write(check_for_table);
+      -- I do not get the values from the integer checks,
+      -- because this code
+      -- will be turned off most of the time
+      for arg_ix = 1, arg_count do
+          io.write("    luaL_checkint(L, ", (arg_ix+1), ");\n")
+      end
+      io.write("  }\n");
+   end -- if (!unsafe)
+
+   for arg_ix = 1, arg_count do
+     local arg_type = signature[arg_ix*2]
+     local arg_name = signature[1 + arg_ix*2]
+     local c_type = c_type_of_libmarpa_type(arg_type)
+     assert(c_type == "int", ("type " .. c_type .. "not implemented"))
+     io.write("  ", arg_name, " = lua_tointeger(L, -1);\n")
+     io.write("  lua_pop(L, 1);\n")
+   end
+
+   io.write('  lua_getfield (L, -1, "_ud");\n')
+   -- stack is [ self, self_ud ]
+   local cast_to_ptr_to_class_type = "(" ..  libmarpa_class_type[class_letter] .. "*)"
+   io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
+   io.write("  lua_pop(L, 1);\n")
+   -- stack is [ self ]
+
+   io.write('  lua_getfield (L, -1, "_g_ud");\n')
+   -- stack is [ self, grammar_ud ]
+   io.write("  grammar = *(Marpa_Grammar*)lua_touserdata (L, -1);\n")
+   io.write("  lua_pop(L, 1);\n")
+   -- stack is [ self ]
+
+   -- assumes converting result to int is safe and right thing to do
+   -- if that assumption is wrong, generate the wrapper by hand
+   io.write("  result = (int)", function_name, "(self\n")
+   for arg_ix = 1, arg_count do
+     local arg_name = signature[1 + arg_ix*2]
+     io.write("     ,", arg_name, "\n")
+   end
+   io.write("    );\n")
+   io.write("  if (result == -1) { lua_pushnil(L); return 1; }\n")
+   io.write("  if (result < -1) {\n")
+   io.write("    Marpa_Error_Code marpa_error = marpa_g_error(grammar, NULL);\n")
+   local wrapper_name_as_c_string = '"' .. wrapper_name .. '()"'
+   io.write('    kollos_throw( L, marpa_error, ', wrapper_name_as_c_string, ');\n')
+   io.write("  }\n")
+   io.write("  lua_pushinteger(L, (lua_Integer)result);\n")
+   io.write("  return 1;\n")
+   io.write("}\n\n");
+
+   -- Now write the code that adds the functions to the kollos object
+
+end
+
+io.write[=[
+
+static int wrap_grammar_new(lua_State *L)
 {
         printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     /* expecting a table */
@@ -505,44 +760,13 @@ static int l_grammar_new(lua_State *L)
   return 1;
 }
 
-static int l_grammar_precompute(lua_State *L)
-{
-    Marpa_Grammar *p_g;
-    Marpa_Symbol_ID result;
-    /* [ grammar_object ] */
-
-    /* This will not be an external interface,
-     * so eventually we will run unsafe.
-     * This checking code is for debugging.
-     */
-    if (1) {
-      if (!lua_istable (L, 1))
-        {
-          luaL_error (L, "grammar_precompute expected table as arg #1, got ",
-                      lua_typename (L, lua_type (L, 1)));
-        }
-    }
-
-    lua_getfield (L, -1, "_ud");
-    /* [ grammar_object, grammar_ud ] */
-    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
-    result = marpa_g_precompute(*p_g);
-    if (result <= -1) {
-        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_precompute()" );
-    }
-    lua_pushinteger(L, (lua_Integer)result);
-    return 1;
-}
-
-static int l_grammar_rule_new(lua_State *L)
+static int wrap_grammar_rule_new(lua_State *L)
 {
     Marpa_Grammar *p_g;
     Marpa_Rule_ID result;
     Marpa_Symbol_ID lhs;
     Marpa_Symbol_ID rhs[2];
     int rhs_length;
-    int stack_ix;
     /* [ grammar_object, lhs, rhs ... ] */
 
     /* This will not be an external interface,
@@ -559,12 +783,14 @@ static int l_grammar_rule_new(lua_State *L)
 
     lhs = (Marpa_Symbol_ID)lua_tointeger(L, 2);
     /* Unsafe, no arg count checking */
-    stack_ix = lua_gettop(L);
-    while (stack_ix >= 3)
-      {
-        rhs[stack_ix - 3] = (Marpa_Symbol_ID) lua_tointeger (L, stack_ix);
-        stack_ix--;
-      }
+    rhs_length = lua_gettop(L) - 2;
+    {
+      int rhs_ix;
+      for (rhs_ix = 0; rhs_ix < rhs_length; rhs_ix++)
+        {
+          rhs[rhs_ix] = (Marpa_Symbol_ID) lua_tointeger (L, rhs_ix + 3);
+        }
+    }
     lua_pop(L, lua_gettop(L)-1);
     /* [ grammar_object ] */
 
@@ -576,68 +802,6 @@ static int l_grammar_rule_new(lua_State *L)
     if (result <= -1) {
         Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
         kollos_throw( L, marpa_error, "marpa_g_rule_new()" );
-    }
-    lua_pushinteger(L, (lua_Integer)result);
-    return 1;
-}
-
-static int l_grammar_start_symbol_set(lua_State *L)
-{
-  Marpa_Grammar self;
-  Marpa_Symbol_ID id;
-  int result;
-
-  if (1) {
-    if (!lua_istable (L, 1))
-     {
-        luaL_error (L,
-           "wrap_g_start_symbol_set() expected table as arg #1, got ",
-           lua_typename (L, lua_type (L, 1)));
-      }
-    luaL_checkint(L, 2);
-  }
-  id = lua_tointeger(L, -1);
-  lua_pop(L, 1);
-  lua_getfield (L, -1, "_ud");
-  self = *(Marpa_Grammar*)lua_touserdata (L, -1);
-  result = (int)marpa_g_start_symbol_set(self
-     ,id
-    );
-  if (result < -1) { lua_pushnil(L); return 1; }
-  if (result < -1) {
-    Marpa_Error_Code marpa_error = marpa_g_error(self, NULL);
-    kollos_throw( L, marpa_error, "wrap_g_start_symbol_set()");
-  }
-  lua_pushinteger(L, (lua_Integer)result);
-  return 1;
-}
-
-
-static int l_grammar_symbol_new(lua_State *L)
-{
-    Marpa_Grammar *p_g;
-    Marpa_Symbol_ID result;
-    /* [ grammar_object ] */
-
-    /* This will not be an external interface,
-     * so eventually we will run unsafe.
-     * This checking code is for debugging.
-     */
-    if (1) {
-      if (!lua_istable (L, 1))
-        {
-          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
-                      lua_typename (L, lua_type (L, 1)));
-        }
-    }
-
-    lua_getfield (L, -1, "_ud");
-    /* [ grammar_object, grammar_ud ] */
-    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
-    result = marpa_g_symbol_new(*p_g);
-    if (result <= -1) {
-        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_symbol_new()" );
     }
     lua_pushinteger(L, (lua_Integer)result);
     return 1;
@@ -682,20 +846,32 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
   /* [ kollos ] */
 
-  lua_pushcfunction(L, l_grammar_new);
+  lua_pushcfunction(L, wrap_grammar_new);
   /* [ kollos, grammar_new_function ] */
   lua_setfield(L, -2, "grammar_new");
   /* [ kollos ] */
-  lua_pushcfunction(L, l_grammar_symbol_new);
-  /* [ kollos, grammar_new_function ] */
-  lua_setfield(L, -2, "grammar_symbol_new");
-  lua_pushcfunction(L, l_grammar_rule_new);
-  lua_setfield(L, -2, "grammar_rule_new");
-  lua_pushcfunction(L, l_grammar_start_symbol_set);
-  lua_setfield(L, -2, "grammar_start_symbol_set");
-  lua_pushcfunction(L, l_grammar_precompute);
-  lua_setfield(L, -2, "grammar_precompute");
 
+  lua_pushcfunction(L, wrap_grammar_rule_new);
+  lua_setfield(L, -2, "grammar_rule_new");
+
+]=]
+
+-- This code goes through the signatures table again,
+-- to put the wrappers into kollos object fields
+
+for ix = 1, #c_fn_signatures do
+   local signature = c_fn_signatures[ix]
+   local function_name = signature[1]
+   local unprefixed_name = string.gsub(function_name, "^[_]?marpa_", "");
+   local class_letter = string.gsub(unprefixed_name, "_.*$", "");
+   local wrapper_name = "wrap_" .. unprefixed_name;
+   io.write("  lua_pushcfunction(L, " .. wrapper_name .. ");\n")
+   local classless_name = string.gsub(function_name, "^[_]?marpa_[^_]*_", "")
+   local quoted_field_name = '"' .. libmarpa_class_name[class_letter] .. '_' .. classless_name .. '"'
+   io.write("  lua_setfield(L, -2, " .. quoted_field_name .. ");\n")
+end
+
+io.write[=[
   /* [ kollos ] */
   /* For debugging */
   if (1) dump_table(L, -1);
