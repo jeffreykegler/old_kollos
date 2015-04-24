@@ -299,7 +299,7 @@ for ix = 1, #c_fn_signatures do
      io.write("     ,", arg_name, "\n")
    end
    io.write("    );\n")
-   io.write("  if (result < -1) { pushnil(L); return 1; }\n")
+   io.write("  if (result == -1) { lua_pushnil(L); return 1; }\n")
    io.write("  if (result < -1) {\n")
    io.write("    Marpa_Error_Code marpa_error = marpa_g_error(self, NULL);\n")
    local wrapper_name_as_c_string = '"' .. wrapper_name .. '()"'
