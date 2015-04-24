@@ -226,6 +226,16 @@ local check_for_table_template = [=[
 !!INDENT!!  }
 ]=]
 
+-- automatically generate wrappers
+--   this code is only safe if all of the following are true:
+--   1.) The number of arguments is fixed.
+--   2.) Their type is from a fixed list.
+--   3.) Converting the return value to int is a good thing to do.
+--   4.) Non-negatvie return values indicate success
+--   5.) Return values less than -1 indicate failure
+--   6.) Return values less than -1 set the error code
+--   7.) Return value of -1 is "soft" and returning nil is
+--       the right thing to do
 for ix = 1, #c_fn_signatures do
    local signature = c_fn_signatures[ix]
    local arg_count = math.floor(#signature/2)
@@ -243,7 +253,7 @@ for ix = 1, #c_fn_signatures do
      local arg_name = signature[1 + arg_ix*2]
      io.write("  ", arg_type, " ", arg_name, ";\n");
    end
-   io.write("    int result;\n\n");
+   io.write("  int result;\n\n");
 
    -- These wrappers will not be external interfaces
    -- so eventually they will run unsafe.
@@ -272,8 +282,8 @@ for ix = 1, #c_fn_signatures do
      local arg_name = signature[1 + arg_ix*2]
      local c_type = c_type_of_libmarpa_type(arg_type)
      assert(c_type == "int", ("type " .. c_type .. "not implemented"))
-     io.write("    ", arg_name, " = lua_tointeger(L, -1);\n")
-     io.write("    lua_pop(L, 1);")
+     io.write("  ", arg_name, " = lua_tointeger(L, -1);\n")
+     io.write("  lua_pop(L, 1);\n")
    end
 
    io.write('  lua_getfield (L, -1, "_ud");\n')
@@ -281,12 +291,20 @@ for ix = 1, #c_fn_signatures do
    local cast_to_ptr_to_class_type = "(" ..  class_type[class_letter] .. "*)"
    io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
    -- stack is [ self ]
+   -- assumes converting result to int is safe and right thing to do
+   -- if that assumption is wrong, generate the wrapper by hand
    io.write("  result = (int)", function_name, "(self\n")
    for arg_ix = 1, arg_count do
      local arg_name = signature[1 + arg_ix*2]
      io.write("     ,", arg_name, "\n")
    end
    io.write("    );\n")
+   io.write("  if (result < -1) { pushnil(L); return 1; }\n")
+   io.write("  if (result < -1) {\n")
+   io.write("    Marpa_Error_Code marpa_error = marpa_g_error(self, NULL);\n")
+   local wrapper_name_as_c_string = '"' .. wrapper_name .. '()"'
+   io.write('    kollos_throw( L, marpa_error, ', wrapper_name_as_c_string, ');\n')
+   io.write("  }\n")
    io.write("  lua_pushinteger(L, (lua_Integer)result);\n")
    io.write("  return 1;\n")
    io.write("}\n\n");
