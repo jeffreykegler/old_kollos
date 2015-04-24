@@ -13,18 +13,20 @@
 -- General Public License along with Marpa::R2.  If not, see
 -- http://www.gnu.org/licenses/.
 
--- my %format_by_type = (
---    int => '%d',
---    Marpa_Assertion_ID => '%d',
---    Marpa_IRL_ID => '%d',
---    Marpa_NSY_ID => '%d',
---    Marpa_Or_Node_ID => '%d',
---    Marpa_And_Node_ID => '%d',
---    Marpa_Rank => '%d',
---    Marpa_Rule_ID => '%d',
---    Marpa_Symbol_ID => '%d',
---    Marpa_Earley_Set_ID => '%d',
---"],
+local function c_type_of_libmarpa_type(libmarpa_type)
+    if (libmarpa_type == 'int') then return 'int' end
+    if (libmarpa_type == 'Marpa_Assertion_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_IRL_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_NSY_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Or_Node_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_And_Node_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Rank') then return 'int' end
+    if (libmarpa_type == 'Marpa_Rule_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Symbol_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Earley_Set_ID') then return 'int' end
+    return "!UNIMPLEMENTED!";
+end
+
 -- 
 -- sub gp_generate {
 --     my ( $function, @arg_type_pairs ) = "],
@@ -215,20 +217,31 @@ io.write([=[
 
 ]=])
 
+local check_for_table_template = [=[
+if (!lua_istable (L, 1))
+  {
+    luaL_error (L,
+       "!!FUNCNAME!!() expected table as arg #1, got ",
+       lua_typename (L, lua_type (L, 1)));
+  }
+]=]
+
 for ix = 1, #c_fn_signatures do
    local signature = c_fn_signatures[ix]
-   local c_fn = signature[1]
-   local unprefixed_name = string.gsub(c_fn, "^[_]?marpa_", "");
+   local arg_count = math.floor(#signature/2)
+   local function_name = signature[1]
+   local unprefixed_name = string.gsub(function_name, "^[_]?marpa_", "");
    class_letter = string.gsub(unprefixed_name, "_.*$", "");
    -- print( class_letter )
    local wrapper_name = "wrap_" .. unprefixed_name;
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
-   io.write("  ", class_type[class_letter], "* self;\n");
+   io.write("  ", class_type[class_letter], " self;\n");
    local arg_ix = 2;
-   while (arg_ix <= #signature) do
-     io.write("  ", signature[arg_ix], " ", signature[arg_ix+1], ";\n");
-     arg_ix = arg_ix + 2;
+   for arg_ix = 1, arg_count do
+     local arg_type = signature[arg_ix*2]
+     local arg_name = signature[1 + arg_ix*2]
+     io.write("  ", arg_type, " ", arg_name, ";\n");
    end
    io.write("    int result;\n\n");
 
@@ -240,21 +253,42 @@ for ix = 1, #c_fn_signatures do
    if (safe) then
       io.write("  if (1) {\n")
 
-      local check_for_table = [=[
-    if (!lua_istable (L, 1))
-    {
-      luaL_error (L,
-	"!!FUNCNAME!!() expected table as arg #1, got ",
-        lua_typename (L, lua_type (L, 1)));
-    }
-]=]
-
+      local check_for_table =
+           string.gsub(check_for_table_template, "!!FUNCNAME!!", wrapper_name);
       check_for_table =
-           string.gsub(check_for_table, "!!FUNCNAME!!", wrapper_name);
+           string.gsub(check_for_table, "^", "    ");
       io.write(check_for_table);
+      -- I do not get the values from the integer checks,
+      -- because this code
+      -- will be turned off most of the time
+      for arg_ix = 1, arg_count do
+          io.write("    luaL_checkint(L, ", (arg_ix+1), ");\n")
+      end
       io.write("  }\n");
    end -- if (!unsafe)
 
+   for arg_ix = 1, arg_count do
+     local arg_type = signature[arg_ix*2]
+     local arg_name = signature[1 + arg_ix*2]
+     local c_type = c_type_of_libmarpa_type(arg_type)
+     assert(c_type == "int", ("type " .. c_type .. "not implemented"))
+     io.write("    ", arg_name, " = lua_tointeger(L, -1);\n")
+     io.write("    lua_pop(L, 1);")
+   end
+
+   io.write('  lua_getfield (L, -1, "_ud");\n')
+   -- stack is [ self, grammar_ud ]
+   local cast_to_ptr_to_class_type = "(" ..  class_type[class_letter] .. "*)"
+   io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
+   -- stack is [ self ]
+   io.write("  self = ", function_name, "(self\n")
+   for arg_ix = 1, arg_count do
+     local arg_name = signature[1 + arg_ix*2]
+     io.write("     ,", arg_name, "\n")
+   end
+   io.write("    );")
+   io.write("  lua_pushinteger(L, (lua_Integer)result);\n")
+   io.write("  return 1;\n")
    io.write("}\n\n");
 end
 
@@ -286,3 +320,4 @@ end
 --     return 1;
 -- }
 -- 
+-- vim: expandtab shiftwidth=4:
