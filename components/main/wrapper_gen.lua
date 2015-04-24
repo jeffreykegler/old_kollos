@@ -218,12 +218,12 @@ io.write([=[
 ]=])
 
 local check_for_table_template = [=[
-if (!lua_istable (L, 1))
-  {
-    luaL_error (L,
-       "!!FUNCNAME!!() expected table as arg #1, got ",
-       lua_typename (L, lua_type (L, 1)));
-  }
+!!INDENT!!if (!lua_istable (L, 1))
+!!INDENT!! {
+!!INDENT!!    luaL_error (L,
+!!INDENT!!       "!!FUNCNAME!!() expected table as arg #1, got ",
+!!INDENT!!       lua_typename (L, lua_type (L, 1)));
+!!INDENT!!  }
 ]=]
 
 for ix = 1, #c_fn_signatures do
@@ -256,7 +256,7 @@ for ix = 1, #c_fn_signatures do
       local check_for_table =
            string.gsub(check_for_table_template, "!!FUNCNAME!!", wrapper_name);
       check_for_table =
-           string.gsub(check_for_table, "^", "    ");
+           string.gsub(check_for_table, "!!INDENT!!", "    ");
       io.write(check_for_table);
       -- I do not get the values from the integer checks,
       -- because this code
@@ -281,12 +281,12 @@ for ix = 1, #c_fn_signatures do
    local cast_to_ptr_to_class_type = "(" ..  class_type[class_letter] .. "*)"
    io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
    -- stack is [ self ]
-   io.write("  self = ", function_name, "(self\n")
+   io.write("  result = (int)", function_name, "(self\n")
    for arg_ix = 1, arg_count do
      local arg_name = signature[1 + arg_ix*2]
      io.write("     ,", arg_name, "\n")
    end
-   io.write("    );")
+   io.write("    );\n")
    io.write("  lua_pushinteger(L, (lua_Integer)result);\n")
    io.write("  return 1;\n")
    io.write("}\n\n");
