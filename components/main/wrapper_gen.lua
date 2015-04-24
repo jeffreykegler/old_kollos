@@ -27,75 +27,6 @@ local function c_type_of_libmarpa_type(libmarpa_type)
     return "!UNIMPLEMENTED!";
 end
 
--- 
--- sub gp_generate {
---     my ( $function, @arg_type_pairs ) = "],
---     my $output = q"],
--- 
---     # For example, 'g_wrapper'
---     my $wrapper_variable = $main::CLASS_LETTER . '_wrappe"],
--- 
---     # For example, 'G_Wrapper'
---     my $wrapper_type = ( uc $main::CLASS_LETTER ) . '_Wrappe"],
--- 
---     # For example, 'g_wrapper'
---     my $libmarpa_method =
---           $function =~ m/^_marpa_/xms
---         ? $function
---         : 'marpa_' . $main::CLASS_LETTER . '_' . $functi"],
--- 
---     # Just g_wrapper for the grammar, self->base otherwise
---     my $base = $main::CLASS_LETTER eq 'g' ? 'g_wrapper' : "$wrapper_variable->bas"],
--- 
---     $output .= "void\"],
---     my @args = "],
---     ARG: for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 ) {
---         push @args, $arg_type_pairs[ $i + 1"],
---     }
---     $output
---         .= "$function( " . ( join q{, }, $wrapper_variable, @args ) . " )\"],
---     $output .= "    $wrapper_type *$wrapper_variable;\"],
---     ARG: for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 ) {
---         $output .= q{   "],
---         $output .= join q{ }, @arg_type_pairs[ $i .. $i + 1"],
---         $output .= ";\"],
---     }
---     $output .= "PPCODE:\"],
---     $output .= "{\"],
---     $output
---         .= "  $main::LIBMARPA_CLASS self = $wrapper_variable->$main::CLASS_LETTER;\"],
---     $output .= "  int gp_result = $libmarpa_method("
---         . ( join q{, }, 'self', @args ) . ");\"],
---     $output .= "  if ( gp_result == -1 ) { XSRETURN_UNDEF; }\"],
---     $output .= "  if ( gp_result < 0 && $base->throw ) {\"],
---     my @format    = "],
---     my @variables = "],
---     ARG: for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 ) {
---         my $arg_type = $arg_type_pairs[$"],
---         my $variable = $arg_type_pairs[ $i + 1"],
---         if ( my $format = $format_by_type{$arg_type} ) {
---             push @format,    $form"],
---             push @variables, $variab"],
---             next A"],
---         }
---         die "Unknown arg_type $arg_typ"],
---     } ## end for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 )
---     my $format_string =
---           q{"Problem in }
---         . $main::CLASS_LETTER . q{->}
---         . $function . '('
---         . ( join q{, }, @format )
---         . q{): %s"],
---     my @format_args = @variabl"],
---     push @format_args, qq{xs_g_error( $base "],
---     $output .= "    croak( $format_string,\"],
---     $output .= q{     } . (join q{, }, @format_args) . ");\"],
---     $output .= "  }\"],
---     $output .= q{  XPUSHs (sv_2mortal (newSViv (gp_result)));} . "\"],
---     $output .= "}\"],
---     return $outp"],
--- } ## end sub gp_generate
-
 local class_type = {
   g = "Marpa_Grammar",
   r = "Marpa_Recognizer",
@@ -215,6 +146,9 @@ io.write([=[
 
 #include "compat-5.2.c"
 
+void kollos_throw(lua_State* L,
+    lua_Number code, const char* details);
+
 ]=])
 
 local check_for_table_template = [=[
@@ -247,6 +181,7 @@ for ix = 1, #c_fn_signatures do
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
    io.write("  ", class_type[class_letter], " self;\n");
+   io.write("  Marpa_Grammar grammar;\n");
    local arg_ix = 2;
    for arg_ix = 1, arg_count do
      local arg_type = signature[arg_ix*2]
@@ -287,10 +222,16 @@ for ix = 1, #c_fn_signatures do
    end
 
    io.write('  lua_getfield (L, -1, "_ud");\n')
-   -- stack is [ self, grammar_ud ]
+   -- stack is [ self, self_ud ]
    local cast_to_ptr_to_class_type = "(" ..  class_type[class_letter] .. "*)"
    io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
    -- stack is [ self ]
+
+   io.write('  lua_getfield (L, -1, "_g_ud");\n')
+   -- stack is [ self, grammar_ud ]
+   io.write("  grammar = *(Marpa_Grammar*)lua_touserdata (L, -1);\n")
+   -- stack is [ self ]
+
    -- assumes converting result to int is safe and right thing to do
    -- if that assumption is wrong, generate the wrapper by hand
    io.write("  result = (int)", function_name, "(self\n")
@@ -301,7 +242,7 @@ for ix = 1, #c_fn_signatures do
    io.write("    );\n")
    io.write("  if (result == -1) { lua_pushnil(L); return 1; }\n")
    io.write("  if (result < -1) {\n")
-   io.write("    Marpa_Error_Code marpa_error = marpa_g_error(self, NULL);\n")
+   io.write("    Marpa_Error_Code marpa_error = marpa_g_error(grammar, NULL);\n")
    local wrapper_name_as_c_string = '"' .. wrapper_name .. '()"'
    io.write('    kollos_throw( L, marpa_error, ', wrapper_name_as_c_string, ');\n')
    io.write("  }\n")

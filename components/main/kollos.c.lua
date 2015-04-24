@@ -472,18 +472,22 @@ static int l_grammar_new(lua_State *L)
     Marpa_Config marpa_config;
     Marpa_Grammar *p_g;
     int result;
+    /* [ grammar_table ] */
+    const int grammar_stack_ix = lua_gettop(L);
     p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
-    /* [ grammar_table, userdata ] */
-    /* dup top of stack */
-    lua_pushvalue(L, -1);
-    /* [ grammar_table, userdata, userdata ] */
-    lua_setfield (L, -3, "_ud");
     /* [ grammar_table, userdata ] */
     lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
     lua_setmetatable (L, -2);
     /* [ grammar_table, userdata ] */
-    lua_pop (L, 1);
+
+    /* dup top of stack */
+    lua_pushvalue(L, -1);
+    /* [ grammar_table, userdata, userdata ] */
+    lua_setfield (L, grammar_stack_ix, "_ud");
+    /* [ grammar_table, userdata ] */
+    lua_setfield (L, grammar_stack_ix, "_g_ud");
     /* [ grammar_table ] */
+
     marpa_c_init(&marpa_config);
     *p_g = marpa_g_new(&marpa_config);
     if (!*p_g) {
@@ -497,6 +501,7 @@ static int l_grammar_new(lua_State *L)
     }
   }
         printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ grammar_table ] */
   return 1;
 }
 
@@ -578,38 +583,35 @@ static int l_grammar_rule_new(lua_State *L)
 
 static int l_grammar_start_symbol_set(lua_State *L)
 {
-    Marpa_Grammar *p_g;
-    Marpa_Symbol_ID start_symbol;
-    Marpa_Symbol_ID result;
-    /* [ grammar_object, start_symbol ] */
+  Marpa_Grammar self;
+  Marpa_Symbol_ID id;
+  int result;
 
-    /* This will not be an external interface,
-     * so eventually we will run unsafe.
-     * This checking code is for debugging.
-     */
-    if (1) {
-      if (!lua_istable (L, 1))
-        {
-          luaL_error (L, "grammar_symbol_new expected table as arg #1, got ",
-                      lua_typename (L, lua_type (L, 1)));
-        }
-    }
-
-    start_symbol = (Marpa_Symbol_ID)lua_tointeger(L, -1);
-    lua_pop(L, 1);
-    /* [ grammar_object ] */
-
-    lua_getfield (L, -1, "_ud");
-    /* [ grammar_object, grammar_ud ] */
-    p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
-    result = marpa_g_start_symbol_set(*p_g, start_symbol);
-    if (result < -1) {
-        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_start_symbol_set()" );
-    }
-    lua_pushinteger(L, (lua_Integer)result);
-    return 1;
+  if (1) {
+    if (!lua_istable (L, 1))
+     {
+        luaL_error (L,
+           "wrap_g_start_symbol_set() expected table as arg #1, got ",
+           lua_typename (L, lua_type (L, 1)));
+      }
+    luaL_checkint(L, 2);
+  }
+  id = lua_tointeger(L, -1);
+  lua_pop(L, 1);
+  lua_getfield (L, -1, "_ud");
+  self = *(Marpa_Grammar*)lua_touserdata (L, -1);
+  result = (int)marpa_g_start_symbol_set(self
+     ,id
+    );
+  if (result < -1) { lua_pushnil(L); return 1; }
+  if (result < -1) {
+    Marpa_Error_Code marpa_error = marpa_g_error(self, NULL);
+    kollos_throw( L, marpa_error, "wrap_g_start_symbol_set()");
+  }
+  lua_pushinteger(L, (lua_Integer)result);
+  return 1;
 }
+
 
 static int l_grammar_symbol_new(lua_State *L)
 {
