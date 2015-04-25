@@ -431,6 +431,36 @@ static void luif_err_throw2(lua_State *L, int error_code, const char *msg) {
     luaL_error(L, "%s\n    %s", msg, libmarpa_error_codes[error_code].description);
 }
 
+static void check_libmarpa_table(
+    lua_State* L, const char *function_name, int stack_ix, const char *expected_type)
+{
+  const char *actual_type;
+  /* stack is [ ... ] */
+  if (!lua_istable (L, stack_ix))
+    {
+      const char *typename = lua_typename (L, lua_type (L, stack_ix));
+      luaL_error (L, "%s arg #1 type is %s, expected table",
+		  function_name, typename);
+    }
+  lua_getfield (L, stack_ix, "_type");
+  /* stack is [ ..., field ] */
+  if (!lua_isstring (L, -1))
+    {
+      const char *typename = lua_typename (L, lua_type (L, -1));
+      luaL_error (L, "%s arg #1 field '_type' is %s, expected string",
+		  function_name, typename);
+    }
+  actual_type = lua_tostring (L, -1);
+  if (strcmp (actual_type, expected_type))
+    {
+      luaL_error (L, "%s arg #1 table is %s, expected %s",
+		  function_name, actual_type, expected_type);
+    }
+  /* stack is [ ..., field ] */
+  lua_pop (L, 1);
+  /* stack is [ ... ] */
+}
+
 ]=]
 
 -- Here are the meta-programmed wrappers --
@@ -473,7 +503,7 @@ local libmarpa_class_type = {
 
 local libmarpa_class_name = {
   g = "grammar",
-  r = "recognizer",
+  r = "recce",
   b = "bocage",
   o = "order",
   t = "tree",
@@ -527,9 +557,10 @@ local c_fn_signatures = {
   {"marpa_g_zwa_new", "int", "default_value"},
   {"marpa_g_zwa_place", "Marpa_Assertion_ID", "zwaid", "Marpa_Rule_ID", "xrl_id", "int", "rhs_ix"},
   {"marpa_r_completion_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "reactivate"},
+  {"marpa_r_alternative", "Marpa_Symbol_ID", "token", "int", "value", "int", "length"}, -- See note
   {"marpa_r_current_earleme"},
+  {"marpa_r_earleme_complete"}, -- See note below
   {"marpa_r_earleme", "Marpa_Earley_Set_ID", "ordinal"},
-  {"marpa_r_earleme_complete"},
   {"marpa_r_earley_item_warning_threshold"},
   {"marpa_r_earley_item_warning_threshold_set", "int", "too_many_earley_items"},
   {"marpa_r_earley_set_value", "Marpa_Earley_Set_ID", "ordinal"},
@@ -542,6 +573,7 @@ local c_fn_signatures = {
   {"marpa_r_prediction_symbol_activate", "Marpa_Symbol_ID", "sym_id", "int", "reactivate"},
   {"marpa_r_progress_report_finish"},
   {"marpa_r_progress_report_start", "Marpa_Earley_Set_ID", "ordinal"},
+  {"marpa_r_start_input"},
   {"marpa_r_terminal_is_expected", "Marpa_Symbol_ID", "xsyid"},
   {"marpa_r_zwa_default", "Marpa_Assertion_ID", "zwaid"},
   {"marpa_r_zwa_default_set", "Marpa_Assertion_ID", "zwaid", "int", "default_value"},
@@ -582,13 +614,22 @@ local c_fn_signatures = {
   {"_marpa_b_top_or_node"},
 }
 
+-- Here are notes
+-- on those methods for which the wrapper requirements are "bent"
+-- a little bit.
+--
+-- marpa_r_alternative() -- generates events
+--  Returns an error code.  Since these are always non-negative, from
+--  the wrapper's point of view, marpa_r_alternative() always succeeds.
+--
+-- marpa_r_earleme_complete() -- generates events
+
 local check_for_table_template = [=[
-!!INDENT!!if (!lua_istable (L, 1))
-!!INDENT!! {
-!!INDENT!!    luaL_error (L,
-!!INDENT!!       "!!FUNCNAME!!() expected table as arg #1, got ",
-!!INDENT!!       lua_typename (L, lua_type (L, 1)));
-!!INDENT!!  }
+!!INDENT!!check_libmarpa_table(L,
+!!INDENT!!  "!!FUNCNAME!!",
+!!INDENT!!  self_stack_ix,
+!!INDENT!!  "!!CLASS_NAME!!"
+!!INDENT!!);
 ]=]
 
 for ix = 1, #c_fn_signatures do
@@ -602,6 +643,7 @@ for ix = 1, #c_fn_signatures do
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
    io.write("  ", libmarpa_class_type[class_letter], " self;\n");
+   io.write("  const int self_stack_ix = 1;\n");
    io.write("  Marpa_Grammar grammar;\n");
    local arg_ix = 2;
    for arg_ix = 1, arg_count do
@@ -620,9 +662,11 @@ for ix = 1, #c_fn_signatures do
       io.write("  if (1) {\n")
 
       local check_for_table =
-           string.gsub(check_for_table_template, "!!FUNCNAME!!", wrapper_name);
+        string.gsub(check_for_table_template, "!!FUNCNAME!!", wrapper_name);
       check_for_table =
-           string.gsub(check_for_table, "!!INDENT!!", "    ");
+        string.gsub(check_for_table, "!!INDENT!!", "    ");
+      check_for_table =
+        string.gsub(check_for_table, "!!CLASS_NAME!!", libmarpa_class_name[class_letter])
       io.write(check_for_table);
       -- I do not get the values from the integer checks,
       -- because this code
@@ -683,9 +727,16 @@ io.write[=[
 
 static int wrap_grammar_new(lua_State *L)
 {
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-    /* expecting a table */
-    luaL_checktype(L, 1, LUA_TTABLE);
+  /* [ grammar_table ] */
+  const int grammar_stack_ix = 1;
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
+  /* expecting a table */
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_grammar_NEW()", grammar_stack_ix,
+			    "grammar");
+    }
 
   /* I have forked Libmarpa into Kollos, which makes version checking
    * pointless.  But we may someday use the LuaJIT,
@@ -729,34 +780,35 @@ static int wrap_grammar_new(lua_State *L)
     Marpa_Grammar *p_g;
     int result;
     /* [ grammar_table ] */
-    const int grammar_stack_ix = lua_gettop(L);
     p_g = (Marpa_Grammar *) lua_newuserdata (L, sizeof (Marpa_Grammar));
     /* [ grammar_table, userdata ] */
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
     lua_setmetatable (L, -2);
     /* [ grammar_table, userdata ] */
 
     /* dup top of stack */
-    lua_pushvalue(L, -1);
+    lua_pushvalue (L, -1);
     /* [ grammar_table, userdata, userdata ] */
     lua_setfield (L, grammar_stack_ix, "_ud");
     /* [ grammar_table, userdata ] */
     lua_setfield (L, grammar_stack_ix, "_g_ud");
     /* [ grammar_table ] */
 
-    marpa_c_init(&marpa_config);
-    *p_g = marpa_g_new(&marpa_config);
-    if (!*p_g) {
-        Marpa_Error_Code marpa_error = marpa_c_error(&marpa_config, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_new()" );
-    }
-    result = marpa_g_force_valued(*p_g);
-    if (result < 0) {
-        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_force_valued()" );
-    }
+    marpa_c_init (&marpa_config);
+    *p_g = marpa_g_new (&marpa_config);
+    if (!*p_g)
+      {
+	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
+	kollos_throw (L, marpa_error, "marpa_g_new()");
+      }
+    result = marpa_g_force_valued (*p_g);
+    if (result < 0)
+      {
+	Marpa_Error_Code marpa_error = marpa_g_error (*p_g, NULL);
+	kollos_throw (L, marpa_error, "marpa_g_force_valued()");
+      }
   }
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ grammar_table ] */
   return 1;
 }
@@ -769,18 +821,17 @@ static int wrap_grammar_rule_new(lua_State *L)
     Marpa_Symbol_ID rhs[2];
     int rhs_length;
     /* [ grammar_object, lhs, rhs ... ] */
+    const int grammar_stack_ix = 1;
 
     /* This will not be an external interface,
      * so eventually we will run unsafe.
      * This checking code is for debugging.
      */
-    if (1) {
-      if (!lua_istable (L, 1))
-        {
-          luaL_error (L, "grammar_rule_new expected table as arg #1, got ",
-                      lua_typename (L, lua_type (L, 1)));
-        }
-    }
+    if (1)
+      {
+        check_libmarpa_table (L, "wrap_grammar_rule_new()", grammar_stack_ix,
+                              "grammar");
+      }
 
     lhs = (Marpa_Symbol_ID)lua_tointeger(L, 2);
     /* Unsafe, no arg count checking */
@@ -816,24 +867,27 @@ io.write[=[
 
 static int wrap_recce_new(lua_State *L)
 {
-    const int recce_stack_ix = 1;
-    const int grammar_stack_ix = 2;
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  const int recce_stack_ix = 1;
+  const int grammar_stack_ix = 2;
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ recce_table, grammar_table ] */
-    /* expecting a table */
-    luaL_checktype(L, recce_stack_ix, LUA_TTABLE);
-    /* expecting a table */
-    luaL_checktype(L, grammar_stack_ix, LUA_TTABLE);
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_recce_new()", recce_stack_ix, "recce");
+      check_libmarpa_table (L, "wrap_recce_new()", grammar_stack_ix,
+			    "grammar");
+    }
 
   /* [ recce_table, grammar_table ] */
   {
-    Marpa_Recognizer* recce_ud;
-    Marpa_Grammar* grammar_ud;
+    Marpa_Recognizer *recce_ud;
+    Marpa_Grammar *grammar_ud;
 
     /* [ recce_table, grammar_table ] */
-    recce_ud = (Marpa_Recognizer *) lua_newuserdata (L, sizeof (Marpa_Recognizer));
+    recce_ud =
+      (Marpa_Recognizer *) lua_newuserdata (L, sizeof (Marpa_Recognizer));
     /* [ recce_table, , grammar_table, recce_ud ] */
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
     /* [ recce_table, grammar_table, recce_ud, recce_ud_mt ] */
     lua_setmetatable (L, -2);
     /* [ recce_table, grammar_table, recce_ud ] */
@@ -846,13 +900,16 @@ static int wrap_recce_new(lua_State *L)
     lua_setfield (L, recce_stack_ix, "_g_ud");
     /* [ recce_table, grammar_table ] */
 
-    *recce_ud = marpa_r_new(*grammar_ud);
-    if (!*recce_ud) {
-        Marpa_Error_Code marpa_error = marpa_g_error(*grammar_ud, NULL);
-        kollos_throw( L, marpa_error, "marpa_r_new()" );
-    }
+    *recce_ud = marpa_r_new (*grammar_ud);
+    if (!*recce_ud)
+      {
+	Marpa_Error_Code marpa_error = marpa_g_error (*grammar_ud, NULL);
+	kollos_throw (L, marpa_error, "marpa_r_new()");
+      }
   }
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ recce_table, grammar_table ] */
+  lua_pop(L, 1);
   /* [ recce_table ] */
   return 1;
 }
@@ -926,6 +983,11 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
   lua_pushcfunction(L, wrap_grammar_rule_new);
   lua_setfield(L, -2, "grammar_rule_new");
+
+  lua_pushcfunction(L, wrap_recce_new);
+  /* [ kollos, recce_new_function ] */
+  lua_setfield(L, -2, "recce_new");
+  /* [ kollos ] */
 
 ]=]
 

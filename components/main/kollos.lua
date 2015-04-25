@@ -30,12 +30,31 @@ local grammar_class  = {
     ["symbol_new"] = kollos_c.grammar_symbol_new,
 }
 
-function _khil:grammar()
-  local grammar_object = kollos_c.grammar_new({})
+local recce_class  = {
+    ["alternative"] = kollos_c.recce_alternative,
+    ["earleme_complete"] = kollos_c.recce_earleme_complete,
+    ["start_input"] = kollos_c.recce_start_input,
+}
+
+function _khil.grammar()
+  local grammar_object = kollos_c.grammar_new(
+      { _type = "grammar" }
+  )
   setmetatable(grammar_object, {
       __index = grammar_class,
   })
   return grammar_object
+end
+
+function _khil.recce(grammar_object)
+  local recce_object = kollos_c.recce_new(
+      { _type = "recce" },
+      grammar_object
+  )
+  setmetatable(recce_object, {
+      __index = recce_class,
+  })
+  return recce_object
 end
 
 return { ["_khil"] =_khil }
