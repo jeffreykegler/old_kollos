@@ -289,16 +289,15 @@ static inline int l_error_description_by_code(lua_State* L)
    return 1;
 }
  
-/* The contents of these locations are never examined.
+/* userdata metatable keys
+   The contents of these locations are never examined.
    These location are used as a key in the Lua registry.
    This guarantees that the key will be unique
    within the Lua state.
 */
-
-/* error metatable key */
 static char kollos_error_mt_key;
-/* grammar userdata metatable key */
 static char kollos_g_ud_mt_key;
+static char kollos_r_ud_mt_key;
 
 /* Leaves the stack as before,
    except with the error object on top */
@@ -678,6 +677,8 @@ for ix = 1, #c_fn_signatures do
 
 end
 
+-- grammar wrappers which need to be hand written
+
 io.write[=[
 
 static int wrap_grammar_new(lua_State *L)
@@ -807,6 +808,59 @@ static int wrap_grammar_rule_new(lua_State *L)
     return 1;
 }
 
+]=]
+
+-- recognizer wrappers which need to be hand-written
+
+io.write[=[
+
+static int wrap_recce_new(lua_State *L)
+{
+    const int recce_stack_ix = 1;
+    const int grammar_stack_ix = 2;
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ recce_table, grammar_table ] */
+    /* expecting a table */
+    luaL_checktype(L, recce_stack_ix, LUA_TTABLE);
+    /* expecting a table */
+    luaL_checktype(L, grammar_stack_ix, LUA_TTABLE);
+
+  /* [ recce_table, grammar_table ] */
+  {
+    Marpa_Recognizer* recce_ud;
+    Marpa_Grammar* grammar_ud;
+
+    /* [ recce_table, grammar_table ] */
+    recce_ud = (Marpa_Recognizer *) lua_newuserdata (L, sizeof (Marpa_Recognizer));
+    /* [ recce_table, , grammar_table, recce_ud ] */
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
+    /* [ recce_table, grammar_table, recce_ud, recce_ud_mt ] */
+    lua_setmetatable (L, -2);
+    /* [ recce_table, grammar_table, recce_ud ] */
+
+    lua_setfield (L, recce_stack_ix, "_ud");
+    /* [ recce_table, grammar_table ] */
+    lua_getfield (L, grammar_stack_ix, "_g_ud");
+    /* [ recce_table, grammar_table, g_ud ] */
+    grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+    lua_setfield (L, recce_stack_ix, "_g_ud");
+    /* [ recce_table, grammar_table ] */
+
+    *recce_ud = marpa_r_new(*grammar_ud);
+    if (!*recce_ud) {
+        Marpa_Error_Code marpa_error = marpa_g_error(*grammar_ud, NULL);
+        kollos_throw( L, marpa_error, "marpa_r_new()" );
+    }
+  }
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ recce_table ] */
+  return 1;
+}
+
+]=]
+
+io.write[=[
+
 /*
  * Userdata metatable methods
  */
@@ -816,6 +870,14 @@ static int l_grammar_ud_mt_gc(lua_State *L) {
         printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
     if (*p_g) marpa_g_unref(*p_g);
+   return 0;
+}
+
+static int l_recce_ud_mt_gc(lua_State *L) {
+    Marpa_Recognizer *p_recce;
+        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_recce = (Marpa_Recognizer *) lua_touserdata (L, 1);
+    if (*p_recce) marpa_r_unref(*p_recce);
    return 0;
 }
 
@@ -844,6 +906,17 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
   lua_setfield(L, -2, "__gc");
   /* [ kollos, mt_g_ud ] */
   lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
+  /* [ kollos ] */
+
+  /* Set up Kollos recce userdata metatable */
+  lua_newtable(L);
+  /* [ kollos, mt_ud_r ] */
+  /* dup top of stack */
+  lua_pushcfunction(L, l_recce_ud_mt_gc);
+  /* [ kollos, mt_r_ud, gc_function ] */
+  lua_setfield(L, -2, "__gc");
+  /* [ kollos, mt_r_ud ] */
+  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
   /* [ kollos ] */
 
   lua_pushcfunction(L, wrap_grammar_new);
