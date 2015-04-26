@@ -1,3 +1,9 @@
+-- This is meta-programming -- Lua code that writes C code.
+-- Meta-programming introduces a lot of additonal complexity
+-- for each line, but in this case the automated generation
+-- of Lua wrappers for the libmarpa methods, alone,
+-- allows the elimination of thousands of lines of code.
+
 -- assumes that, when called, out_file to set to output file
 local error_file
 
@@ -93,27 +99,72 @@ static void dump_stack (lua_State *L) {
       printf("\n");  /* end the listing */
 }
 
-static void dump_table(lua_State *L, int index)
+static void dump_table(lua_State *L, int raw_table_index)
 {
     /* Original stack: [ ... ] */
-    lua_pushvalue(L, index);
+    const int table_index = lua_absindex(L, raw_table_index);
     lua_pushnil(L);
-    /* [ ..., table, nil ] */
-    while (lua_next(L, -2))
+    /* [ ..., nil ] */
+    while (lua_next(L, table_index))
     {
-        const char *key;
-        const char *value;
-        /* [ ..., table, key, value ] */
+        /* [ ..., key, value ] */
+        const int value_stack_ix = lua_gettop(L);
+        const int key_stack_ix = lua_gettop(L)+1;
+        /* Copy the key, because lua_tostring() can be destructive */
         lua_pushvalue(L, -2);
-        /* [ ..., table, key, value, key ] */
-        key = lua_tostring(L, -1);
-        value = lua_tostring(L, -2);
-        printf("%s => %s\n", key, value);
+        /* [ ..., key, value, key_copy ] */
+        switch (lua_type(L, key_stack_ix)) {
+    
+          case LUA_TSTRING:  /* strings */
+            printf("`%s'", lua_tostring(L, key_stack_ix));
+            break;
+    
+          case LUA_TBOOLEAN:  /* booleans */
+            printf(lua_toboolean(L, key_stack_ix) ? "true" : "false");
+            break;
+    
+          case LUA_TNUMBER:  /* numbers */
+            printf("%g", lua_tonumber(L, key_stack_ix));
+            break;
+    
+          case LUA_TTABLE:  /* numbers */
+            printf("table %s", lua_tostring(L, key_stack_ix));
+            break;
+    
+          default:  /* other values */
+            printf("%s", lua_typename(L, lua_type(L, key_stack_ix)));
+            break;
+    
+        }
+        printf(" -> ");  /* end the listing */
+        switch (lua_type(L, value_stack_ix)) {
+    
+          case LUA_TSTRING:  /* strings */
+            printf("`%s'", lua_tostring(L, value_stack_ix));
+            break;
+    
+          case LUA_TBOOLEAN:  /* booleans */
+            printf(lua_toboolean(L, value_stack_ix) ? "true" : "false");
+            break;
+    
+          case LUA_TNUMBER:  /* numbers */
+            printf("%g", lua_tonumber(L, value_stack_ix));
+            break;
+    
+          case LUA_TTABLE:  /* numbers */
+            printf("table %s", lua_tostring(L, value_stack_ix));
+            break;
+    
+          default:  /* other values */
+            printf("%s", lua_typename(L, lua_type(L, value_stack_ix)));
+            break;
+    
+        }
+        printf("\n");  /* end the listing */
+        /* [ ..., key, value, key_copy ] */
         lua_pop(L, 2);
-        /* [ ..., table, key ] */
+        /* [ ..., key ] */
     }
-    /* [ ..., table ] */
-    lua_pop(L, 1);
     /* Back to original stack: [ ... ] */
 }
 
@@ -282,9 +333,33 @@ static inline int l_error_description_by_code(lua_State* L)
    const char* description = error_description_by_code(error_code);
    if (description)
    {
-       lua_pushfstring(L, "Unknown error code (%d)", error_code);
-   } else {
        lua_pushstring(L, description);
+   } else {
+       lua_pushfstring(L, "Unknown error code (%d)", error_code);
+   }
+   return 1;
+}
+ 
+static inline const char* error_name_by_code(lua_Integer error_code)
+{
+   if (error_code >= LIBMARPA_MIN_ERROR_CODE && error_code <= LIBMARPA_MAX_ERROR_CODE) {
+       return libmarpa_error_codes[error_code-LIBMARPA_MIN_ERROR_CODE].description;
+   }
+   if (error_code >= KOLLOS_MIN_ERROR_CODE && error_code <= KOLLOS_MAX_ERROR_CODE) {
+       return kollos_error_codes[error_code-KOLLOS_MIN_ERROR_CODE].description;
+   }
+   return (const char *)0;
+}
+
+static inline int l_error_name_by_code(lua_State* L)
+{
+   const lua_Integer error_code = luaL_checkinteger(L, 1);
+   const char* description = error_description_by_code(error_code);
+   if (description)
+   {
+       lua_pushstring(L, description);
+   } else {
+       lua_pushfstring(L, "Unknown error code (%d)", error_code);
    }
    return 1;
 }
@@ -941,53 +1016,91 @@ static int l_recce_ud_mt_gc(lua_State *L) {
 LUALIB_API int luaopen_kollos_c(lua_State *L);
 LUALIB_API int luaopen_kollos_c(lua_State *L)
 {
-  /* Create the main kollos object */
-  lua_newtable(L);
+    /* Create the main kollos object */
+    const int kollos_table_stack_ix = lua_gettop(L) + 1;
+    lua_newtable(L);
 
-  /* Set up Kollos error handling metatable */
-  lua_newtable(L);
-  /* [ kollos, error_mt ] */
-  lua_pushcclosure(L, l_error_tostring, 0);
-  /* [ kollos, error_mt, tostring_fn ] */
-  lua_setfield(L, -2, "__tostring");
-  /* [ kollos, error_mt ] */
-  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
-  /* [ kollos ] */
+    /* Set up Kollos error handling metatable */
+    lua_newtable(L);
+    /* [ kollos, error_mt ] */
+    lua_pushcclosure(L, l_error_tostring, 0);
+    /* [ kollos, error_mt, tostring_fn ] */
+    lua_setfield(L, -2, "__tostring");
+    /* [ kollos, error_mt ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
+    /* [ kollos ] */
 
-  /* Set up Kollos grammar userdata metatable */
-  lua_newtable(L);
-  /* [ kollos, mt_ud_g ] */
-  /* dup top of stack */
-  lua_pushcfunction(L, l_grammar_ud_mt_gc);
-  /* [ kollos, mt_g_ud, gc_function ] */
-  lua_setfield(L, -2, "__gc");
-  /* [ kollos, mt_g_ud ] */
-  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
-  /* [ kollos ] */
+    /* Set up Kollos grammar userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_g ] */
+    /* dup top of stack */
+    lua_pushcfunction(L, l_grammar_ud_mt_gc);
+    /* [ kollos, mt_g_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_g_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_g_ud_mt_key);
+    /* [ kollos ] */
 
-  /* Set up Kollos recce userdata metatable */
-  lua_newtable(L);
-  /* [ kollos, mt_ud_r ] */
-  /* dup top of stack */
-  lua_pushcfunction(L, l_recce_ud_mt_gc);
-  /* [ kollos, mt_r_ud, gc_function ] */
-  lua_setfield(L, -2, "__gc");
-  /* [ kollos, mt_r_ud ] */
-  lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
-  /* [ kollos ] */
+    /* Set up Kollos recce userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_r ] */
+    /* dup top of stack */
+    lua_pushcfunction(L, l_recce_ud_mt_gc);
+    /* [ kollos, mt_r_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_r_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
+    /* [ kollos ] */
 
-  lua_pushcfunction(L, wrap_grammar_new);
-  /* [ kollos, grammar_new_function ] */
-  lua_setfield(L, -2, "grammar_new");
-  /* [ kollos ] */
+    lua_pushcfunction(L, wrap_grammar_new);
+    /* [ kollos, grammar_new_function ] */
+    lua_setfield(L, kollos_table_stack_ix, "grammar_new");
+    /* [ kollos ] */
 
-  lua_pushcfunction(L, wrap_grammar_rule_new);
-  lua_setfield(L, -2, "grammar_rule_new");
+    lua_pushcfunction(L, wrap_grammar_rule_new);
+    lua_setfield(L, kollos_table_stack_ix, "grammar_rule_new");
 
-  lua_pushcfunction(L, wrap_recce_new);
-  /* [ kollos, recce_new_function ] */
-  lua_setfield(L, -2, "recce_new");
-  /* [ kollos ] */
+    lua_pushcfunction(L, wrap_recce_new);
+    /* [ kollos, recce_new_function ] */
+    lua_setfield(L, kollos_table_stack_ix, "recce_new");
+    /* [ kollos ] */
+
+    lua_pushcfunction(L, l_error_name_by_code);
+    /* [ kollos, function ] */
+    lua_setfield(L, kollos_table_stack_ix, "error_name");
+    /* [ kollos ] */
+
+    lua_pushcfunction(L, l_error_description_by_code);
+    /* [ kollos, function ] */
+    lua_setfield(L, kollos_table_stack_ix, "error_description");
+    /* [ kollos ] */
+
+    lua_newtable (L);
+    /* [ kollos, error_code_table ] */
+    {
+      const int name_table_stack_ix = lua_gettop (L);
+      int error_code;
+      for (error_code = LIBMARPA_MIN_ERROR_CODE;
+           error_code <= LIBMARPA_MAX_ERROR_CODE; error_code++)
+        {
+          lua_pushinteger (L, (lua_Integer) error_code);
+          lua_setfield (L, name_table_stack_ix,
+                        libmarpa_error_codes[error_code -
+                                             LIBMARPA_MIN_ERROR_CODE].mnemonic);
+        }
+      for (error_code = KOLLOS_MIN_ERROR_CODE;
+           error_code <= KOLLOS_MAX_ERROR_CODE; error_code++)
+        {
+          lua_pushinteger (L, (lua_Integer) error_code);
+          lua_setfield (L, name_table_stack_ix,
+                        kollos_error_codes[error_code -
+                                           KOLLOS_MIN_ERROR_CODE].mnemonic);
+        }
+    }
+      /* if (1) dump_table(L, -1); */
+
+    /* [ kollos, error_code_table ] */
+    lua_setfield (L, kollos_table_stack_ix, "error_code");
 
 ]=]
 
@@ -1003,13 +1116,13 @@ for ix = 1, #c_fn_signatures do
    io.write("  lua_pushcfunction(L, " .. wrapper_name .. ");\n")
    local classless_name = string.gsub(function_name, "^[_]?marpa_[^_]*_", "")
    local quoted_field_name = '"' .. libmarpa_class_name[class_letter] .. '_' .. classless_name .. '"'
-   io.write("  lua_setfield(L, -2, " .. quoted_field_name .. ");\n")
+   io.write("  lua_setfield(L, kollos_table_stack_ix, " .. quoted_field_name .. ");\n")
 end
 
 io.write[=[
   /* [ kollos ] */
   /* For debugging */
-  if (1) dump_table(L, -1);
+  if (0) dump_table(L, -1);
 
   /* For testing the error mechanism */
   if (0) kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );

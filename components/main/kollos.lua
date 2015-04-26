@@ -21,7 +21,13 @@
 
 local kollos_c = require "kollos_c"
 
-local _khil = {}
+local _khil = {
+  error =  {
+    name = kollos_c.error_name,
+    description = kollos_c.error_description,
+    code = kollos_c.error_code,
+  }
+}
 
 local grammar_class  = {
     ["rule_new"] = kollos_c.grammar_rule_new,
