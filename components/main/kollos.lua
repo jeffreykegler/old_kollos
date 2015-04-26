@@ -21,7 +21,7 @@
 
 local kollos_c = require "kollos_c"
 
-local _khil = {
+local _klol = {
   error =  {
     name = kollos_c.error_name,
     description = kollos_c.error_description,
@@ -88,7 +88,7 @@ function recce_class.alternative(recce, symbol)
     return kollos_c.recce_alternative(recce, symbol, 1, 1)
 end
 
-function _khil.grammar()
+function _klol.grammar()
   local grammar_object = kollos_c.grammar_new(
       { _type = "grammar" }
   )
@@ -98,7 +98,7 @@ function _khil.grammar()
   return grammar_object
 end
 
-function _khil.recce(grammar_object)
+function _klol.recce(grammar_object)
   local recce_object = kollos_c.recce_new(
       { _type = "recce" },
       grammar_object
@@ -109,6 +109,6 @@ function _khil.recce(grammar_object)
   return recce_object
 end
 
-return { ["_khil"] =_khil }
+return { ["_klol"] =_klol }
 
 -- vim: expandtab shiftwidth=4:

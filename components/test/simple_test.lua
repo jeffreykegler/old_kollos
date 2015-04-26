@@ -35,13 +35,13 @@ function table.tostring( tbl )
 end
 
 local kollos_external = require "kollos"
-local _khil = kollos_external._khil
+local _klol = kollos_external._klol
 
 -- print (table.tostring(kollos_external))
 
-luif_err_none = _khil.error.code['LUIF_ERR_NONE']
+luif_err_none = _klol.error.code['LUIF_ERR_NONE']
 
-g = _khil.grammar()
+g = _klol.grammar()
 top = g:symbol_new()
 main = g:symbol_new()
 prefix = g:symbol_new()
@@ -59,24 +59,24 @@ print("is body terminal? ", g:symbol_is_terminal(body))
 print("is prefix terminal? ", g:symbol_is_terminal(prefix))
 print("is a terminal? ", g:symbol_is_terminal(a))
 
-r = _khil.recce(g)
+r = _klol.recce(g)
 r:start_input()
 
 result = r:alternative(prefix, 1, 1)
 if (result ~= luif_err_none) then
-    error(_khil.error.name(result))
+    error(_klol.error.name(result))
 end
 
 result = r:earleme_complete()
 print("result of earleme_complete = ", result)
 
 -- result = r:alternative(a, 1, 1)
--- print("result of alternative = ", result, _khil.error.name(result))
+-- print("result of alternative = ", result, _klol.error.name(result))
 -- result = r:earleme_complete()
 -- print("result of earleme_complete = ", result)
 
 -- result = r:alternative(a, 1, 1)
--- print("result of alternative = ", result, _khil.error.name(result))
+-- print("result of alternative = ", result, _klol.error.name(result))
 -- result = r:earleme_complete()
 -- print("result of earleme_complete = ", result)
 
