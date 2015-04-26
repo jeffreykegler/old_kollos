@@ -63,22 +63,19 @@ r = _klol.recce(g)
 r:start_input()
 
 result = r:alternative(prefix, 1, 1)
-if (result ~= luif_err_none) then
-    error(_klol.error.name(result))
-end
-
+print("result of alternative = ", result)
 result = r:earleme_complete()
 print("result of earleme_complete = ", result)
 
--- result = r:alternative(a, 1, 1)
--- print("result of alternative = ", result, _klol.error.name(result))
--- result = r:earleme_complete()
--- print("result of earleme_complete = ", result)
+result = r:alternative(a, 1, 1)
+print("result of alternative = ", result)
+result = r:earleme_complete()
+print("result of earleme_complete = ", result)
 
--- result = r:alternative(a, 1, 1)
--- print("result of alternative = ", result, _klol.error.name(result))
--- result = r:earleme_complete()
--- print("result of earleme_complete = ", result)
+result = r:alternative(a, 1, 1)
+print("result of alternative = ", result)
+result = r:earleme_complete()
+print("result of earleme_complete = ", result)
 
 g = nil
 r = nil

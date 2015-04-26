@@ -85,10 +85,6 @@ static void dump_stack (lua_State *L) {
             printf("%g", lua_tonumber(L, i));
             break;
     
-          case LUA_TTABLE:  /* numbers */
-            printf("table %s", lua_tostring(L, i));
-            break;
-    
           default:  /* other values */
             printf("%s", lua_typename(L, t));
             break;
@@ -400,7 +396,7 @@ static inline void error_tostring(lua_State* L)
 {
   const int error_object_ix = lua_gettop (L);
   /* [ ..., error_object ] */
-  lua_getfield (L, -1, "string");
+  lua_getfield (L, error_object_ix, "string");
 
   /* [ ..., error_object, string ] */
 
@@ -475,7 +471,6 @@ static inline int wrap_kollos_throw(lua_State* L)
 static int l_error_tostring(lua_State* L)
 {
    /* [ error_object ] */
-   luaL_checktype(L, 1, LUA_TTABLE);
    error_tostring(L);
    /* [ error_string ] */
   return 1;
