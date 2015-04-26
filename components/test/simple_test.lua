@@ -39,22 +39,46 @@ local _khil = kollos_external._khil
 
 -- print (table.tostring(kollos_external))
 
+luif_err_none = _khil.error.code['LUIF_ERR_NONE']
+
 g = _khil.grammar()
-print(g)
-print(g.symbol_new)
-print("hello before calls to symbol new")
 top = g:symbol_new()
-print("hello between calls to symbol new")
+main = g:symbol_new()
+prefix = g:symbol_new()
+body = g:symbol_new()
 a = g:symbol_new()
-start_rule = g:rule_new(top, a)
+start_rule = g:rule_new(top, main)
+main_rule = g:rule_new(main, prefix, body)
+body_rule = g:rule_new(body, a, a)
 g:start_symbol_set(top)
 g:precompute()
-print(start_rule)
+
+print("is top terminal? ", g:symbol_is_terminal(top))
+print("is main terminal? ", g:symbol_is_terminal(main))
+print("is body terminal? ", g:symbol_is_terminal(body))
+print("is prefix terminal? ", g:symbol_is_terminal(prefix))
+print("is a terminal? ", g:symbol_is_terminal(a))
+
 r = _khil.recce(g)
 r:start_input()
+
 result = r:alternative(a, 1, 1)
-print("result of alternative = ", result, _khil.error.name(result))
+if (result ~= luif_err_none) then
+    error(_khil.error.name(result))
+end
+
 result = r:earleme_complete()
 print("result of earleme_complete = ", result)
+
+-- result = r:alternative(a, 1, 1)
+-- print("result of alternative = ", result, _khil.error.name(result))
+-- result = r:earleme_complete()
+-- print("result of earleme_complete = ", result)
+
+-- result = r:alternative(a, 1, 1)
+-- print("result of alternative = ", result, _khil.error.name(result))
+-- result = r:earleme_complete()
+-- print("result of earleme_complete = ", result)
+
 g = nil
 r = nil
