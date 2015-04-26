@@ -29,6 +29,9 @@ local _klol = {
   }
 }
 
+-- make certain useful error codes more visible
+local luif_err_none = _klol.error.code['LUIF_ERR_NONE']
+
 local grammar_class  = {
   ["rule_new"] = kollos_c.grammar_rule_new,
   ["completion_symbol_activate"] = kollos_c.grammar_completion_symbol_activate,
@@ -85,7 +88,9 @@ local recce_class  = {
 
 function recce_class.alternative(recce, symbol)
     print("alternative(", recce, symbol, ")")
-    return kollos_c.recce_alternative(recce, symbol, 1, 1)
+    local result = kollos_c.recce_alternative(recce, symbol, 1, 1)
+    if (result == luif_err_none) then return 1 end
+    kollos_c.error_throw(result, "alternative()");
 end
 
 function _klol.grammar()

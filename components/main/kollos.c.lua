@@ -455,12 +455,21 @@ static inline void error_tostring(lua_State* L)
   /* [ ..., result ] */
 }
   
-static inline void kollos_throw(lua_State* L,
+static inline int kollos_throw(lua_State* L,
     lua_Number code, const char* details)
 {
    kollos_error(L, code, details);
    error_tostring(L);
-   lua_error(L);
+   return lua_error(L);
+}
+
+/* not safe - intended for internal use */
+static inline int wrap_kollos_throw(lua_State* L)
+{
+   const char* details = lua_tostring(L, 2);
+   const Marpa_Error_Code code = lua_tointeger(L, 2);
+   return kollos_throw(L, code, details);
+   /* NOTREACHED */
 }
 
 static int l_error_tostring(lua_State* L)
@@ -1073,6 +1082,11 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     lua_pushcfunction(L, l_error_description_by_code);
     /* [ kollos, function ] */
     lua_setfield(L, kollos_table_stack_ix, "error_description");
+    /* [ kollos ] */
+
+    lua_pushcfunction(L, wrap_kollos_throw);
+    /* [ kollos, function ] */
+    lua_setfield(L, kollos_table_stack_ix, "kollos_error");
     /* [ kollos ] */
 
     lua_newtable (L);
