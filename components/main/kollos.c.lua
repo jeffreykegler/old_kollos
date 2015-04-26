@@ -752,7 +752,7 @@ for ix = 1, #c_fn_signatures do
       io.write("  }\n");
    end -- if (!unsafe)
 
-   for arg_ix = 1, arg_count do
+   for arg_ix = arg_count, 1, -1 do
      local arg_type = signature[arg_ix*2]
      local arg_name = signature[1 + arg_ix*2]
      local c_type = c_type_of_libmarpa_type(arg_type)

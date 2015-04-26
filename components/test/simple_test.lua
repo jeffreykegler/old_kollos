@@ -62,7 +62,7 @@ print("is a terminal? ", g:symbol_is_terminal(a))
 r = _khil.recce(g)
 r:start_input()
 
-result = r:alternative(a, 1, 1)
+result = r:alternative(prefix, 1, 1)
 if (result ~= luif_err_none) then
     error(_khil.error.name(result))
 end

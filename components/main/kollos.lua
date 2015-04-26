@@ -79,10 +79,14 @@ local grammar_class  = {
 }
 
 local recce_class  = {
-    ["alternative"] = kollos_c.recce_alternative,
     ["earleme_complete"] = kollos_c.recce_earleme_complete,
     ["start_input"] = kollos_c.recce_start_input,
 }
+
+function recce_class.alternative(recce, symbol)
+    print("alternative(", recce, symbol, ")")
+    return kollos_c.recce_alternative(recce, symbol, 1, 1)
+end
 
 function _khil.grammar()
   local grammar_object = kollos_c.grammar_new(
