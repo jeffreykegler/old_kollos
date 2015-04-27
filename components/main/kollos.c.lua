@@ -401,14 +401,11 @@ static inline void error_tostring(lua_State* L)
   const int error_object_ix = lua_gettop (L);
   const char *temp_string;
 
-  if (!lua_checkstack (L, 20))
-    {
-      /* This should never happen -- if it does it is
-       * unrecoverable
-       */
-      lua_pushstring (L, "Cannot grow stack in error_to_string()");
-      lua_error (L);
-    }
+  /* Room for details, code, mnemonic, description,
+   * plus separators before and after: 4*3 = 12
+   */
+  luaL_checkstack (L, 12, "not enough stack for error_tostring()");
+
   lua_getfield (L, error_object_ix, "string");
 
   /* [ ..., error_object, string ] */
