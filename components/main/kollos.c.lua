@@ -406,7 +406,7 @@ static inline void error_tostring(lua_State* L)
       /* This should never happen -- if it does it is
        * unrecoverable
        */
-      lua_pushstring(L, "Cannot grow stack in error_to_string()");
+      lua_pushstring (L, "Cannot grow stack in error_to_string()");
       lua_error (L);
     }
   lua_getfield (L, error_object_ix, "string");
@@ -443,14 +443,18 @@ static inline void error_tostring(lua_State* L)
   if (!lua_isnumber (L, -1))
     {
       lua_pop (L, 1);
-      lua_pushstring (L, "[No error code] ");
+      lua_pushstring (L, "[No error code]");
     }
   else
     {
       error_code = lua_tointeger (L, -1);
-      temp_string = lua_tostring (L, -1);
-      lua_pushstring (L, " ");
+      /* Concatenation will eventually convert a numeric
+       * code on top of the stack to a string, so we do
+       * nothing with it here.
+       */
     }
+
+  lua_pushstring (L, " ");	/* Add space separator */
 
   temp_string = error_name_by_code (error_code);
   if (temp_string)
@@ -461,15 +465,17 @@ static inline void error_tostring(lua_State* L)
     {
       lua_pushfstring (L, "Unknown error code (%d)", (int) error_code);
     }
-  lua_pushstring (L, " ");
+  lua_pushstring (L, " ");	/* Add space separator */
 
   temp_string = error_description_by_code (error_code);
   lua_pushstring (L, temp_string ? temp_string : "[no description]");
-  lua_pushstring (L, " ");
+  lua_pushstring (L, "\n");	/* Add space separator */
 
   printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_concat (L, lua_gettop (L) - error_object_ix);
+  /* stack is [ ..., error_object, concatenated_result ] */
   lua_replace (L, error_object_ix);
+  /* [ ..., concatenated_result ] */
 }
   
 static inline int kollos_throw(lua_State* L,
