@@ -77,5 +77,10 @@ print("result of alternative = ", result)
 result = r:earleme_complete()
 print("result of earleme_complete = ", result)
 
+result = r:alternative(a, 1, 1)
+print("result of alternative = ", result)
+result = r:earleme_complete()
+print("result of earleme_complete = ", result)
+
 g = nil
 r = nil

@@ -339,10 +339,10 @@ static inline int l_error_description_by_code(lua_State* L)
 static inline const char* error_name_by_code(lua_Integer error_code)
 {
    if (error_code >= LIBMARPA_MIN_ERROR_CODE && error_code <= LIBMARPA_MAX_ERROR_CODE) {
-       return libmarpa_error_codes[error_code-LIBMARPA_MIN_ERROR_CODE].description;
+       return libmarpa_error_codes[error_code-LIBMARPA_MIN_ERROR_CODE].mnemonic;
    }
    if (error_code >= KOLLOS_MIN_ERROR_CODE && error_code <= KOLLOS_MAX_ERROR_CODE) {
-       return kollos_error_codes[error_code-KOLLOS_MIN_ERROR_CODE].description;
+       return kollos_error_codes[error_code-KOLLOS_MIN_ERROR_CODE].mnemonic;
    }
    return (const char *)0;
 }
@@ -350,10 +350,10 @@ static inline const char* error_name_by_code(lua_Integer error_code)
 static inline int l_error_name_by_code(lua_State* L)
 {
    const lua_Integer error_code = luaL_checkinteger(L, 1);
-   const char* description = error_description_by_code(error_code);
-   if (description)
+   const char* mnemonic = error_name_by_code(error_code);
+   if (mnemonic)
    {
-       lua_pushstring(L, description);
+       lua_pushstring(L, mnemonic);
    } else {
        lua_pushfstring(L, "Unknown error code (%d)", error_code);
    }
@@ -373,19 +373,22 @@ static char kollos_r_ud_mt_key;
 /* Leaves the stack as before,
    except with the error object on top */
 static inline void kollos_error(lua_State* L,
-    lua_Number code, const char* details)
+    Marpa_Error_Code code, const char* details)
 {
+   const int error_object_stack_ix = lua_gettop(L)+1;
    lua_newtable(L);
    /* [ ..., error_object ] */
    lua_rawgetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
    /* [ ..., error_object, error_metatable ] */
-   lua_setmetatable(L, -2);
+   lua_setmetatable(L, error_object_stack_ix);
    /* [ ..., error_object ] */
-   lua_pushnumber(L, code);
-   lua_setfield(L, -2, "code" );
+   lua_pushinteger(L, (lua_Integer)code);
+   lua_setfield(L, error_object_stack_ix, "code" );
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  printf ("%s code = %d\n", __PRETTY_FUNCTION__, code);
    /* [ ..., error_object ] */
    lua_pushstring(L, details);
-   lua_setfield(L, -2, "details" );
+   lua_setfield(L, error_object_stack_ix, "details" );
    /* [ ..., error_object ] */
 }
 
@@ -394,65 +397,83 @@ static inline void kollos_error(lua_State* L,
  */
 static inline void error_tostring(lua_State* L)
 {
+  Marpa_Error_Code error_code = -1;
   const int error_object_ix = lua_gettop (L);
-  /* [ ..., error_object ] */
+  const char *temp_string;
+
+  if (!lua_checkstack (L, 20))
+    {
+      /* This should never happen -- if it does it is
+       * unrecoverable
+       */
+      lua_pushstring(L, "Cannot grow stack in error_to_string()");
+      lua_error (L);
+    }
   lua_getfield (L, error_object_ix, "string");
 
   /* [ ..., error_object, string ] */
 
-  if (lua_isnil (L, -1))
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* If present, a "string" overrides everything else */
+  if (lua_isstring (L, -1))
     {
-      /* [ ..., error_object, nil ] */
-      lua_pop (L, 1);
-      lua_getfield (L, error_object_ix, "where");
-      if (lua_isnil (L, -1))
-	{
-	  lua_pop (L, 1);
-	  lua_pushstring (L, "???: ");
-	}
-      /* [ ..., error_object, where ] */
-      lua_getfield (L, error_object_ix, "code");
-      if (lua_isnil (L, -1))
-	{
-	  lua_pop (L, 1);
-	  lua_pushstring (L, "");
-	}
-      else
-	{
-	  lua_Integer error_code = lua_tointeger (L, -1);
-	  const char *description = error_description_by_code (error_code);
-	  if (description)
-	    {
-	      lua_pushstring (L, description);
-	    }
-	  else
-	    {
-	      lua_pushfstring (L, "Unknown error code (%d)",
-			       (int) error_code);
-	    }
-	}
-      /* [ ..., error_object, where, code_description ] */
-      lua_getfield (L, error_object_ix, "details");
-      if (lua_isnil (L, -1))
-	{
-	  lua_pop (L, 1);
-	  lua_pushstring (L, "");
-	}
-      /* [ ..., error_object, where, code_description, details ] */
-      lua_pushfstring (L, "%s %s\n%s",
-		       lua_tostring (L, -3),
-		       lua_tostring (L, -2), lua_tostring (L, -1));
-      /* [ ..., error_object, where, code_description, details, result ] */
+      lua_replace (L, error_object_ix);
+      return;
     }
 
-  /* [ ..., error_object, ..., result ] */
+  /* [ ..., error_object, bad-string ] */
+  lua_pop (L, 1);
+  /* [ ..., error_object ] */
+
+  lua_getfield (L, error_object_ix, "details");
+  /* [ ..., error_object, details ] */
+  if (lua_isstring (L, -1))
+    {
+      lua_pushstring (L, ": ");
+    }
+  else
+    {
+      lua_pop (L, 1);
+    }
+
+  /* [ ..., error_object ] */
+  lua_getfield (L, error_object_ix, "code");
+  /* [ ..., error_object, code ] */
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (!lua_isnumber (L, -1))
+    {
+      lua_pop (L, 1);
+      lua_pushstring (L, "[No error code] ");
+    }
+  else
+    {
+      error_code = lua_tointeger (L, -1);
+      temp_string = lua_tostring (L, -1);
+      lua_pushstring (L, " ");
+    }
+
+  temp_string = error_name_by_code (error_code);
+  if (temp_string)
+    {
+      lua_pushstring (L, temp_string);
+    }
+  else
+    {
+      lua_pushfstring (L, "Unknown error code (%d)", (int) error_code);
+    }
+  lua_pushstring (L, " ");
+
+  temp_string = error_description_by_code (error_code);
+  lua_pushstring (L, temp_string ? temp_string : "[no description]");
+  lua_pushstring (L, " ");
+
+  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  lua_concat (L, lua_gettop (L) - error_object_ix);
   lua_replace (L, error_object_ix);
-  lua_settop (L, error_object_ix);
-  /* [ ..., result ] */
 }
   
 static inline int kollos_throw(lua_State* L,
-    lua_Number code, const char* details)
+    Marpa_Error_Code code, const char* details)
 {
    kollos_error(L, code, details);
    error_tostring(L);
@@ -462,8 +483,8 @@ static inline int kollos_throw(lua_State* L,
 /* not safe - intended for internal use */
 static inline int wrap_kollos_throw(lua_State* L)
 {
+   const Marpa_Error_Code code = lua_tointeger(L, 1);
    const char* details = lua_tostring(L, 2);
-   const Marpa_Error_Code code = lua_tointeger(L, 2);
    return kollos_throw(L, code, details);
    /* NOTREACHED */
 }
@@ -1081,7 +1102,7 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_kollos_throw);
     /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "kollos_error");
+    lua_setfield(L, kollos_table_stack_ix, "error");
     /* [ kollos ] */
 
     lua_newtable (L);
