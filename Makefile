@@ -1,4 +1,5 @@
 
+.PHONY: code libmarpa verbose_test test
 
 code:
 	perl etc/cp_libmarpa_cm_dist.pl
