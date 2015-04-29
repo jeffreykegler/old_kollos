@@ -12,12 +12,12 @@ libmarpa:
 
 verbose_test:
 	cd build && \
-	LUA_CPATH=';;../../build/main/lib?.so' \
+	LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
 	LUA_PATH=';;../../build/main/?.lua' \
 	  ctest --output-on-failure --verbose
 
 test:
 	cd build && \
-	LUA_CPATH=';;../../build/main/lib?.so' \
+	LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
 	LUA_PATH=';;../../build/main/?.lua' \
 	  ctest --output-on-failure
