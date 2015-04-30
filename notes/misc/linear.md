@@ -35,34 +35,52 @@ QED.
 
 ## Double Ended Recursions
 
-Definition: A recursion is double ended
+Definition: A derivation is a double ended
+recursion
 if it is both a left and a right recursion.
-Such a recursion may be indirect.
+That is, if it is
+```
+    A =>* A middle A
+```
+where `middle` if a sentential
+form which may be empty or contain
+other instances of `A`.
 
 Theorem:
-Let `g` be an unambiguous grammar.
-It contains no double-ended recursions.
+If a grammar is unambiguous,
+it does not allow a double-ended recursion.
 
 Proof:
 Assume for a reductio that
-A is a double-recursive symbols in `g`.
-Then there is a derivation
+grammar `g` is unambiguous, but that for some input
+it contains, `Deriv`,
+the derivation
 ```
    A ->* A middle A,
 ```
-where `middle` is a sentential form
-which may be empty.
 
-The symbol `A`
-derives the sentential form
+We can derive the sentential form
 ```
    A middle A middle A
 ```
-in two different ways,
-and therefore A is an ambiguous symbol.
-Any grammar containing is
-therefore ambiguous,
-which is contrary to assumption for
-the theorem.
+by expanding either the rightmost or
+leftmost A in `Deriv`.
+In the first case the tree has the form
+```
+A(A middle (A middle A))
+```
+and in the second
+case it is
+```
+A((A middle A) middle A)
+```
+These are two different derivation trees,
+so that A is an ambiguous symbol.
+Since grammar `g` contains `A`,
+an ambiguous symbol,
+`g` is ambiguous.
+But `g` was assumed to be unambiguous
+for the reductio.
+This show the reductio.
 QED.
 
