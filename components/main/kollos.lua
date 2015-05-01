@@ -81,18 +81,6 @@ local grammar_class  = {
   ["zwa_place"] = kollos_c.grammar_zwa_place,
 }
 
-local recce_class  = {
-    ["earleme_complete"] = kollos_c.recce_earleme_complete,
-    ["start_input"] = kollos_c.recce_start_input,
-}
-
-function recce_class.alternative(recce, symbol)
-    print("alternative(", recce, symbol, ")")
-    local result = kollos_c.recce_alternative(recce, symbol, 1, 1)
-    if (result == luif_err_none) then return 1 end
-    kollos_c.error(result, "alternative()");
-end
-
 function _klol.grammar()
   local grammar_object = kollos_c.grammar_new(
       { _type = "grammar" }
@@ -101,6 +89,36 @@ function _klol.grammar()
       __index = grammar_class,
   })
   return grammar_object
+end
+
+local recce_class  = {
+  ["completion_symbol_activate"] = kollos_c.recce_completion_symbol_activate,
+  ["current_earleme"] = kollos_c.recce_current_earleme,
+  ["earleme_complete"] = kollos_c.recce_earleme_complete,
+  ["earleme"] = kollos_c.recce_earleme,
+  ["earley_item_warning_threshold"] = kollos_c.recce_earley_item_warning_threshold,
+  ["earley_item_warning_threshold_set"] = kollos_c.recce_earley_item_warning_threshold_set,
+  ["earley_set_value"] = kollos_c.recce_earley_set_value,
+  ["expected_symbol_event_set"] = kollos_c.recce_expected_symbol_event_set,
+  ["furthest_earleme"] = kollos_c.recce_furthest_earleme,
+  ["is_exhausted"] = kollos_c.recce_is_exhausted,
+  ["latest_earley_set"] = kollos_c.recce_latest_earley_set,
+  ["latest_earley_set_value_set"] = kollos_c.recce_latest_earley_set_value_set,
+  ["nulled_symbol_activate"] = kollos_c.recce_nulled_symbol_activate,
+  ["prediction_symbol_activate"] = kollos_c.recce_prediction_symbol_activate,
+  ["progress_report_finish"] = kollos_c.recce_progress_report_finish,
+  ["progress_report_start"] = kollos_c.recce_progress_report_start,
+  ["start_input"] = kollos_c.recce_start_input,
+  ["terminal_is_expected"] = kollos_c.recce_terminal_is_expected,
+  ["zwa_default"] = kollos_c.recce_zwa_default,
+  ["zwa_default_set"] = kollos_c.recce_zwa_default_set,
+}
+
+function recce_class.alternative(recce, symbol)
+    print("alternative(", recce, symbol, ")")
+    local result = kollos_c.recce_alternative(recce, symbol, 1, 1)
+    if (result == luif_err_none) then return 1 end
+    kollos_c.error(result, "alternative()");
 end
 
 function _klol.recce(grammar_object)

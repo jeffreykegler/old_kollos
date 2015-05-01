@@ -60,6 +60,7 @@ print("is prefix terminal? ", g:symbol_is_terminal(prefix))
 print("is a terminal? ", g:symbol_is_terminal(a))
 
 r = _klol.recce(g)
+print(table.tostring(r));
 r:start_input()
 
 result = r:alternative(prefix, 1, 1)
