@@ -14,7 +14,7 @@ of the sequence is also the rightmost symbol of the
 last step.
 
 A right recursion derivation
-step in a single step in a right recursion
+step is a single step in a right recursion
 which replaces the rightmost symbol,
 call it `A`,
 with `rhs`
@@ -327,3 +327,75 @@ they occur in distinct derivation trees.
 By the definition of ambiguous, then,
 the grammar which they share is ambiguous.
 QED.
+
+## Analysis of steps in the plume
+
+We consider the
+non-repeating
+sequence of
+rules.
+Such a sequence is of length at most `#rules`,
+the number of rules in `g`.
+Therefore there is also a finite number
+of non-repeating sequences: `(#rules)!`.
+
+We choose, arbitrarily, one such rule
+sequence.
+We proceed 
+from the top of the plume down,
+looking for the first step of the
+plume that is ambiguous.
+We require that the
+is the first occurence,
+in top-to-bottom order,
+of every
+rule in plume,
+occur as specified in our arbitrarily
+chosen sequence.
+
+Because the grammar is augmented,
+we know the top of the plume is
+unique.
+
+As a reminder,
+a rule is recursive if is used in
+a recursive step of a recursive
+derivation.
+Otherwise the rule is non-recursive.
+
+We next consider the ways in which
+a eruption steps may be ambiguous.
+Without loss of generality,
+we consider only pairs of alternatives.
+
+### Two non-recursive rules
+
+If a rule is non-recursive it will
+only occur once in the eruption,
+so both rules must occur as indicated
+in the rule sequence.
+They therefore must be the same rule.
+
+Suppose, for a reductio, that the
+step factors the span of the 
+eruption step differently.
+
+### Two recursive rules, of different kinds
+
+### Two middle-recursive rules
+
+### A recursive and a non-recursive rule
+
+### A left-recursive and a right-recursive rule
+
+### Remaining choices
+
+Summarizing the preceding steps,
+the first ambiguous step in a descent
+of a plume must
+be
+
+* a choice between two left-recursions; or
+
+* a choice between two right-recursions.
+
