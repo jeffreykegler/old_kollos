@@ -359,45 +359,92 @@ eq. 7, 8 and 9, we have that `A` is a middle
 recursive symbol.
 QED.
 
-## Analysis of steps in the plume
+## Descending an eruption
 
-We consider the
-non-repeating
-sequence of
-rules.
-Such a sequence is of length at most `#rules`,
+We define an *eruption sequence*
+as a sequence of dotted rules,
+where
+
+* no rule occurs twice; and
+
+* no dotted rule is a prediction.
+
+As a reminder, there are no empty rules in `g`.
+
+An eruption sequence
+is of length at most `#rules`.
 the number of rules in `g`.
-Therefore there is also a finite number
-of non-repeating sequences: `(#rules)!`.
+Since `#rules` is finite,
+The number of eruption sequences in `g`
+is at most
+`(#rules)! * (max-rhs*#rules)`,
+where `max-rhs` is the maximum length of the
+RHS of a rule in `g`.
 
-We choose, arbitrarily, one such rule
-sequence.
-We proceed 
-from the top of the plume down,
-looking for the first step of the
-plume that is ambiguous.
-We require that the
-is the first occurence,
-in top-to-bottom order,
-of every
-rule in plume,
-occur as specified in our arbitrarily
-chosen sequence.
+We now consider a descent of the eruption,
+starting from the top of the plume.
+Since `g` is augmented,
+this must be the RHS of the start rule,
+starting at location 0 and ending at
+location |w|.
 
-Because the grammar is augmented,
-we know the top of the plume is
-unique.
+In descending,
+at each step of the eruption we must
+
+* choose a dot position; this is called a
+  *dot choicepoint*.
+
+* choose a start location; this is called a
+  *start choicepoint*.
+
+* choose a rule; this is called a
+  *rule choicepoint*.
+
+Let
+
+* `lhs` be the symbol before the dot
+of the dot choicepoint,
+
+* `start` be the location selected at the
+  start choicepoint; and
+
+* `rhs` be the sequence of symbols that is the
+  RHS of the rule chosen at the rule choicepoint.
+
+In that case, the next step of the eruption begin
+at location `start` and contains the sequence of symbols
+`rhs`.
+`lhs ::= rhs` must be a rule in `g`.
+and `start` must be
+at or before the start of the chamber of
+the eruption.
+
+We use the eruption sequence to constraint
+our choices.
+The first occurence of each rule at a rule choicepoint
+in the descent
+must follow the eruption sequence.
+The choice at the dot choicepoint which preceeds
+a rule choicepoint must be to place the dot
+at the position of the dot in the
+same rule in the eruption sequence.
+
+We call a choicepoint trivial iff there is
+only one alternative to choose from at
+that choicepoint.
+We call a choicepoint non-trivial iff it is
+not trivial.
+
+We now study the form that the first non-trivial
+choicepoint must take for the unfraught grammar `g`.
+
+## ???
 
 As a reminder,
 a rule is recursive if is used in
 a recursive step of a recursive
 derivation.
 Otherwise the rule is non-recursive.
-
-We next consider the ways in which
-a eruption steps may be ambiguous.
-Without loss of generality,
-we consider only pairs of alternatives.
 
 ### Different factorings
 
