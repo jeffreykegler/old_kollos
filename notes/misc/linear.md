@@ -328,6 +328,37 @@ By the definition of ambiguous, then,
 the grammar which they share is ambiguous.
 QED.
 
+## Middle recursion subsumption
+
+The Middle Recursion Subsumption Theorem:
+If `M` is a middle recursive symbol and
+```
+   1) M =>* pre1 A post1`
+```
+and
+```
+   2) A =>* pre2 M post2`,
+```
+then `A` is a middle recursive symbol.
+
+Proof:
+`M` is middle recursive so by the
+definition of middle recursion
+```
+    3) M =>* pre3 M post4
+    4) |pre3| > 0
+    5) |post3| > 0
+    6) M =>* pre3 pre1 A post1 post3 ; by eq. 1, 3
+    7) A =>* pre2 pre3 pre1 A post1 post3 post2
+         by eq. 2, 6
+    8) |pre2 pre3 pre1| > 0 by eq. 4
+    9) |post2 post3 post1| > 0 by eq. 5
+```
+From the definition of middle recursion and
+eq. 7, 8 and 9, we have that `A` is a middle
+recursive symbol.
+QED.
+
 ## Analysis of steps in the plume
 
 We consider the
@@ -367,6 +398,8 @@ We next consider the ways in which
 a eruption steps may be ambiguous.
 Without loss of generality,
 we consider only pairs of alternatives.
+
+### Different factorings
 
 ### Two non-recursive rules
 
