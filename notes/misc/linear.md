@@ -435,8 +435,10 @@ that choicepoint.
 We call a choicepoint non-trivial iff it is
 not trivial.
 
-We now study the form that the first non-trivial
-choicepoint must take for the unfraught grammar `g`.
+We now consider,
+following the descent in top-to-bottom order,
+the first non-trivial
+choicepoint for the unfraught grammar `g`.
 
 ## ???
 
