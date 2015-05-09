@@ -472,6 +472,28 @@ and the rule of `st[i+1]`.
 It remains to show that we know the span
 of `st[i+1]`.
 
+Since we know the rule for all steps, we
+know the right signature of the eruption
+and that it is unique.
+Suppose, for a reductio,
+that there is an `i` such
+that there are two different spans
+at `st[i]`.
+Then we have two different eruptions,
+due to different factoring.
+By the Signed Eruption Theorem,
+this means that `g` is ambiguous.
+An ambiguous `g` is contrary to assumption,
+which shows that reductio.
+Therefore, for every `i`, the span of all
+`st[i]` are identical.
+
+We have shown, for every `st[i]`
+that rule, expansion symbol and span
+have a single value which depends on
+the eruptions path and `w[0,erloc]`.
+QED.
+
 <!---
 vim: expandtab shiftwidth=4
 -->
