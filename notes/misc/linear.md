@@ -374,12 +374,14 @@ As a reminder, there are no empty rules in `g`.
 An eruption sequence
 is of length at most `#rules`.
 the number of rules in `g`.
-Since `#rules` is finite,
+Let `rhs-occurrences(sym, rule)` be the
+number of times `sym` occurs in `rule`.
+Let 'max-ro` be the maximum value of
+`rhs-occurrences(sym, rule)` for
+any `(sym, rule)` pair.
 The number of eruption sequences in `g`
 is at most
-`(#rules)! * (max-rhs*#rules)`,
-where `max-rhs` is the maximum length of the
-RHS of a rule in `g`.
+`(#rules)! * (max-ro * #rules)`.
 
 We now consider a descent of the eruption,
 starting from the top of the plume.
@@ -390,34 +392,13 @@ location |w|.
 
 In descending,
 at each step of the eruption we must
-
-* choose a dot position; this is called a
-  *dot choicepoint*.
-
-* choose a start location; this is called a
-  *start choicepoint*.
-
-* choose a rule; this is called a
-  *rule choicepoint*.
-
-Let
-
-* `lhs` be the symbol before the dot
-of the dot choicepoint,
-
-* `start` be the location selected at the
-  start choicepoint; and
-
-* `rhs` be the sequence of symbols that is the
-  RHS of the rule chosen at the rule choicepoint.
-
-In that case, the next step of the eruption begin
-at location `start` and contains the sequence of symbols
-`rhs`.
-`lhs ::= rhs` must be a rule in `g`.
-and `start` must be
-at or before the start of the chamber of
-the eruption.
+choose a rule
+and a lhs occurrence.
+Call the rule `r` and let it be `lhs ::= rhs`.
+Note that `lhs` will not necessarily be
+a symbol on the RHS of the rule preceding
+`r`, because recursions may intervene
+between two rules in the eruption plan.
 
 We use the eruption sequence to constraint
 our choices.
@@ -440,44 +421,57 @@ following the descent in top-to-bottom order,
 the first non-trivial
 choicepoint for the unfraught grammar `g`.
 
-## ???
+## Planned eruptions
 
-As a reminder,
-a rule is recursive if is used in
-a recursive step of a recursive
-derivation.
-Otherwise the rule is non-recursive.
+Let an eruption plan be as described above.
 
-### Different factorings
+Lemma: If every rule in an eruption
+is either muddle recursive
+or occurs at most once,
+the sequence of steps in an eruption,
+including their start and end positions,
+is deterministic.
 
-### Two non-recursive rules
+Proof:
+We look first at the sequence of dot
+positions and rules,
+descending the steps from
+the top of the eruption to the bottom.
 
-If a rule is non-recursive it will
-only occur once in the eruption,
-so both rules must occur as indicated
-in the rule sequence.
-They therefore must be the same rule.
+For `st[0]`, we know that its rule is
+the start rule of `g`,
+and its span is `[0, |w|]`,
+where `|w|` is the length of the input.
+There is no prior step, so it is undefined
+which rhs occurrence is expanded.
 
-Suppose, for a reductio, that the
-step factors the span of the 
-eruption step differently.
+Assme that we know the rule for the step,
+`st[i]`.
+Call the step after it `st[i+1]`.
+If `st[i+1]` occurs for the first time,
+which symbol in `st[i]` is expanded,
+and what the rule of `st[i+1]` is,
+are determined by
+the eruption plan.
+If `st[i+1]` has appeared before it is
+muddle recursive, by assumption for the lemma.
+By the assumption for unfraught grammars
+and muddle recursion,
+`s[i]` and the characters up to the first
+character in
+the span of `st[i+1]`
+determine `st[i+1]`.
+Since the eruption location must be inside
+`st[i+1]`, we do know all the characters 
+as far as the first character of `st[i+1]`.
 
-### Two recursive rules, of different kinds
+So far, then, we have shown that,
+in all cases,
+we know which symbol in `st[i]` is expanded,
+and the rule of `st[i+1]`.
+It remains to show that we know the span
+of `st[i+1]`.
 
-### Two middle-recursive rules
-
-### A recursive and a non-recursive rule
-
-### A left-recursive and a right-recursive rule
-
-### Remaining choices
-
-Summarizing the preceding steps,
-the first ambiguous step in a descent
-of a plume must
-be
-
-* a choice between two left-recursions; or
-
-* a choice between two right-recursions.
-
+<!---
+vim: expandtab shiftwidth=4
+-->
