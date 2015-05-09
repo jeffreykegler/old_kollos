@@ -58,12 +58,12 @@ body_rule = g:rule_new(body, a, a)
 g:start_symbol_set(top)
 g:precompute()
 
+r = _klol.recce(g)
+r:start_input()
+
 pass_count = 0
 max_pass = arg[1] or 10000
 for pass = 1,max_pass do
-
-  r = _klol.recce(g)
-  r:start_input()
 
   result = r:alternative(prefix, 1, 1)
   result = r:earleme_complete()

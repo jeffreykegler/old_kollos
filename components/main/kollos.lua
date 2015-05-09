@@ -31,6 +31,7 @@ local _klol = {
 
 -- make certain useful error codes more visible
 local luif_err_none = _klol.error.code['LUIF_ERR_NONE']
+local luif_err_unexpected_token = _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID']
 
 local grammar_class  = {
   ["rule_new"] = kollos_c.grammar_rule_new,
@@ -115,8 +116,9 @@ local recce_class  = {
 }
 
 function recce_class.alternative(recce, symbol)
-    print("alternative(", recce, symbol, ")")
+    -- print("alternative(", recce, symbol, ")")
     local result = kollos_c.recce_alternative(recce, symbol, 1, 1)
+    if (result == luif_err_unexpected_token) then return nil end
     if (result == luif_err_none) then return 1 end
     kollos_c.error(result, "alternative()");
 end

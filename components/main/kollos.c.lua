@@ -384,8 +384,8 @@ static inline void kollos_error(lua_State* L,
    /* [ ..., error_object ] */
    lua_pushinteger(L, (lua_Integer)code);
    lua_setfield(L, error_object_stack_ix, "code" );
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-  printf ("%s code = %d\n", __PRETTY_FUNCTION__, code);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s code = %d\n", __PRETTY_FUNCTION__, code);
    /* [ ..., error_object ] */
    lua_pushstring(L, details);
    lua_setfield(L, error_object_stack_ix, "details" );
@@ -410,7 +410,7 @@ static inline void error_tostring(lua_State* L)
 
   /* [ ..., error_object, string ] */
 
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* If present, a "string" overrides everything else */
   if (lua_isstring (L, -1))
     {
@@ -436,7 +436,7 @@ static inline void error_tostring(lua_State* L)
   /* [ ..., error_object ] */
   lua_getfield (L, error_object_ix, "code");
   /* [ ..., error_object, code ] */
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   if (!lua_isnumber (L, -1))
     {
       lua_pop (L, 1);
@@ -468,7 +468,7 @@ static inline void error_tostring(lua_State* L)
   lua_pushstring (L, temp_string ? temp_string : "[no description]");
   lua_pushstring (L, "\n");	/* Add space separator */
 
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_concat (L, lua_gettop (L) - error_object_ix);
   /* stack is [ ..., error_object, concatenated_result ] */
   lua_replace (L, error_object_ix);
@@ -832,7 +832,7 @@ static int wrap_grammar_new(lua_State *L)
 {
   /* [ grammar_table ] */
   const int grammar_stack_ix = 1;
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
   /* expecting a table */
   if (1)
@@ -911,7 +911,7 @@ static int wrap_grammar_new(lua_State *L)
 	kollos_throw (L, marpa_error, "marpa_g_force_valued()");
       }
   }
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ grammar_table ] */
   return 1;
 }
@@ -972,7 +972,7 @@ static int wrap_recce_new(lua_State *L)
 {
   const int recce_stack_ix = 1;
   const int grammar_stack_ix = 2;
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ recce_table, grammar_table ] */
   if (1)
     {
@@ -1010,7 +1010,7 @@ static int wrap_recce_new(lua_State *L)
 	kollos_throw (L, marpa_error, "marpa_r_new()");
       }
   }
-  printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ recce_table, grammar_table ] */
   lua_pop(L, 1);
   /* [ recce_table ] */
@@ -1027,7 +1027,7 @@ io.write[=[
 
 static int l_grammar_ud_mt_gc(lua_State *L) {
     Marpa_Grammar *p_g;
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_g = (Marpa_Grammar *) lua_touserdata (L, 1);
     if (*p_g) marpa_g_unref(*p_g);
    return 0;
@@ -1035,7 +1035,7 @@ static int l_grammar_ud_mt_gc(lua_State *L) {
 
 static int l_recce_ud_mt_gc(lua_State *L) {
     Marpa_Recognizer *p_recce;
-        printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_recce = (Marpa_Recognizer *) lua_touserdata (L, 1);
     if (*p_recce) marpa_r_unref(*p_recce);
    return 0;
