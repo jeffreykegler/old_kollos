@@ -281,6 +281,27 @@ This shows the outer reductio
 and the theorem.
 QED.
 
+## Eruption plans
+
+A sequence of duples `[element, ord]`,
+where `element` is a rule or a token,
+and `ord` is 
+an ordinal whose use will
+be described.
+`undef` is allowed as a value of `ord`,
+in which case `ord` is said to be undefined.
+
+All plans have at least two steps.
+The first plan step is always `[start, undef]`.
+where `start` is the start rule of `g`.
+The last plan step is always `[token, ord]`,
+where `token` is a terminal symbol,
+and `ord` is an integer.
+Steps other than the first and last are always
+of the form `[rule, ord]`
+where `rule` is a rule of `g`,
+and `ord` in an integer.
+
 ## Two eruptions, one right signature
 
 Theorem:
@@ -393,7 +414,7 @@ location |w|.
 In descending,
 at each step of the eruption we must
 choose a rule
-and a lhs occurrence.
+and an expansion symbol.
 Call the rule `r` and let it be `lhs ::= rhs`.
 Note that `lhs` will not necessarily be
 a symbol on the RHS of the rule preceding
@@ -425,12 +446,16 @@ choicepoint for the unfraught grammar `g`.
 
 Let an eruption plan be as described above.
 
-Lemma: If every rule in an eruption
-is either muddle recursive
-or occurs at most once,
-the sequence of steps in an eruption,
-including their start and end positions,
-is deterministic.
+Lemma: Let the eruption be free of
+pure left recursions.
+Then, for
+an eruption plan,
+and some `g`,
+and some `w[0,erloc]`,
+Then we know the height
+of the eruption and,
+for every step of the eruption,
+its rule, expansion symbol and span.
 
 Proof:
 We look first at the sequence of dot
@@ -442,10 +467,11 @@ For `st[0]`, we know that its rule is
 the start rule of `g`,
 and its span is `[0, |w|]`,
 where `|w|` is the length of the input.
-There is no prior step, so it is undefined
-which rhs occurrence is expanded.
+In the case of the top of the plume,
+there is no prior step,
+so that expansion symbol is undefined.
 
-Assme that we know the rule for the step,
+Assume that we know the rule for the step,
 `st[i]`.
 Call the step after it `st[i+1]`.
 If `st[i+1]` occurs for the first time,
@@ -454,7 +480,10 @@ and what the rule of `st[i+1]` is,
 are determined by
 the eruption plan.
 If `st[i+1]` has appeared before it is
-muddle recursive, by assumption for the lemma.
+either pure right or muddle recursive,
+by assumption for the lemma.
+We leave the case of pure right recursion
+for later.
 By the assumption for unfraught grammars
 and muddle recursion,
 `s[i]` and the characters up to the first
@@ -466,32 +495,67 @@ Since the eruption location must be inside
 as far as the first character of `st[i+1]`.
 
 So far, then, we have shown that,
-in all cases,
+for muddle recursions, and
+for single-occurence rules,
 we know which symbol in `st[i]` is expanded,
 and the rule of `st[i+1]`.
-It remains to show that we know the span
-of `st[i+1]`.
+For pure right recursions,
+after the first occurrence of a rule,
+the expansion
+symbol is always the rightmost.
 
-Since we know the rule for all steps, we
-know the right signature of the eruption
+It remains to show that the eruption 
+has a fixed number of steps.
+It also remains
+to determine the span of all steps,
+and to determine the rule for those
+steps which are pure
+right recursions.
+
+The span of the eruption steps,
+the number of steps in the pure right recursions,
+and the rule of those steps,
+does not affect the right signature of an
+eruption.
+So we do
+know the right signature of our eruption,
 and that it is unique.
+
 Suppose, for a reductio,
-that there is an `i` such
-that there are two different spans
-at `st[i]`.
+that two eruptions differ either in the
+
+* the number of steps in one of their pure right
+  recursions; or
+
+* the rule of a pure right recursive step; or
+
+* the span of any step.
+
 Then we have two different eruptions,
 due to different factoring.
+But we have shown that they have the
+same signature.
 By the Signed Eruption Theorem,
 this means that `g` is ambiguous.
 An ambiguous `g` is contrary to assumption,
 which shows that reductio.
-Therefore, for every `i`, the span of all
-`st[i]` are identical.
 
-We have shown, for every `st[i]`
-that rule, expansion symbol and span
-have a single value which depends on
-the eruptions path and `w[0,erloc]`.
+Therefore, we know
+
+* the number of steps in the eruption;
+
+* the expansion symbol for all steps below
+  the top of the plume;
+
+* the rule of all steps in the eruption; and
+
+* the span in all steps of the eruption,
+
+* and that these are unique.
+
+In determining these
+we used only the grammar `g`,
+the eruption plan and `w[0,erloc]`.
 QED.
 
 <!---
