@@ -35,7 +35,7 @@ at a location,
 or *memoable*,
 if one of its recursion symbols
 ends at that location,
-and would produces a completion in the Earley set
+and produces a completion in the Earley set
 at that location.
 A right recursion is *fully memoable* if and only if
 it is memoable at the location of all of its recursion
@@ -65,10 +65,10 @@ Assume for a reductio that,
 in an unmarked right recursion,
 there is a right recursion location,
 call it `L`,
-and `L` is not memoable.
-By assumption for the reduction,
+and that `L` is not memoable.
+If
 `L` is a right recursive location,
-so that there is a right recursive symbol,
+then there is a right recursive symbol,
 call it `RR`,
 ending at `L`.
 The right recursion must occur in the Earley
