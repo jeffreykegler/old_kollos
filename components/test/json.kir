@@ -1,0 +1,31 @@
+json_kir =
+{
+  -- tokens in l0 are at a lower level than
+  -- "tokens" as defined in RFC 7159, section 2
+  -- RFC 7159 does not separate semantics from syntax --
+  -- if you assume either top-down parsing (as in recursive
+  -- descent) or a dedicated lexer (as in yacc) there's no
+  -- need to make the separation.
+  l0 = {
+    irules = {
+      -- ws before and after <value>, see RFC 7159, section 2
+      [ lhs=ws, rhs={ ws_char }, lexeme=true ],
+      [ lhs=begin-array rhs = { ws lsquare ws } ], -- [ left square bracket
+      [ lhs=begin_object, rhs = { ws lsquare ws }], -- { left curly bracket
+      [ lhs=end_array, rhs = { ws rsquare ws }], -- ] right square bracket
+      [ lhs=end_object, rhs = { ws rcurly ws }], -- } right curly bracket
+      [ lhs=name_separator, rhs = { ws colon ws }], -- : colon
+      [ lhs=value_separator, rhs = { ws comma ws }], -- , comma
+    }
+    charclasses = {
+      ws_char = "[\009\010\013\032]",
+      lsquare = "[\091]",
+      lcurly = "[\123]",
+      rsquare = "[\093]",
+      tcurly = "[\125]",
+      colon = "[\058]",
+      comma = "[\044]",
+    }
+  }
+}
+
