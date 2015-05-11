@@ -9,22 +9,68 @@ json_kir =
   l0 = {
     irules = {
       -- ws before and after <value>, see RFC 7159, section 2
-      [ lhs=ws, rhs={ ws_char }, lexeme=true ],
-      [ lhs=begin-array rhs = { ws lsquare ws } ], -- [ left square bracket
-      [ lhs=begin_object, rhs = { ws lsquare ws }], -- { left curly bracket
-      [ lhs=end_array, rhs = { ws rsquare ws }], -- ] right square bracket
-      [ lhs=end_object, rhs = { ws rcurly ws }], -- } right curly bracket
-      [ lhs=name_separator, rhs = { ws colon ws }], -- : colon
-      [ lhs=value_separator, rhs = { ws comma ws }], -- , comma
-    }
+      [ lhs=ws_before, rhs={ ws }, lexeme=true ],
+      [ lhs=ws_after, rhs={ ws }, lexeme=true ],
+      -- next rules are ws ::= ws_char*
+      [ lhs=ws, rhs={ ws_seq } ],
+      [ lhs=ws_seq, rhs={ ws_seq ws_char } ],
+      [ lhs=ws_seq, rhs={ ws_char } ],
+      [ lhs=ws_seq, rhs={ } ], -- empty
+      [ lhs=begin_array rhs = { ws lsquare ws }, lexeme=true ],
+      [ lhs=begin_object, rhs = { ws lsquare ws }, lexeme=true],
+      [ lhs=end_array, rhs = { ws rsquare ws }, lexeme=true],
+      [ lhs=end_object, rhs = { ws rcurly ws }, lexeme=true],
+      [ lhs=name_separator, rhs = { ws colon ws }, lexeme=true],
+      [ lhs=value_separator, rhs = { ws comma ws }, lexeme=true],
+      [ lhs=false, rhs = { char_f, char_a, char_l, char_s, char_e }, lexeme=true],
+      [ lhs=true, rhs = { char_t, char_r, char_u, char_e }, lexeme=true],
+      [ lhs=null, rhs = { char_n, char_u, char_l, char_l }, lexeme=true],
+      [ lhs=minus, rhs = { char_minus }, lexeme=true],
+
+      -- Lua number format seems to be compatible with JSON,
+      -- so we treat a JSON number as a full token
+      [ lhs=number, rhs = { opt_minus, int, opt_frac, opt_exp }, lexeme=true],
+      [ lhs=decimal_point, rhs = { dot }],
+      [ lhs=opt_minus, rhs = { char_minus } ],
+      [ lhs=opt_minus, rhs = { } ],
+      [ lhs=opt_exp, rhs = { exp } ],
+      [ lhs=opt_exp, rhs = { } ],
+      [ lhs=exp, rhs = { e_or_E, opt_sign , digit_seq } ],
+      [ lhs=opt_sign, rhs = { } ],
+      [ lhs=opt_sign, rhs = { char_minus } ],
+      [ lhs=opt_sign, rhs = { char_plus } ],
+      [ lhs=opt_frac, rhs = { } ],
+      [ lhs=opt_frac, rhs = { frac } ],
+      [ lhs=frac, rhs = { dot, digit_seq } ],
+      [ lhs=int, rhs = { char_nonzero, digit_seq } ],
+      [ lhs=digit_seq, rhs = { digit_seq, char_digit } ],
+      [ lhs=digit_seq, rhs = { char_digit } ]
+    },
     charclasses = {
       ws_char = "[\009\010\013\032]",
       lsquare = "[\091]",
-      lcurly = "[\123]",
+      lcurly = "[{]",
       rsquare = "[\093]",
-      tcurly = "[\125]",
-      colon = "[\058]",
-      comma = "[\044]",
+      rcurly = "[}]",
+      colon = "[:]",
+      comma = "[,]",
+      dot = "[.]",
+      char_zero = "[0]",
+      char_nonzero = "[1-9]",
+      char_digit = "[0-9]",
+      char_minus = '[-]',
+      char_minus = '[+]',
+      char_a = "[a]",
+      char_E = "[E]",
+      char_e = "[e]",
+      char_i = "[i]",
+      char_f = "[f]",
+      char_l = "[l]",
+      char_n = "[n]",
+      char_r = "[r]",
+      char_s = "[s]",
+      char_t = "[t]",
+      char_u = "[u]",
     }
   }
 }
