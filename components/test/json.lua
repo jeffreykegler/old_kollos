@@ -1,4 +1,9 @@
-json_kir =
+-- eventually merge this code into the kollos module
+-- for now, we include it to get various utility methods
+local kollos_external = require "kollos"
+local dumper = require "dumper"
+
+local json_kir =
 {
   -- tokens in l0 are at a lower level than
   -- "tokens" as defined in RFC 7159, section 2
@@ -137,7 +142,23 @@ json_kir =
 -- We leave the KIR as is, and work with
 -- intermediate databases
 
+local lhs_by_rhs = {}
+local rhs_by_lhs = {}
+
 -- Next we start the database of intermediate KLOL symbols
-for k,v in pairs(json_kir['l0']['symi']) do
-    print(k, v)
+for k,v in ipairs(json_kir['l0']['irules']) do
+    local lhs = v['lhs']
+    local rhs = v['rhs']
+    for i,rhs_item in ipairs(rhs) do
+	lhs_by_rhs[rhs] = lhs
+	local rhs_table = rhs_by_lhs[lhs]
+	if (rhs_table == nil) then
+	  rhs_by_lhs[lhs] = {}
+	  rhs_table = rhs_by_lhs[lhs]
+	end
+	table.insert(rhs_table, lhs)
+    end
 end
+
+print (kollos_external.table.tostring(rhs_by_lhs))
+

@@ -21,6 +21,46 @@
 
 local kollos_c = require "kollos_c"
 
+local kollos_table = {}
+
+-- smaller, More compact dumper function
+
+function kollos_table.val_to_str ( v )
+  if "string" == type( v ) then
+    v = string.gsub( v, "\n", "\\n" )
+    if string.match( string.gsub(v,"[^'\"]",""), '^"+$' ) then
+      return "'" .. v .. "'"
+    end
+    return '"' .. string.gsub(v,'"', '\\"' ) .. '"'
+  else
+    return "table" == type( v ) and kollos_table.tostring( v ) or
+      tostring( v )
+  end
+end
+
+function kollos_table.key_to_str ( k )
+  if "string" == type( k ) and string.match( k, "^[_%a][_%a%d]*$" ) then
+    return k
+  else
+    return "[" .. kollos_table.val_to_str( k ) .. "]"
+  end
+end
+
+function kollos_table.tostring( tbl )
+  local result, done = {}, {}
+  for k, v in ipairs( tbl ) do
+    table.insert( result, kollos_table.val_to_str( v ) )
+    done[ k ] = true
+  end
+  for k, v in pairs( tbl ) do
+    if not done[ k ] then
+      table.insert( result,
+        kollos_table.key_to_str( k ) .. "=" .. kollos_table.val_to_str( v ) )
+    end
+  end
+  return "{" .. table.concat( result, "," ) .. "}"
+end
+
 local _klol = {
   error =  {
     name = kollos_c.error_name,
@@ -134,6 +174,6 @@ function _klol.recce(grammar_object)
   return recce_object
 end
 
-return { ["_klol"] =_klol }
+return { ["_klol"] =_klol, table = kollos_table }
 
 -- vim: expandtab shiftwidth=4:

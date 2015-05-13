@@ -55,7 +55,7 @@ ADD_CUSTOM_COMMAND (
   VERBATIM
   )
 
-set(LUA_Sources "kollos.lua")
+set(LUA_Sources "kollos.lua" "dumper.lua")
 source_group("lua" FILES ${LUA_Sources})
 
 set(LUA_Outputs "")
