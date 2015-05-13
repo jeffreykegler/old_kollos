@@ -134,3 +134,10 @@ json_kir =
   },
 }
 
+-- We leave the KIR as is, and work with
+-- intermediate databases
+
+-- Next we start the database of intermediate KLOL symbols
+for k,v in pairs(json_kir['l0']['symi']) do
+    print(k, v)
+end
