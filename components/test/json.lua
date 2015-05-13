@@ -150,6 +150,9 @@ local lhs_by_rhs = {}
 local rhs_by_lhs = {}
 local lhs_rule_by_rhs = {}
 local rhs_rule_by_lhs = {}
+local sym_is_nulling = {}
+local sym_is_productive = {}
+local sym_is_seen = {}
 
 for symbol,v in pairs(json_kir['l0']['isym']) do
   lhs_by_rhs[symbol] = {}
@@ -166,6 +169,10 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
   end
   table.insert(rhs_rule_by_lhs[lhs], rule_ix);
   local rhs = v['rhs']
+  if (#rhs == 0){
+      sym_is_nullable[lhs] = true;
+      sym_is_productive[lhs] = true;
+  }
   for dot_ix,rhs_item in ipairs(rhs) do
     if (not lhs_by_rhs[rhs_item]) then
       error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
@@ -176,5 +183,22 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
   end
 end
 
+local sym_is_productive = {}
+local sym_is_seen = {}
+
+for symbol,v in pairs(json_kir['l0']['isym']) do
+  if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
+    error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
+  end
+  if (v[charclass]) then
+      sym_is_seeable[symbol] = true;
+      sym_is_productive[symbol] = true;
+  end
+end
+
+-- I expect to handle cycles eventually, so this logic must be
+-- cycle-safe.
+
 print (dumper.dumper(rhs_by_lhs))
 
+-- vim: expandtab shiftwidth=4:
