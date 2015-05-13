@@ -12,7 +12,7 @@ local json_kir =
   -- descent) or a dedicated lexer (as in yacc) there's no
   -- need to make the separation.
   l0 = {
-    irules = {
+    irule = {
       -- ws before and after <value>, see RFC 7159, section 2
       { lhs='ws_before', rhs={ 'ws' } },
       { lhs='ws_after', rhs={ 'ws' } },
@@ -40,7 +40,9 @@ local json_kir =
       { lhs='opt_minus', rhs = { } },
       { lhs='opt_exp', rhs = { 'exp' } },
       { lhs='opt_exp', rhs = { } },
-      { lhs='exp', rhs = { 'e_or_E', 'opt_sign ', 'digit_seq' } },
+      { lhs='exp', rhs = { 'e_or_E', 'opt_sign', 'digit_seq' } },
+      { lhs='e_or_E', rhs = { 'char_e' } },
+      { lhs='e_or_E', rhs = { 'char_E' } },
       { lhs='opt_sign', rhs = { } },
       { lhs='opt_sign', rhs = { 'char_minus' } },
       { lhs='opt_sign', rhs = { 'char_plus' } },
@@ -53,21 +55,21 @@ local json_kir =
 
       -- we divide up the standards string token, because we
       -- need to do semantic processing on its pieces
-      { lhs='quote', rhs = { 'escape_char', 'quote_char' } },
-      { lhs='backslash', rhs = { 'escape_char', 'backslash_char' } },
-      { lhs='slash', rhs = { 'escape_char', 'slash_char' } },
-      { lhs='backspace', rhs = { 'escape_char', 'letter_b' } },
-      { lhs='formfeed', rhs = { 'escape_char', 'letter_f' } },
-      { lhs='linefeed', rhs = { 'escape_char', 'letter_n' } },
-      { lhs='carriage_return', rhs = { 'escape_char', 'letter_r' } },
-      { lhs='tab', rhs = { 'escape_char', 'letter_t' } },
-      { lhs='hex_char', rhs = { 'escape_char', 'letter_u', 'hex_digit', 'hex_digit', 'hex_digit', 'hex_digit' } },
-      { lhs='simple_string', rhs = { 'escape_char', 'unescaped_char_seq' } },
+      { lhs='quote', rhs = { 'char_escape', 'char_quote' } },
+      { lhs='backslash', rhs = { 'char_escape', 'char_backslash' } },
+      { lhs='slash', rhs = { 'char_escape', 'char_slash' } },
+      { lhs='backspace', rhs = { 'char_escape', 'char_b' } },
+      { lhs='formfeed', rhs = { 'char_escape', 'char_f' } },
+      { lhs='linefeed', rhs = { 'char_escape', 'char_n' } },
+      { lhs='carriage_return', rhs = { 'char_escape', 'char_r' } },
+      { lhs='tab', rhs = { 'char_escape', 'char_t' } },
+      { lhs='hex_char', rhs = { 'char_escape', 'char_u', 'hex_digit', 'hex_digit', 'hex_digit', 'hex_digit' } },
+      { lhs='simple_string', rhs = { 'char_escape', 'unescaped_char_seq' } },
       { lhs='unescaped_char_seq', rhs = { 'unescaped_char_seq', 'unescaped_char' } },
       { lhs='unescaped_char_seq', rhs = { 'unescaped_char' } }
     },
 
-    symi = {
+    isym = {
       ['ws_before'] = { lexeme = true },
       ['ws_after'] = { lexeme = true },
       ['begin_array'] = { lexeme = true },
@@ -96,6 +98,7 @@ local json_kir =
       ['exp'] = {},
       ['frac'] = {},
       ['int'] = {},
+      ['e_or_E'] = {},
       ['opt_exp'] = {},
       ['opt_frac'] = {},
       ['opt_minus'] = {},
@@ -103,10 +106,11 @@ local json_kir =
       ['unescaped_char_seq'] = {},
       ['ws'] = {},
       ['ws_seq'] = {},
-      ['slash_char'] = { charclass = "[\047]" },
-      ['backslash_char'] = { charclass = "[\092]" },
-      ['escape_char'] = { charclass = "[\092]" },
+      ['char_slash'] = { charclass = "[\047]" },
+      ['char_backslash'] = { charclass = "[\092]" },
+      ['char_escape'] = { charclass = "[\092]" },
       ['unescaped_char'] = { charclass = "[ !\035-\091\093-\255]" },
+      ['hex_digit'] = { charclass = '[0-9a-fA-F]' },
       ['ws_char'] = { charclass = "[\009\010\013\032]" },
       ['lsquare'] = { charclass = "[\091]" },
       ['lcurly'] = { charclass = "[{]" },
@@ -116,12 +120,12 @@ local json_kir =
       ['colon'] = { charclass = "[:]" },
       ['comma'] = { charclass = "[,]" },
       ['dot'] = { charclass = "[.]" },
-      ['quote'] = { charclass = '["]' },
+      ['char_quote'] = { charclass = '["]' },
       ['char_zero'] = { charclass = "[0]" },
       ['char_nonzero'] = { charclass = "[1-9]" },
       ['char_digit'] = { charclass = "[0-9]" },
       ['char_minus'] = { charclass = '[-]' },
-      ['char_minus'] = { charclass = '[+]' },
+      ['char_plus'] = { charclass = '[+]' },
       ['char_a'] = { charclass = "[a]" },
       ['char_b'] = { charclass = "[b]" },
       ['char_E'] = { charclass = "[E]" },
@@ -144,21 +148,33 @@ local json_kir =
 
 local lhs_by_rhs = {}
 local rhs_by_lhs = {}
+local lhs_rule_by_rhs = {}
+local rhs_rule_by_lhs = {}
 
--- Next we start the database of intermediate KLOL symbols
-for k,v in ipairs(json_kir['l0']['irules']) do
-    local lhs = v['lhs']
-    local rhs = v['rhs']
-    for i,rhs_item in ipairs(rhs) do
-	lhs_by_rhs[rhs] = lhs
-	local rhs_table = rhs_by_lhs[lhs]
-	if (rhs_table == nil) then
-	  rhs_by_lhs[lhs] = {}
-	  rhs_table = rhs_by_lhs[lhs]
-	end
-	table.insert(rhs_table, lhs)
-    end
+for symbol,v in pairs(json_kir['l0']['isym']) do
+  lhs_by_rhs[symbol] = {}
+  rhs_by_lhs[symbol] = {}
+  lhs_rule_by_rhs[symbol] = {}
+  rhs_rule_by_lhs[symbol] = {}
 end
 
-print (kollos_external.table.tostring(rhs_by_lhs))
+-- Next we start the database of intermediate KLOL symbols
+for rule_ix,v in ipairs(json_kir['l0']['irule']) do
+  local lhs = v['lhs']
+  if (not lhs_by_rhs[lhs]) then
+    error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
+  end
+  table.insert(rhs_rule_by_lhs[lhs], rule_ix);
+  local rhs = v['rhs']
+  for dot_ix,rhs_item in ipairs(rhs) do
+    if (not lhs_by_rhs[rhs_item]) then
+      error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
+    end
+    table.insert(lhs_rule_by_rhs[rhs_item], rule_ix);
+    lhs_by_rhs[rhs_item][lhs] = true;
+    rhs_by_lhs[lhs][rhs_item] = true;
+  end
+end
+
+print (dumper.dumper(rhs_by_lhs))
 
