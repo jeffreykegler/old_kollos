@@ -191,9 +191,10 @@ local lhs_by_rhs = {}
 local rhs_by_lhs = {}
 local lhs_rule_by_rhs = {}
 local rhs_rule_by_lhs = {}
-local sym_is_nulling = {}
+local sym_is_nullable = {}
 local sym_is_productive = {}
-local sym_is_seen = {}
+local sym_is_sizable = {}
+local sym_is_solid = {}
 
 for symbol,v in pairs(json_kir['l0']['isym']) do
   lhs_by_rhs[symbol] = {}
@@ -232,7 +233,11 @@ for symbol,v in pairs(json_kir['l0']['isym']) do
     error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
   end
   if (v[charclass]) then
-      sym_is_seeable[symbol] = true
+      if (rhs_by_lhs[symbol]) then
+        error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
+      end
+      sym_is_sizable[symbol] = true
+      sym_is_solid[symbol] = true
       sym_is_productive[symbol] = true
   end
 end
