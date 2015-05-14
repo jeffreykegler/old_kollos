@@ -1,3 +1,63 @@
+#
+# Lua version
+#
+set(LUA_VERSION_MAJOR 5)
+set(LUA_VERSION_MINOR 1)
+set(LUA_VERSION_PATCH 5)
+set(LUA_VERSION
+				"${LUA_VERSION_MAJOR}.${LUA_VERSION_MINOR}.${LUA_VERSION_PATCH}")
+set(LUA_SOVERSION
+				"${LUA_VERSION_MAJOR}")
+set(COMMON_CFLAGS)
+set(EXTRA_LIBS "-lm")
+#
+# Detect system type
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	set(LUA_USE_LINUX TRUE)
+
+	# Do not set LUA_USE_LINUX because I do not bother with readline
+	# set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_LINUX")
+	set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_POSIX -DLUA_USE_DLOPEN")
+
+	# We link static, so no '-E' flag
+	# We also don't use readline
+	# set(COMMON_LDFLAGS "${COMMON_LDFLAGS} -Wl,-E -ldl -lreadline -lhistory -lncurses")
+
+	set(EXTRA_LIBS ${EXTRA_LIBS} "-ldl")
+
+else(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	if(APPLE)
+		set(LUA_USE_MACOSX TRUE)
+		# set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_LINUX")
+		set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_POSIX -DLUA_USE_DLOPEN")
+		# use this on Mac OS X 10.3-
+		#set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_MACOSX")
+	elseif(WIN32)
+		set(LUA_WIN TRUE)
+		set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_BUILD_AS_DLL")
+	elseif(UNIX)
+		set(LUA_USE_POSIX TRUE)
+		set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_USE_POSIX")
+	else(APPLE)
+		set(LUA_ANSI TRUE)
+		set(COMMON_CFLAGS "${COMMON_CFLAGS} -DLUA_ANSI")
+	endif(APPLE)
+endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+#
+# standard flags to use for each build type.
+#
+if(CMAKE_COMPILER_IS_GNUCC)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wall -Wextra -Wshadow -W -pedantic -std=gnu99 -fgnu89-inline")
+	set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE}     -O2")
+	set(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS_DEBUG}       -O0 -g")
+	set(CMAKE_C_FLAGS_PROFILE        "${CMAKE_C_FLAGS_PROFILE}     -O1 -g")
+	set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_WITHDEBINFO} -O2 -g")
+endif(CMAKE_COMPILER_IS_GNUCC)
+
+  message(WARNING "COMMON_CFLAGS " ${COMMON_CFLAGS})
+  message(WARNING "COMMON_LDFLAGS " ${COMMON_LDFLAGS})
 
 # Lua core source files.
 set(LUA_CORE_SRC
@@ -47,35 +107,40 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 
 # static build only
 add_library(lua STATIC ${LUA_CORE_SRC})
-add_target_properties(lua COMPILE_FLAGS "${COMMON_CFLAGS}")
-add_target_properties(lua LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}")
-set_target_properties(lua
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(lua PROPERTIES
+  COMPILE_FLAGS "${COMMON_CFLAGS}"
+  LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}"
+  POSITION_INDEPENDENT_CODE ON
+  VERSION ${LUA_VERSION}
+  SOVERSION ${LUA_SOVERSION}
+  CLEAN_DIRECT_OUTPUT 1
+)
 
 set(LUA_STATIC_LIB lua)
-set(LUA_LIBS lua)
-
-set_target_properties(${LUA_LIBS} PROPERTIES
-	VERSION ${LUA_VERSION}
-	SOVERSION ${LUA_SOVERSION}
-	CLEAN_DIRECT_OUTPUT 1
-)
 
 #
 # Lua compiler
 #
 add_executable(luac luac.c print.c)
-add_target_properties(luac COMPILE_FLAGS "${COMMON_CFLAGS}")
-add_target_properties(luac LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}")
-target_link_libraries(luac ${LUA_STATIC_LIB})
+set_target_properties(luac PROPERTIES
+  COMPILE_FLAGS "${COMMON_CFLAGS}"
+  LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}"
+)
+target_link_libraries(luac ${LUA_STATIC_LIB} ${EXTRA_LIBS})
 
 #
 # Lua stand-alone interpreter
 #
 add_executable(lua.bin lua.c)
-add_target_properties(lua.bin COMPILE_FLAGS "${COMMON_CFLAGS}")
-add_target_properties(lua.bin LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}")
-target_link_libraries(lua.bin lua)
-# rename lub.bin to lua
-set_target_properties(lua.bin PROPERTIES OUTPUT_NAME lua)
+set_target_properties(lua.bin PROPERTIES
+  COMPILE_FLAGS "${COMMON_CFLAGS}"
+  LINK_FLAGS "${LD_FLAGS} ${COMMON_LDFLAGS}"
+  # rename lub.bin to lua
+  OUTPUT_NAME lua
+)
+target_link_libraries(lua.bin lua ${EXTRA_LIBS})
+
+# Expose location of Lua interpreter
+set(${PROJECT_NAME}_INTERP ${PROJECT_BINARY_DIR}/src/lua
+    CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
