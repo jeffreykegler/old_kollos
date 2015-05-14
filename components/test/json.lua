@@ -179,132 +179,167 @@ local json_kir =
   },
 }
 
+-- given a transition matrix, which is a
+-- table of tables such that matrix[a][b]
+-- is true if there is a transition from
+-- a to b, change it into its closure
+local function transition_closure(matrix)
+    -- as an efficiency hack, we store the
+    -- from, to duples as two entries, so
+    -- that we don't have to create a table
+    -- for each duple
+    local work_list = {}
+    for from,to in ipairs(matrix) do
+        for from,transition in ipairs(columns) do
+            if transition then
+                table.insert(worklist, from )
+                table.insert(worklist, to )
+            end
+        end
+    end
+    while true
+         -- unstack in reverse order of the
+         -- way they were stacked
+         work_to = table.remove(work_list)
+         work_from = table.remove(work_list)
+         -- NOT FINISHED
+    end
+end
+
 -- We leave the KIR as is, and work with
 -- intermediate databases
 
-local g_is_structural = json_kir['structural']
+local function do_grammar(grammar, properties)
 
-local lhs_by_rhs = {}
-local rhs_by_lhs = {}
-local lhs_rule_by_rhs = {}
-local rhs_rule_by_lhs = {}
-local sym_is_nullable = {}
-local sym_is_lexeme = {}
-local sym_is_productive = {}
-local sym_is_sizable = {}
-local sym_is_solid = {}
+  local g_is_structural = properties['structural']
 
-for symbol,v in pairs(json_kir['l0']['isym']) do
-  lhs_by_rhs[symbol] = {}
-  rhs_by_lhs[symbol] = {}
-  lhs_rule_by_rhs[symbol] = {}
-  rhs_rule_by_lhs[symbol] = {}
-end
+  local lhs_by_rhs = {}
+  local rhs_by_lhs = {}
+  local lhs_rule_by_rhs = {}
+  local rhs_rule_by_lhs = {}
+  local sym_is_nullable = {}
+  local sym_is_lexeme = {}
+  local sym_is_productive = {}
+  local sym_is_sizable = {}
+  local sym_is_solid = {}
 
--- Next we start the database of intermediate KLOL symbols
-for rule_ix,v in ipairs(json_kir['l0']['irule']) do
-  local lhs = v['lhs']
-  if (not lhs_by_rhs[lhs]) then
-    error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
+  for symbol,v in pairs(properties['isym']) do
+    lhs_by_rhs[symbol] = {}
+    rhs_by_lhs[symbol] = {}
+    lhs_rule_by_rhs[symbol] = {}
+    rhs_rule_by_lhs[symbol] = {}
   end
-  table.insert(rhs_rule_by_lhs[lhs], rule_ix)
-  local rhs = v['rhs']
-  if (#rhs == 0) then
-    sym_is_nullable[lhs] = true
-    sym_is_productive[lhs] = true
-  end
-  for dot_ix,rhs_item in ipairs(rhs) do
-    if (not lhs_by_rhs[rhs_item]) then
-      error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
+
+  -- Next we start the database of intermediate KLOL symbols
+  for rule_ix,v in ipairs(properties['irule']) do
+    local lhs = v['lhs']
+    if (not lhs_by_rhs[lhs]) then
+      error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
     end
-    table.insert(lhs_rule_by_rhs[rhs_item], rule_ix)
-    lhs_by_rhs[rhs_item][lhs] = true
-    rhs_by_lhs[lhs][rhs_item] = true
-  end
-end
-local symbol_count = 0
-for symbol,v in pairs(json_kir['l0']['isym']) do
-  symbol_count = symbol_count + 1
-  if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
-    error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
-  end
-  if (v['charclass']) then
-    if (#rhs_rule_by_lhs[symbol] > 0) then
-      -- print(symbol, dumper.dumper( rhs_rule_by_lhs[symbol]))
-      error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
+    table.insert(rhs_rule_by_lhs[lhs], rule_ix)
+    local rhs = v['rhs']
+    if (#rhs == 0) then
+      sym_is_nullable[lhs] = true
+      sym_is_productive[lhs] = true
     end
-    sym_is_sizable[symbol] = true
-    sym_is_solid[symbol] = true
-    sym_is_productive[symbol] = true
-  end
-  if (v['lexeme']) then
-    if (g_is_structural) then
-      error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
+    for dot_ix,rhs_item in ipairs(rhs) do
+      if (not lhs_by_rhs[rhs_item]) then
+        error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
+      end
+      table.insert(lhs_rule_by_rhs[rhs_item], rule_ix)
+      lhs_by_rhs[rhs_item][lhs] = true
+      rhs_by_lhs[lhs][rhs_item] = true
     end
-    sym_is_lexeme[symbol] = true
-        -- print( "Setting lexeme symbol ", symbol )
   end
-  if (v['start']) then
+  local symbol_count = 0
+  for symbol,v in pairs(properties['isym']) do
+    symbol_count = symbol_count + 1
+    if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
+      error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
+    end
+    if (v['charclass']) then
+      if (#rhs_rule_by_lhs[symbol] > 0) then
+        -- print(symbol, dumper.dumper( rhs_rule_by_lhs[symbol]))
+        error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
+      end
+      sym_is_sizable[symbol] = true
+      sym_is_solid[symbol] = true
+      sym_is_productive[symbol] = true
+    end
+    if (v['lexeme']) then
+      if (g_is_structural) then
+        error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
+      end
+      sym_is_lexeme[symbol] = true
+      -- print( "Setting lexeme symbol ", symbol )
+    end
+    if (v['start']) then
+      if (not g_is_structural) then
+        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
+      end
+      start_symbol = symbol
+    end
+  end
+
+  -- print( "Initial symbol count ", symbol_count )
+
+  -- I expect to handle cycles eventually, so this logic must be
+  -- cycle-safe.
+
+  if (g_is_structural and not start_symbol) then
     if (not g_is_structural) then
-      error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
-    end
-    start_symbol = symbol
-  end
-end
-
-        -- print( "Initial symbol count ", symbol_count )
-
--- I expect to handle cycles eventually, so this logic must be
--- cycle-safe.
-
-if (g_is_structural and not start_symbol) then
-  if (not g_is_structural) then
-    error('Internal error: No start symbol in structural grammar')
-  end
-end
-
--- Test for reachability from start symbol,
--- or from a lexeme
--- At this point an unreachable symbol is a fatal error
-do
-  local reachable = {}
-  local reachable_count = 0
-  local work_list = {}
-  if (g_is_structural) then
-    reachable[start_symbol] = true
-      reachable_count = reachable_count + 1
-        -- print( "Setting reachable symbol ", start_symbol )
-    table.insert(work_list, start_symbol)
-  else
-    for lexeme,v in pairs(sym_is_lexeme) do
-      reachable[lexeme] = v
-      reachable_count = reachable_count + 1
-        -- print ("Setting reachable symbol ", lexeme )
-      table.insert(work_list, lexeme)
+      error('Internal error: No start symbol in structural grammar')
     end
   end
-  while true do
-    work_symbol = table.remove(work_list)
-    if (not work_symbol) then break end
-    for next_symbol, v in pairs(rhs_by_lhs[work_symbol]) do
-      if not reachable[next_symbol] then
-        reachable[next_symbol] = true
-        -- print ("Setting reachable symbol ", next_symbol )
+
+  -- Test for reachability from start symbol,
+  -- or from a lexeme
+  -- At this point an unreachable symbol is a fatal error
+  do
+    local reachable = {}
+    local reachable_count = 0
+    local work_list = {}
+    if (g_is_structural) then
+      reachable[start_symbol] = true
+      reachable_count = reachable_count + 1
+      -- print( "Setting reachable symbol ", start_symbol )
+      table.insert(work_list, start_symbol)
+    else
+      for lexeme,v in pairs(sym_is_lexeme) do
+        reachable[lexeme] = v
         reachable_count = reachable_count + 1
-        table.insert(work_list, next_symbol)
+        -- print ("Setting reachable symbol ", lexeme )
+        table.insert(work_list, lexeme)
       end
     end
-  end
-  if (reachable_count ~= symbol_count) then
-    for symbol,v in pairs(json_kir['l0']['isym']) do
-        if (not reachable[symbol]) then
-            print('Internal error: KIR isym "' .. symbol .. '" not reachable') 
+    while true do
+      work_symbol = table.remove(work_list)
+      if (not work_symbol) then break end
+      for next_symbol, v in pairs(rhs_by_lhs[work_symbol]) do
+        if not reachable[next_symbol] then
+          reachable[next_symbol] = true
+          -- print ("Setting reachable symbol ", next_symbol )
+          reachable_count = reachable_count + 1
+          table.insert(work_list, next_symbol)
         end
+      end
     end
-    error('Internal error: ' .. (symbol_count-reachable_count) .. ' KIR symbols not reachable')
+    if (reachable_count ~= symbol_count) then
+      for symbol,v in pairs(properties['isym']) do
+        if (not reachable[symbol]) then
+          print('Internal error: KIR isym "' .. symbol .. '" not reachable')
+        end
+      end
+      error('Internal error: ' .. (symbol_count-reachable_count) .. ' KIR symbols not reachable')
+    end
   end
+
+  print (dumper.dumper(rhs_by_lhs))
+
 end
 
-print (dumper.dumper(rhs_by_lhs))
+for grammar,properties in pairs(json_kir) do
+  do_grammar(grammar, properties)
+end
 
 -- vim: expandtab shiftwidth=4:
