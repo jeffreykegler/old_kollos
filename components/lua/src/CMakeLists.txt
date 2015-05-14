@@ -61,6 +61,7 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 
 # Lua core source files.
 set(LUA_CORE_SRC
+	bit.c # extended with LuaJIT's bit library
 	lapi.c
 	lauxlib.c
 	lbaselib.c
