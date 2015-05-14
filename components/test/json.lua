@@ -187,11 +187,14 @@ local json_kir =
 -- We leave the KIR as is, and work with
 -- intermediate databases
 
+local g_is_structural = json_kir['structural']
+
 local lhs_by_rhs = {}
 local rhs_by_lhs = {}
 local lhs_rule_by_rhs = {}
 local rhs_rule_by_lhs = {}
 local sym_is_nullable = {}
+local sym_is_lexeme = {}
 local sym_is_productive = {}
 local sym_is_sizable = {}
 local sym_is_solid = {}
@@ -225,9 +228,6 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
   end
 end
 
-local sym_is_productive = {}
-local sym_is_seen = {}
-
 for symbol,v in pairs(json_kir['l0']['isym']) do
   if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
     error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
@@ -240,10 +240,39 @@ for symbol,v in pairs(json_kir['l0']['isym']) do
       sym_is_solid[symbol] = true
       sym_is_productive[symbol] = true
   end
+  if (v[lexeme]) then
+      if (g_is_structural[symbol]) then
+        error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
+    end
+      sym_is_lexeme[symbol] = true
+  end
+  if (v[start]) then
+      if (not g_is_structural[symbol]) then
+        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
+    end
+      start_symbol = symbol
+  end
 end
 
 -- I expect to handle cycles eventually, so this logic must be
 -- cycle-safe.
+
+if (g_is_structural and not start_symbol) then
+      if (not g_is_structural[symbol]) then
+        error('Internal error: No start symbol in structural grammar')
+    end
+end
+
+do
+    local reachable = {}
+    if (g_is_structural) then
+       reachable[start_symbol] = true
+    else
+       for lexeme,v in pairs(sym_is_lexeme) do
+           reachable[lexeme] = v
+       end
+    end
+end
 
 print (dumper.dumper(rhs_by_lhs))
 
