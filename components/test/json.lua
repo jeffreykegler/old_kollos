@@ -1,6 +1,47 @@
+--[[
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+[ MIT license: http://www.opensource.org/licenses/mit-license.php ]
+
+--]]
+
+--[[
+
+The primary aim of this parser is to test Kollos as a platform for
+arbitrary grammars.  Speed is also an aim, but secondary.
+
+In keeping with these priorities, JSON is treated as if there were no
+existing code for it -- after all, if I wanted a fast JSON parser I could
+just grab a very fast C language recursive descent parser from somewhere.
+Everything is created "from scratch" using tools which generalize to
+other parsers.  For example, I'm sure there is code out there in both
+Lua and C to crunch JSON strings, code which is both better and faster
+than what is here, but I do not use it.
+
+--]]
+
 -- eventually merge this code into the kollos module
--- for now, we include it to get various utility methods
-local kollos_external = require "kollos"
+-- for now, we include it when we get various utility methods
+-- local kollos_external = require "kollos"
+
 local dumper = require "dumper"
 
 local json_kir =
@@ -167,19 +208,19 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
   if (not lhs_by_rhs[lhs]) then
     error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
   end
-  table.insert(rhs_rule_by_lhs[lhs], rule_ix);
+  table.insert(rhs_rule_by_lhs[lhs], rule_ix)
   local rhs = v['rhs']
-  if (#rhs == 0){
-      sym_is_nullable[lhs] = true;
-      sym_is_productive[lhs] = true;
-  }
+  if (#rhs == 0) then
+      sym_is_nullable[lhs] = true
+      sym_is_productive[lhs] = true
+  end
   for dot_ix,rhs_item in ipairs(rhs) do
     if (not lhs_by_rhs[rhs_item]) then
       error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
     end
-    table.insert(lhs_rule_by_rhs[rhs_item], rule_ix);
-    lhs_by_rhs[rhs_item][lhs] = true;
-    rhs_by_lhs[lhs][rhs_item] = true;
+    table.insert(lhs_rule_by_rhs[rhs_item], rule_ix)
+    lhs_by_rhs[rhs_item][lhs] = true
+    rhs_by_lhs[lhs][rhs_item] = true
   end
 end
 
@@ -191,8 +232,8 @@ for symbol,v in pairs(json_kir['l0']['isym']) do
     error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
   end
   if (v[charclass]) then
-      sym_is_seeable[symbol] = true;
-      sym_is_productive[symbol] = true;
+      sym_is_seeable[symbol] = true
+      sym_is_productive[symbol] = true
   end
 end
 
