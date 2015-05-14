@@ -26,13 +26,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 --[[
 
 The primary aim of this parser is to test Kollos as a platform for
-arbitrary grammars.  Speed is also an aim, but secondary.
+arbitrary grammars. Speed is also an aim, but secondary.
 
 In keeping with these priorities, JSON is treated as if there were no
 existing code for it -- after all, if I wanted a fast JSON parser I could
 just grab a very fast C language recursive descent parser from somewhere.
 Everything is created "from scratch" using tools which generalize to
-other parsers.  For example, I'm sure there is code out there in both
+other parsers. For example, I'm sure there is code out there in both
 Lua and C to crunch JSON strings, code which is both better and faster
 than what is here, but I do not use it.
 
@@ -63,7 +63,7 @@ local json_kir =
       { lhs='ws_seq', rhs={ 'ws_char' } },
       { lhs='ws_seq', rhs={ } }, -- empty
       { lhs='begin_array', rhs = { 'ws', 'lsquare', 'ws' } },
-      { lhs='begin_object', rhs = { 'ws', 'lsquare', 'ws' }},
+      { lhs='begin_object', rhs = { 'ws', 'lcurly', 'ws' }},
       { lhs='end_array', rhs = { 'ws', 'rsquare', 'ws' }},
       { lhs='end_object', rhs = { 'ws', 'rcurly', 'ws' }},
       { lhs='name_separator', rhs = { 'ws', 'colon', 'ws' }},
@@ -76,7 +76,6 @@ local json_kir =
       -- Lua number format seems to be compatible with JSON,
       -- so we treat a JSON number as a full token
       { lhs='number', rhs = { 'opt_minus', 'int', 'opt_frac', 'opt_exp' }},
-      { lhs='decimal_point', rhs = { dot }},
       { lhs='opt_minus', rhs = { 'char_minus' } },
       { lhs='opt_minus', rhs = { } },
       { lhs='opt_exp', rhs = { 'exp' } },
@@ -134,7 +133,6 @@ local json_kir =
       ['tab'] = { lexeme = true },
       ['hex_char'] = { lexeme = true },
       ['simple_string'] = { lexeme = true },
-      ['decimal_point'] = {},
       ['digit_seq'] = {},
       ['exp'] = {},
       ['frac'] = {},
@@ -151,18 +149,16 @@ local json_kir =
       ['char_backslash'] = { charclass = "[\092]" },
       ['char_escape'] = { charclass = "[\092]" },
       ['unescaped_char'] = { charclass = "[ !\035-\091\093-\255]" },
-      ['hex_digit'] = { charclass = '[0-9a-fA-F]' },
       ['ws_char'] = { charclass = "[\009\010\013\032]" },
       ['lsquare'] = { charclass = "[\091]" },
       ['lcurly'] = { charclass = "[{]" },
-      ['hexdigit'] = { charclass = "[%x]" },
+      ['hex_digit'] = { charclass = "[%x]" },
       ['rsquare'] = { charclass = "[\093]" },
       ['rcurly'] = { charclass = "[}]" },
       ['colon'] = { charclass = "[:]" },
       ['comma'] = { charclass = "[,]" },
       ['dot'] = { charclass = "[.]" },
       ['char_quote'] = { charclass = '["]' },
-      ['char_zero'] = { charclass = "[0]" },
       ['char_nonzero'] = { charclass = "[1-9]" },
       ['char_digit'] = { charclass = "[0-9]" },
       ['char_minus'] = { charclass = '[-]' },
@@ -171,7 +167,6 @@ local json_kir =
       ['char_b'] = { charclass = "[b]" },
       ['char_E'] = { charclass = "[E]" },
       ['char_e'] = { charclass = "[e]" },
-      ['char_i'] = { charclass = "[i]" },
       ['char_f'] = { charclass = "[f]" },
       ['char_l'] = { charclass = "[l]" },
       ['char_n'] = { charclass = "[n]" },
@@ -215,8 +210,8 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
   table.insert(rhs_rule_by_lhs[lhs], rule_ix)
   local rhs = v['rhs']
   if (#rhs == 0) then
-      sym_is_nullable[lhs] = true
-      sym_is_productive[lhs] = true
+    sym_is_nullable[lhs] = true
+    sym_is_productive[lhs] = true
   end
   for dot_ix,rhs_item in ipairs(rhs) do
     if (not lhs_by_rhs[rhs_item]) then
@@ -227,51 +222,84 @@ for rule_ix,v in ipairs(json_kir['l0']['irule']) do
     rhs_by_lhs[lhs][rhs_item] = true
   end
 end
-
+local symbol_count = 0
 for symbol,v in pairs(json_kir['l0']['isym']) do
+  symbol_count = symbol_count + 1
   if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
     error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
   end
-  if (v[charclass]) then
-      if (rhs_by_lhs[symbol]) then
-        error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
-      end
-      sym_is_sizable[symbol] = true
-      sym_is_solid[symbol] = true
-      sym_is_productive[symbol] = true
-  end
-  if (v[lexeme]) then
-      if (g_is_structural[symbol]) then
-        error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
+  if (v['charclass']) then
+    if (#rhs_rule_by_lhs[symbol] > 0) then
+      -- print(symbol, dumper.dumper( rhs_rule_by_lhs[symbol]))
+      error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
     end
-      sym_is_lexeme[symbol] = true
+    sym_is_sizable[symbol] = true
+    sym_is_solid[symbol] = true
+    sym_is_productive[symbol] = true
   end
-  if (v[start]) then
-      if (not g_is_structural[symbol]) then
-        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
+  if (v['lexeme']) then
+    if (g_is_structural) then
+      error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
     end
-      start_symbol = symbol
+    sym_is_lexeme[symbol] = true
+        -- print( "Setting lexeme symbol ", symbol )
+  end
+  if (v['start']) then
+    if (not g_is_structural) then
+      error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
+    end
+    start_symbol = symbol
   end
 end
+
+        -- print( "Initial symbol count ", symbol_count )
 
 -- I expect to handle cycles eventually, so this logic must be
 -- cycle-safe.
 
 if (g_is_structural and not start_symbol) then
-      if (not g_is_structural[symbol]) then
-        error('Internal error: No start symbol in structural grammar')
-    end
+  if (not g_is_structural) then
+    error('Internal error: No start symbol in structural grammar')
+  end
 end
 
 do
-    local reachable = {}
-    if (g_is_structural) then
-       reachable[start_symbol] = true
-    else
-       for lexeme,v in pairs(sym_is_lexeme) do
-           reachable[lexeme] = v
-       end
+  local reachable = {}
+  local reachable_count = 0
+  local work_list = {}
+  if (g_is_structural) then
+    reachable[start_symbol] = true
+      reachable_count = reachable_count + 1
+        -- print( "Setting reachable symbol ", start_symbol )
+    table.insert(work_list, start_symbol)
+  else
+    for lexeme,v in pairs(sym_is_lexeme) do
+      reachable[lexeme] = v
+      reachable_count = reachable_count + 1
+        -- print ("Setting reachable symbol ", lexeme )
+      table.insert(work_list, lexeme)
     end
+  end
+  while true do
+    work_symbol = table.remove(work_list)
+    if (not work_symbol) then break end
+    for next_symbol, v in pairs(rhs_by_lhs[work_symbol]) do
+      if not reachable[next_symbol] then
+        reachable[next_symbol] = true
+        -- print ("Setting reachable symbol ", next_symbol )
+        reachable_count = reachable_count + 1
+        table.insert(work_list, next_symbol)
+      end
+    end
+  end
+  if (reachable_count ~= symbol_count) then
+    for symbol,v in pairs(json_kir['l0']['isym']) do
+        if (not reachable[symbol]) then
+            print('Internal error: KIR isym "' .. symbol .. '" not reachable') 
+        end
+    end
+    error('Internal error: ' .. (symbol_count-reachable_count) .. ' KIR symbols not reachable')
+  end
 end
 
 print (dumper.dumper(rhs_by_lhs))
