@@ -77,7 +77,7 @@ add_custom_target(
   VERBATIM
 )
 
-# Expose B's public includes (including Boost transitively) to other
+# Expose public includes to other
 # subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
@@ -85,6 +85,6 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${libmarpa_SOURCE_DIR}/include")
 ADD_LIBRARY(kollos_c SHARED ${CMAKE_CURRENT_BINARY_DIR}/kollos.c)
-target_link_libraries(kollos_c ${libmarpa_BINARY_DIR}/libmarpa_s.a ${LUA_LIBRARIES})
+target_link_libraries(kollos_c ${libmarpa_BINARY_DIR}/libmarpa_s.a ${lua_BINARY_DIR}/liblua.a ${LUA_LIBRARIES})
 
 # vim: expandtab shiftwidth=4:
