@@ -263,6 +263,9 @@ if (g_is_structural and not start_symbol) then
   end
 end
 
+-- Test for reachability from start symbol,
+-- or from a lexeme
+-- At this point an unreachable symbol is a fatal error
 do
   local reachable = {}
   local reachable_count = 0
