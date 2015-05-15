@@ -197,7 +197,7 @@ local function transition_closure(matrix)
             end
         end
     end
-    while true
+    while true do
          -- unstack in reverse order of the
          -- way they were stacked
          work_to = table.remove(work_list)
