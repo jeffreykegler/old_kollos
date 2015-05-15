@@ -97,6 +97,7 @@ local grammar_class  = {
   ["rule_null_high"] = kollos_c.grammar_rule_null_high,
   ["rule_null_high_set"] = kollos_c.grammar_rule_null_high_set,
   ["rule_rhs"] = kollos_c.grammar_rule_rhs,
+  ["sequence_new"] = kollos_c.grammar_sequence_new,
   ["sequence_min"] = kollos_c.grammar_sequence_min,
   ["sequence_separator"] = kollos_c.grammar_sequence_separator,
   ["start_symbol"] = kollos_c.grammar_start_symbol,

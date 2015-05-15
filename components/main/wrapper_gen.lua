@@ -59,6 +59,8 @@ local c_fn_signatures = {
   {"marpa_g_rule_null_high", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_rule_null_high_set", "Marpa_Rule_ID", "rule_id", "int", "flag"},
   {"marpa_g_rule_rhs", "Marpa_Rule_ID", "rule_id", "int", "ix"},
+  {"marpa_g_sequence_new", "Marpa_Symbol_ID", "lhs_id", "Marpa_Symbol_ID", "rhs_id",
+      "Marpa_Symbol_ID", "separator_id", "int", "min", "int", "flags"},
   {"marpa_g_sequence_min", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_sequence_separator", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_start_symbol"},
@@ -257,16 +259,16 @@ end
 --     Marpa_Symbol_ID start_symbol;
 --     Marpa_Symbol_ID result;
 --     /* [ grammar_object, start_symbol ] */
--- 
+--
 --     /* This will not be an external interface,
 --      * so eventually we will run unsafe.
 --      * This checking code is for debugging.
 --      */
--- 
+--
 --     start_symbol = (Marpa_Symbol_ID)lua_tointeger(L, -1);
 --     lua_pop(L, 1);
 --     /* [ grammar_object ] */
--- 
+--
 --     lua_getfield (L, -1, "_ud");
 --     /* [ grammar_object, grammar_ud ] */
 --     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
@@ -278,5 +280,5 @@ end
 --     lua_pushinteger(L, (lua_Integer)result);
 --     return 1;
 -- }
--- 
+--
 -- vim: expandtab shiftwidth=4:
