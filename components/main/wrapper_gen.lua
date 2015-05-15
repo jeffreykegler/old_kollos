@@ -59,6 +59,8 @@ local c_fn_signatures = {
   {"marpa_g_rule_null_high", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_rule_null_high_set", "Marpa_Rule_ID", "rule_id", "int", "flag"},
   {"marpa_g_rule_rhs", "Marpa_Rule_ID", "rule_id", "int", "ix"},
+  {"marpa_g_sequence_new", "Marpa_Symbol_ID", "lhs_id", "Marpa_Symbol_ID", "rhs_id",
+      "Marpa_Symbol_ID", "separator_id", "int", "min", "int", "flags"},
   {"marpa_g_sequence_min", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_sequence_separator", "Marpa_Rule_ID", "rule_id"},
   {"marpa_g_start_symbol"},
