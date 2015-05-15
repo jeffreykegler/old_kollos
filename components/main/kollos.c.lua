@@ -72,23 +72,23 @@ static void dump_stack (lua_State *L) {
       for (i = 1; i <= top; i++) {  /* repeat for each level */
         int t = lua_type(L, i);
         switch (t) {
-    
+
           case LUA_TSTRING:  /* strings */
             printf("`%s'", lua_tostring(L, i));
             break;
-    
+
           case LUA_TBOOLEAN:  /* booleans */
             printf(lua_toboolean(L, i) ? "true" : "false");
             break;
-    
+
           case LUA_TNUMBER:  /* numbers */
             printf("%g", lua_tonumber(L, i));
             break;
-    
+
           default:  /* other values */
             printf("%s", lua_typename(L, t));
             break;
-    
+
         }
         printf("  ");  /* put a separator */
       }
@@ -110,51 +110,51 @@ static void dump_table(lua_State *L, int raw_table_index)
         lua_pushvalue(L, -2);
         /* [ ..., key, value, key_copy ] */
         switch (lua_type(L, key_stack_ix)) {
-    
+
           case LUA_TSTRING:  /* strings */
             printf("`%s'", lua_tostring(L, key_stack_ix));
             break;
-    
+
           case LUA_TBOOLEAN:  /* booleans */
             printf(lua_toboolean(L, key_stack_ix) ? "true" : "false");
             break;
-    
+
           case LUA_TNUMBER:  /* numbers */
             printf("%g", lua_tonumber(L, key_stack_ix));
             break;
-    
+
           case LUA_TTABLE:  /* numbers */
             printf("table %s", lua_tostring(L, key_stack_ix));
             break;
-    
+
           default:  /* other values */
             printf("%s", lua_typename(L, lua_type(L, key_stack_ix)));
             break;
-    
+
         }
         printf(" -> ");  /* end the listing */
         switch (lua_type(L, value_stack_ix)) {
-    
+
           case LUA_TSTRING:  /* strings */
             printf("`%s'", lua_tostring(L, value_stack_ix));
             break;
-    
+
           case LUA_TBOOLEAN:  /* booleans */
             printf(lua_toboolean(L, value_stack_ix) ? "true" : "false");
             break;
-    
+
           case LUA_TNUMBER:  /* numbers */
             printf("%g", lua_tonumber(L, value_stack_ix));
             break;
-    
+
           case LUA_TTABLE:  /* numbers */
             printf("table %s", lua_tostring(L, value_stack_ix));
             break;
-    
+
           default:  /* other values */
             printf("%s", lua_typename(L, lua_type(L, value_stack_ix)));
             break;
-    
+
         }
         printf("\n");  /* end the listing */
         /* [ ..., key, value, key_copy ] */
@@ -335,7 +335,7 @@ static inline int l_error_description_by_code(lua_State* L)
    }
    return 1;
 }
- 
+
 static inline const char* error_name_by_code(lua_Integer error_code)
 {
    if (error_code >= LIBMARPA_MIN_ERROR_CODE && error_code <= LIBMARPA_MAX_ERROR_CODE) {
@@ -359,7 +359,7 @@ static inline int l_error_name_by_code(lua_State* L)
    }
    return 1;
 }
- 
+
 /* userdata metatable keys
    The contents of these locations are never examined.
    These location are used as a key in the Lua registry.
@@ -451,7 +451,7 @@ static inline void error_tostring(lua_State* L)
        */
     }
 
-  lua_pushstring (L, " ");	/* Add space separator */
+  lua_pushstring (L, " ");     /* Add space separator */
 
   temp_string = error_name_by_code (error_code);
   if (temp_string)
@@ -462,11 +462,11 @@ static inline void error_tostring(lua_State* L)
     {
       lua_pushfstring (L, "Unknown error code (%d)", (int) error_code);
     }
-  lua_pushstring (L, " ");	/* Add space separator */
+  lua_pushstring (L, " ");     /* Add space separator */
 
   temp_string = error_description_by_code (error_code);
   lua_pushstring (L, temp_string ? temp_string : "[no description]");
-  lua_pushstring (L, "\n");	/* Add space separator */
+  lua_pushstring (L, "\n");    /* Add space separator */
 
   if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   lua_concat (L, lua_gettop (L) - error_object_ix);
@@ -474,7 +474,7 @@ static inline void error_tostring(lua_State* L)
   lua_replace (L, error_object_ix);
   /* [ ..., concatenated_result ] */
 }
-  
+
 static inline int kollos_throw(lua_State* L,
     Marpa_Error_Code code, const char* details)
 {
@@ -499,7 +499,7 @@ static int l_error_tostring(lua_State* L)
    /* [ error_string ] */
   return 1;
 }
-  
+
 ]=]
 
 -- functions
@@ -543,7 +543,7 @@ static void check_libmarpa_table(
     {
       const char *typename = lua_typename (L, lua_type (L, stack_ix));
       luaL_error (L, "%s arg #1 type is %s, expected table",
-		  function_name, typename);
+                 function_name, typename);
     }
   lua_getfield (L, stack_ix, "_type");
   /* stack is [ ..., field ] */
@@ -551,13 +551,13 @@ static void check_libmarpa_table(
     {
       const char *typename = lua_typename (L, lua_type (L, -1));
       luaL_error (L, "%s arg #1 field '_type' is %s, expected string",
-		  function_name, typename);
+                 function_name, typename);
     }
   actual_type = lua_tostring (L, -1);
   if (strcmp (actual_type, expected_type))
     {
       luaL_error (L, "%s arg #1 table is %s, expected %s",
-		  function_name, actual_type, expected_type);
+                 function_name, actual_type, expected_type);
     }
   /* stack is [ ..., field ] */
   lua_pop (L, 1);
@@ -838,7 +838,7 @@ static int wrap_grammar_new(lua_State *L)
   if (1)
     {
       check_libmarpa_table (L, "wrap_grammar_NEW()", grammar_stack_ix,
-			    "grammar");
+                           "grammar");
     }
 
   /* I have forked Libmarpa into Kollos, which makes version checking
@@ -901,14 +901,14 @@ static int wrap_grammar_new(lua_State *L)
     *p_g = marpa_g_new (&marpa_config);
     if (!*p_g)
       {
-	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
-	kollos_throw (L, marpa_error, "marpa_g_new()");
+        Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
+        kollos_throw (L, marpa_error, "marpa_g_new()");
       }
     result = marpa_g_force_valued (*p_g);
     if (result < 0)
       {
-	Marpa_Error_Code marpa_error = marpa_g_error (*p_g, NULL);
-	kollos_throw (L, marpa_error, "marpa_g_force_valued()");
+        Marpa_Error_Code marpa_error = marpa_g_error (*p_g, NULL);
+        kollos_throw (L, marpa_error, "marpa_g_force_valued()");
       }
   }
   if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
@@ -978,7 +978,7 @@ static int wrap_recce_new(lua_State *L)
     {
       check_libmarpa_table (L, "wrap_recce_new()", recce_stack_ix, "recce");
       check_libmarpa_table (L, "wrap_recce_new()", grammar_stack_ix,
-			    "grammar");
+          "grammar");
     }
 
   /* [ recce_table, grammar_table ] */
@@ -1006,8 +1006,8 @@ static int wrap_recce_new(lua_State *L)
     *recce_ud = marpa_r_new (*grammar_ud);
     if (!*recce_ud)
       {
-	Marpa_Error_Code marpa_error = marpa_g_error (*grammar_ud, NULL);
-	kollos_throw (L, marpa_error, "marpa_r_new()");
+        Marpa_Error_Code marpa_error = marpa_g_error (*grammar_ud, NULL);
+        kollos_throw (L, marpa_error, "marpa_r_new()");
       }
   }
   if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);

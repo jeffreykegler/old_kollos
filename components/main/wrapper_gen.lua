@@ -257,16 +257,16 @@ end
 --     Marpa_Symbol_ID start_symbol;
 --     Marpa_Symbol_ID result;
 --     /* [ grammar_object, start_symbol ] */
--- 
+--
 --     /* This will not be an external interface,
 --      * so eventually we will run unsafe.
 --      * This checking code is for debugging.
 --      */
--- 
+--
 --     start_symbol = (Marpa_Symbol_ID)lua_tointeger(L, -1);
 --     lua_pop(L, 1);
 --     /* [ grammar_object ] */
--- 
+--
 --     lua_getfield (L, -1, "_ud");
 --     /* [ grammar_object, grammar_ud ] */
 --     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
@@ -278,5 +278,5 @@ end
 --     lua_pushinteger(L, (lua_Integer)result);
 --     return 1;
 -- }
--- 
+--
 -- vim: expandtab shiftwidth=4:
