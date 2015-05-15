@@ -17,12 +17,11 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-.PHONY: code libmarpa verbose_test test
+.PHONY: clean code libmarpa verbose_test test
 
 code:
 	perl etc/cp_libmarpa_cm_dist.pl
-	rm -rf build
-	mkdir build
+	mkdir -p build
 	cd build && cmake ../components && make VERBOSE=1
 
 # NOT a dependency of code, for now
@@ -40,3 +39,7 @@ test:
 	LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
 	LUA_PATH=';;../../build/main/?.lua' \
 	  ctest --output-on-failure
+
+clean:
+	rm -rf build
+	mkdir build
