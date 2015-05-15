@@ -179,19 +179,23 @@ local json_kir =
   },
 }
 
--- given a transition matrix, which is a
--- table of tables such that matrix[a][b]
--- is true if there is a transition from
--- a to b, change it into its closure
---
--- Uses Warshall's function.  This is slower
--- in theory but uses bitops, memory and
--- pipelining well.  Grune & Jacob claim that
--- arc-by-arc method is better but it needs
--- a work list, and that means recursion or
--- memory management of a stack, which can
--- easily slow things down by a factor of 10
--- or more.
+--[[
+
+This next function uses Warshall's algorithm.  This is slower in theory
+but uses bitops, memory and pipelining well.  Grune & Jacob claim that
+arc-by-arc method is better but it needs a work list, and that means
+recursion or memory management of a stack, which can easily slow things
+down by a factor of 10 or more.
+
+Of course, this is always the possibility of porting my C code, which is
+Warshall's in optimized pure C, but I suspect the LuaJIT is just as good.
+
+Function summary: Given a transition matrix, which is a table of tables
+such that matrix[a][b] is true if there is a transition from a to b,
+change it into its closure
+
+--]]
+
 local function transition_closure(matrix)
   -- as an efficiency hack, we store the
   -- from, to duples as two entries, so
@@ -331,6 +335,15 @@ local function do_grammar(grammar, properties)
     if (not g_is_structural) then
       error('Internal error: No start symbol in structural grammar')
     end
+  end
+
+  reach_matrix = matrix_init(symbol_count)
+  local symbol_data = {} -- create an symbol to integer index
+  local id_to_symbol = {} -- create an integer to symbol index
+  for symbol,v in pairs(properties['isym']) do
+       local entry = { symi_value = v, name = symbol, id = #id_to_symbol+1}
+       table.insert(id_to_symbol, entry)
+       symbol_to_id[symbol] = entry
   end
 
   -- Test for reachability from start symbol,
