@@ -183,27 +183,68 @@ local json_kir =
 -- table of tables such that matrix[a][b]
 -- is true if there is a transition from
 -- a to b, change it into its closure
+--
+-- Uses Warshall's function.  This is slower
+-- in theory but uses bitops, memory and
+-- pipelining well.  Grune & Jacob claim that
+-- arc-by-arc method is better but it needs
+-- a work list, and that means recursion or
+-- memory management of a stack, which can
+-- easily slow things down by a factor of 10
+-- or more.
 local function transition_closure(matrix)
-    -- as an efficiency hack, we store the
-    -- from, to duples as two entries, so
-    -- that we don't have to create a table
-    -- for each duple
-    local work_list = {}
-    for from,to in ipairs(matrix) do
-        for from,transition in ipairs(columns) do
-            if transition then
-                table.insert(worklist, from )
-                table.insert(worklist, to )
-            end
-        end
+  -- as an efficiency hack, we store the
+  -- from, to duples as two entries, so
+  -- that we don't have to create a table
+  -- for each duple
+  local dim = #matrix
+  for from_ix = 1,dim do
+    local from_vector = matrix[from_ix]
+    for to_ix = 1,dim do
+      local to_word = bit.rshift(to_ix, 5)+1
+      local to_bit = bit.band(to_ix, 0x1F) -- 0-based
+      if bit.band(matrix[from_ix][to_word], bit.lshift(1, to_bit)) ~= 0 then
+          -- 32 bits at a time -- fast!
+          -- in the Luajit, it should pipeline, and be several times faster
+          local to_vector = matrix[to_ix]
+          for word_ix = 1,bit.rshift(dim-1, 5)+1 do
+              from_vector[word_ix] = bit.band(from_vector[word_ix], to_vector[word_ix])
+          end
+      end
     end
-    while true
-         -- unstack in reverse order of the
-         -- way they were stacked
-         work_to = table.remove(work_list)
-         work_from = table.remove(work_list)
-         -- NOT FINISHED
+  end
+end
+
+local function matrix_init( dim)
+  local matrix = {}
+  for i = 1,dim do
+    matrix[i] = {}
+    local max_column_word = bit.rshift(dim-1, 5)+1
+    for j = 1,max_column_word do
+      matrix[i][j] = 0
     end
+  end
+  return matrix
+end
+
+--[[
+In the matrices, I give in to Lua's conventions --
+everything is 1-based.  Except, of course, bit position.
+In Pall's 32-bit vectors, that is 0-based.
+--]]
+local function matrix_bit_set(matrix, row, column)
+  local column_word = bit.rshift(column, 5)+1
+  local column_bit = bit.band(column, 0x1F) -- 0-based
+  print("column_word:", column_word, " column_bit: ", column_bit)
+  local bit_vector = matrix[row]
+  bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
+end
+
+local function matrix_bit_test(matrix, row, column)
+  local column_word = bit.rshift(column, 5)+1
+  local column_bit = bit.band(column, 0x1F) -- 0-based
+  print("column_word:", column_word, " column_bit: ", column_bit)
+  return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
 end
 
 -- We leave the KIR as is, and work with
@@ -334,9 +375,22 @@ local function do_grammar(grammar, properties)
     end
   end
 
-  print (dumper.dumper(rhs_by_lhs))
-
 end
+
+local reach_matrix = matrix_init(43)
+matrix_bit_set(reach_matrix, 42, 7)
+print (matrix_bit_test(reach_matrix, 41, 6))
+print (matrix_bit_test(reach_matrix, 42, 6))
+print (matrix_bit_test(reach_matrix, 42, 7))
+print (matrix_bit_test(reach_matrix, 42, 8))
+print (matrix_bit_test(reach_matrix, 43, 7))
+matrix_bit_set(reach_matrix, 7, 42)
+print (matrix_bit_test(reach_matrix, 6, 30))
+print (matrix_bit_test(reach_matrix, 6, 31))
+print (matrix_bit_test(reach_matrix, 7, 32))
+print (matrix_bit_test(reach_matrix, 8, 33))
+print (matrix_bit_test(reach_matrix, 7, 34))
+transition_closure(reach_matrix)
 
 for grammar,properties in pairs(json_kir) do
   do_grammar(grammar, properties)
