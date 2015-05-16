@@ -239,7 +239,7 @@ In Pall's 32-bit vectors, that is 0-based.
 local function matrix_bit_set(matrix, row, column)
   local column_word = bit.rshift(column, 5)+1
   local column_bit = bit.band(column, 0x1F) -- 0-based
-  print("column_word:", column_word, " column_bit: ", column_bit)
+  -- print("column_word:", column_word, " column_bit: ", column_bit)
   local bit_vector = matrix[row]
   bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
 end
@@ -247,7 +247,7 @@ end
 local function matrix_bit_test(matrix, row, column)
   local column_word = bit.rshift(column, 5)+1
   local column_bit = bit.band(column, 0x1F) -- 0-based
-  print("column_word:", column_word, " column_bit: ", column_bit)
+  -- print("column_word:", column_word, " column_bit: ", column_bit)
   return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
 end
 
@@ -290,10 +290,39 @@ of a rule with property `P`.
 
 In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
-
 --]]
 
-rhs_transitive_closure
+local function rhs_transitive_closure(irules, symbol_by_name, property)
+  local worklist = {}
+  for symbol_name, symbol_props in pairs(symbol_by_name) do
+    if symbol_props[property] == true then
+      table.insert(worklist, symbol_props)
+    end
+  end
+  while true do
+    local symbol_props = table.remove(worklist)
+    if not symbol_props then break end
+    for _,irule_props in pairs(symbol_props.irule_by_rhs) do
+      local lh_sym_props = symbol_by_name[irule_props.lhs]
+      if lh_sym_props[property] == true then break end
+      local rule_has_property = true -- default to true
+      for _,rhs_name in pairs(irule_props.rhs) do
+        local rh_sym_props = symbol_by_name[rhs_name]
+        if not rh_sym_props[property] then
+          rule_has_property = false
+          break
+        end
+      end
+      if rule_has_property then
+        -- we don't get here if the LHS symbol already
+        -- has the property, so no symbol is ever
+        -- put on worklist twice
+        lh_sym_props[property] = true
+        table.insert(worklist, lh_sym_props)
+      end
+    end
+  end
+end
 
 -- We leave the KIR as is, and work with
 -- intermediate databases
@@ -433,6 +462,9 @@ local function do_grammar(grammar, properties)
       end
   end
   transitive_closure(reach_matrix)
+
+  rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
+  rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
 
 end
 
