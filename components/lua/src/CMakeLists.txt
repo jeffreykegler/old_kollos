@@ -56,9 +56,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_WITHDEBINFO} -O2 -g")
 endif(CMAKE_COMPILER_IS_GNUCC)
 
-  message(WARNING "COMMON_CFLAGS " ${COMMON_CFLAGS})
-  message(WARNING "COMMON_LDFLAGS " ${COMMON_LDFLAGS})
-
 # Lua core source files.
 set(LUA_CORE_SRC
 	bit.c # extended with LuaJIT's bit library

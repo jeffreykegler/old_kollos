@@ -261,30 +261,38 @@ local function do_grammar(grammar, properties)
   -- Next we start the database of intermediate KLOL symbols
   local symbol_by_name = {} -- create an symbol to integer index
   local symbol_by_id = {} -- create an integer to symbol index
+  local augment_symbol -- will be LHS of augmented start rule
   local top_symbol -- will be RHS of augmented start rule
 
-do
-  -- a pseudo-symbol, used to make it easy to find out
-  -- if another symbol reaches any terminal
-  pan_terminal = { name = '?pan_terminal'}
-  table.insert(symbol_by_id, pan_terminal)
-  symbol_by_name[pan_terminal.name] = pan_terminal
+  -- a pseudo-symbol "reached" by all terminals
+  -- for convenience in determinal if a symbol reaches any terminal
+  local sink_symbol
 
-  -- the augmented start symbol
-  augment = { name = '?augment'}
-  table.insert(symbol_by_id, augment)
-  symbol_by_name[augment.name] = augment
+  -- I expect to handle cycles eventually, so this logic must be
+  -- cycle-safe.
 
-  if (not g_is_structural) then
-    -- a lexical grammar needs a top symbol
-    -- as the RHS of its augmented start rule
-    top = { name = '?top'}
-    table.insert(symbol_by_id, top)
-    symbol_by_name[top.name] = top
-    top_symbol = top
+  do
+    -- a pseudo-symbol, used to make it easy to find out
+    -- if another symbol reaches any terminal
+    sink_terminal = { name = '?sink_terminal'}
+    table.insert(symbol_by_id, sink_terminal)
+    symbol_by_name[sink_terminal.name] = sink_terminal
+
+    -- the augmented start symbol
+    augment_symbol = { name = '?augment'}
+    table.insert(symbol_by_id, augment_symbol)
+    symbol_by_name[augment_symbol.name] = augment_symbol
+
+    if (not g_is_structural) then
+      -- a lexical grammar needs a top symbol
+      -- as the RHS of its augmented start rule
+      top = { name = '?top'}
+      table.insert(symbol_by_id, top)
+      symbol_by_name[top.name] = top
+      top_symbol = top
+    end
+
   end
-
-end
 
   -- set up some default fields
   for symbol_id,symbol_props in pairs(symbol_by_id) do
@@ -361,10 +369,26 @@ end
     end
   end
 
-  -- I expect to handle cycles eventually, so this logic must be
-  -- cycle-safe.
-
-  reach_matrix = matrix_init(#symbol_by_id)
+  -- now set up the reach matrix
+  local reach_matrix = matrix_init(#symbol_by_id)
+  if not g_is_structural then
+      matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
+  end
+  for symbol_id,symbol_props in ipairs(symbol_by_id) do
+      local symi_props = symbol_props.symi_props
+      if symi_props then
+           for lhs_name,lhs_props in symbol_props.lhs_by_rhs do
+              matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
+           end
+           if symbol_props.terminal then
+              matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
+           end
+           if symbol_props.lexeme then
+              matrix_bit_set(reach_matrix, top.symbol.id, symbol_id)
+           end
+      end
+  end
+  transitive_closure(reach_matrix)
 
 end
 
