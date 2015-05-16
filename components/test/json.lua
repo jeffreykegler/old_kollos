@@ -181,8 +181,8 @@ local json_kir =
 
 --[[
 
-This next function uses Warshall's algorithm.  This is slower in theory
-but uses bitops, memory and pipelining well.  Grune & Jacob claim that
+This next function uses Warshall's algorithm. This is slower in theory
+but uses bitops, memory and pipelining well. Grune & Jacob claim that
 arc-by-arc method is better but it needs a work list, and that means
 recursion or memory management of a stack, which can easily slow things
 down by a factor of 10 or more.
@@ -196,7 +196,7 @@ change it into its closure
 
 --]]
 
-local function transition_closure(matrix)
+local function transitive_closure(matrix)
   -- as an efficiency hack, we store the
   -- from, to duples as two entries, so
   -- that we don't have to create a table
@@ -208,12 +208,12 @@ local function transition_closure(matrix)
       local to_word = bit.rshift(to_ix, 5)+1
       local to_bit = bit.band(to_ix, 0x1F) -- 0-based
       if bit.band(matrix[from_ix][to_word], bit.lshift(1, to_bit)) ~= 0 then
-          -- 32 bits at a time -- fast!
-          -- in the Luajit, it should pipeline, and be several times faster
-          local to_vector = matrix[to_ix]
-          for word_ix = 1,bit.rshift(dim-1, 5)+1 do
-              from_vector[word_ix] = bit.band(from_vector[word_ix], to_vector[word_ix])
-          end
+        -- 32 bits at a time -- fast!
+        -- in the Luajit, it should pipeline, and be several times faster
+        local to_vector = matrix[to_ix]
+        for word_ix = 1,bit.rshift(dim-1, 5)+1 do
+          from_vector[word_ix] = bit.band(from_vector[word_ix], to_vector[word_ix])
+        end
       end
     end
   end
@@ -233,7 +233,7 @@ end
 
 --[[
 In the matrices, I give in to Lua's conventions --
-everything is 1-based.  Except, of course, bit position.
+everything is 1-based. Except, of course, bit position.
 In Pall's 32-bit vectors, that is 0-based.
 --]]
 local function matrix_bit_set(matrix, row, column)
@@ -256,154 +256,132 @@ end
 
 local function do_grammar(grammar, properties)
 
-  local g_is_structural = properties['structural']
-
-  local lhs_by_rhs = {}
-  local rhs_by_lhs = {}
-  local lhs_rule_by_rhs = {}
-  local rhs_rule_by_lhs = {}
-  local sym_is_nullable = {}
-  local sym_is_lexeme = {}
-  local sym_is_productive = {}
-  local sym_is_sizable = {}
-  local sym_is_solid = {}
-
-  for symbol,v in pairs(properties['isym']) do
-    lhs_by_rhs[symbol] = {}
-    rhs_by_lhs[symbol] = {}
-    lhs_rule_by_rhs[symbol] = {}
-    rhs_rule_by_lhs[symbol] = {}
-  end
+  local g_is_structural = properties.structural
 
   -- Next we start the database of intermediate KLOL symbols
-  for rule_ix,v in ipairs(properties['irule']) do
-    local lhs = v['lhs']
-    if (not lhs_by_rhs[lhs]) then
-      error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
-    end
-    table.insert(rhs_rule_by_lhs[lhs], rule_ix)
-    local rhs = v['rhs']
-    if (#rhs == 0) then
-      sym_is_nullable[lhs] = true
-      sym_is_productive[lhs] = true
-    end
-    for dot_ix,rhs_item in ipairs(rhs) do
-      if (not lhs_by_rhs[rhs_item]) then
-        error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
-      end
-      table.insert(lhs_rule_by_rhs[rhs_item], rule_ix)
-      lhs_by_rhs[rhs_item][lhs] = true
-      rhs_by_lhs[lhs][rhs_item] = true
-    end
-  end
-  local symbol_count = 0
-  for symbol,v in pairs(properties['isym']) do
-    symbol_count = symbol_count + 1
-    if (not lhs_by_rhs[symbol] and not rhs_by_lhs[symbol]) then
-      error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
-    end
-    if (v['charclass']) then
-      if (#rhs_rule_by_lhs[symbol] > 0) then
-        -- print(symbol, dumper.dumper( rhs_rule_by_lhs[symbol]))
-        error("Internal error: Symbol " .. symbol .. " has charclass but is on LHS of irule")
-      end
-      sym_is_sizable[symbol] = true
-      sym_is_solid[symbol] = true
-      sym_is_productive[symbol] = true
-    end
-    if (v['lexeme']) then
-      if (g_is_structural) then
-        error('Internal error: Lexeme "' .. lexeme .. '" declared in structural grammar')
-      end
-      sym_is_lexeme[symbol] = true
-      -- print( "Setting lexeme symbol ", symbol )
-    end
-    if (v['start']) then
-      if (not g_is_structural) then
-        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
-      end
-      start_symbol = symbol
-    end
-  end
+  local symbol_by_name = {} -- create an symbol to integer index
+  local symbol_by_id = {} -- create an integer to symbol index
+  local top_symbol -- will be RHS of augmented start rule
 
-  -- print( "Initial symbol count ", symbol_count )
+do
+  -- a pseudo-symbol, used to make it easy to find out
+  -- if another symbol reaches any terminal
+  pan_terminal = { name = '?pan_terminal'}
+  table.insert(symbol_by_id, pan_terminal)
+  symbol_by_name[pan_terminal.name] = pan_terminal
 
-  -- I expect to handle cycles eventually, so this logic must be
-  -- cycle-safe.
+  -- the augmented start symbol
+  augment = { name = '?augment'}
+  table.insert(symbol_by_id, augment)
+  symbol_by_name[augment.name] = augment
 
-  if (g_is_structural and not start_symbol) then
-    if (not g_is_structural) then
-      error('Internal error: No start symbol in structural grammar')
-    end
-  end
-
-  reach_matrix = matrix_init(symbol_count)
-  local symbol_data = {} -- create an symbol to integer index
-  local id_to_symbol = {} -- create an integer to symbol index
-  for symbol,v in pairs(properties['isym']) do
-       local entry = { symi_value = v, name = symbol, id = #id_to_symbol+1}
-       table.insert(id_to_symbol, entry)
-       symbol_to_id[symbol] = entry
-  end
-
-  -- Test for reachability from start symbol,
-  -- or from a lexeme
-  -- At this point an unreachable symbol is a fatal error
-  do
-    local reachable = {}
-    local reachable_count = 0
-    local work_list = {}
-    if (g_is_structural) then
-      reachable[start_symbol] = true
-      reachable_count = reachable_count + 1
-      -- print( "Setting reachable symbol ", start_symbol )
-      table.insert(work_list, start_symbol)
-    else
-      for lexeme,v in pairs(sym_is_lexeme) do
-        reachable[lexeme] = v
-        reachable_count = reachable_count + 1
-        -- print ("Setting reachable symbol ", lexeme )
-        table.insert(work_list, lexeme)
-      end
-    end
-    while true do
-      work_symbol = table.remove(work_list)
-      if (not work_symbol) then break end
-      for next_symbol, v in pairs(rhs_by_lhs[work_symbol]) do
-        if not reachable[next_symbol] then
-          reachable[next_symbol] = true
-          -- print ("Setting reachable symbol ", next_symbol )
-          reachable_count = reachable_count + 1
-          table.insert(work_list, next_symbol)
-        end
-      end
-    end
-    if (reachable_count ~= symbol_count) then
-      for symbol,v in pairs(properties['isym']) do
-        if (not reachable[symbol]) then
-          print('Internal error: KIR isym "' .. symbol .. '" not reachable')
-        end
-      end
-      error('Internal error: ' .. (symbol_count-reachable_count) .. ' KIR symbols not reachable')
-    end
+  if (not g_is_structural) then
+    -- a lexical grammar needs a top symbol
+    -- as the RHS of its augmented start rule
+    top = { name = '?top'}
+    table.insert(symbol_by_id, top)
+    symbol_by_name[top.name] = top
+    top_symbol = top
   end
 
 end
 
-local reach_matrix = matrix_init(43)
-matrix_bit_set(reach_matrix, 42, 7)
-print (matrix_bit_test(reach_matrix, 41, 6))
-print (matrix_bit_test(reach_matrix, 42, 6))
-print (matrix_bit_test(reach_matrix, 42, 7))
-print (matrix_bit_test(reach_matrix, 42, 8))
-print (matrix_bit_test(reach_matrix, 43, 7))
-matrix_bit_set(reach_matrix, 7, 42)
-print (matrix_bit_test(reach_matrix, 6, 30))
-print (matrix_bit_test(reach_matrix, 6, 31))
-print (matrix_bit_test(reach_matrix, 7, 32))
-print (matrix_bit_test(reach_matrix, 8, 33))
-print (matrix_bit_test(reach_matrix, 7, 34))
-transition_closure(reach_matrix)
+  -- set up some default fields
+  for symbol_id,symbol_props in pairs(symbol_by_id) do
+    symbol_props.id = symbol_id
+    symbol_props.lhs_by_rhs = {}
+    symbol_props.rhs_by_lhs = {}
+    symbol_props.irule_by_rhs = {}
+    symbol_props.irule_by_lhs = {}
+  end
+
+  for symbol_name,isym_props in pairs(properties.isym) do
+    local entry = { isym_props = isym_props, name = symbol_name,
+      lhs_by_rhs = {},
+      rhs_by_lhs = {},
+      irule_by_rhs = {},
+      irule_by_lhs = {},
+      is_khil = true -- true if a KHIL symbol
+    }
+    table.insert(symbol_by_id, entry)
+    symbol_by_name[symbol_name] = entry
+    entry.id = #symbol_by_id
+    if (isym_props.char_class) then
+      entry.productive = true;
+      entry.terminal = true;
+      entry.nullable = false;
+    end
+    if (isym_props.lexeme) then
+      if (g_is_structural) then
+        error('Internal error: Lexeme "' .. symbol .. '" declared in structural grammar')
+      end
+      entry.lexeme = true;
+    end
+    if (isym_props.start) then
+      if (not g_is_structural) then
+        error('Internal error: Start symboisym_props "' .. symbol '" declared in lexical grammar')
+      end
+      top_symbol = symbol
+    end
+  end
+
+  if (not top_symbol) then
+    error('Internal error: No start symbol found in grammar')
+  end
+
+  for rule_ix,irule_props in ipairs(properties.irule) do
+    local lhs_name = irule_props.lhs
+    local lhs_props = symbol_by_name[lhs_name]
+    if (not lhs_props) then
+      error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
+    end
+    table.insert(lhs_props.irule_by_lhs, irule_props)
+    local rhs_names = irule_props.rhs
+    if (#rhs_names == 0) then
+      lhs_props.nullable = true
+      lhs_props.productive = true
+    end
+    for dot_ix,rhs_name in ipairs(rhs_names) do
+      local rhs_props = symbol_by_name[rhs_name]
+      if (not rhs_props) then
+        error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
+      end
+      table.insert(rhs_props.irule_by_rhs, irule_props)
+      rhs_props.lhs_by_rhs[lhs_name] = lhs_props
+      lhs_props.rhs_by_lhs[rhs_name] = rhs_props
+    end
+  end
+
+  for symbol_name,symbol_props in pairs(symbol_by_name) do
+    if (not symbol_props[lhs_by_rhs] and not symbol_props[rhs_by_lhs] and symbol_props[is_khil]) then
+      error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
+    end
+    if (symbol_props['charclass'] and symbol_props[#irule_by_lhs] > 0) then
+      error("Internal error: Symbol " .. symbol_name .. " has charclass but is on LHS of irule")
+    end
+  end
+
+  -- I expect to handle cycles eventually, so this logic must be
+  -- cycle-safe.
+
+  reach_matrix = matrix_init(#symbol_by_id)
+
+end
+
+-- local reach_matrix = matrix_init(43)
+-- matrix_bit_set(reach_matrix, 42, 7)
+-- print (matrix_bit_test(reach_matrix, 41, 6))
+-- print (matrix_bit_test(reach_matrix, 42, 6))
+-- print (matrix_bit_test(reach_matrix, 42, 7))
+-- print (matrix_bit_test(reach_matrix, 42, 8))
+-- print (matrix_bit_test(reach_matrix, 43, 7))
+-- matrix_bit_set(reach_matrix, 7, 42)
+-- print (matrix_bit_test(reach_matrix, 6, 30))
+-- print (matrix_bit_test(reach_matrix, 6, 31))
+-- print (matrix_bit_test(reach_matrix, 7, 32))
+-- print (matrix_bit_test(reach_matrix, 8, 33))
+-- print (matrix_bit_test(reach_matrix, 7, 34))
+-- transitive_closure(reach_matrix)
 
 for grammar,properties in pairs(json_kir) do
   do_grammar(grammar, properties)
