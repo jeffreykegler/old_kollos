@@ -212,7 +212,7 @@ local function transitive_closure(matrix)
         -- in the Luajit, it should pipeline, and be several times faster
         local to_vector = matrix[to_ix]
         for word_ix = 1,bit.rshift(dim-1, 5)+1 do
-          from_vector[word_ix] = bit.band(from_vector[word_ix], to_vector[word_ix])
+          from_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
         end
       end
     end
@@ -331,6 +331,14 @@ local function do_grammar(grammar, properties)
 
   local g_is_structural = properties.structural
 
+  -- while developing we do all the "hygenic" tests to
+  -- make sure the KIR is sane
+
+  -- In production, the KIR will be produced by Kollos's
+  -- own logic, so this boolean should only be set
+  -- for debugging
+  local hygenic = true
+
   -- Next we start the database of intermediate KLOL symbols
   local symbol_by_name = {} -- create an symbol to integer index
   local symbol_by_id = {} -- create an integer to symbol index
@@ -377,32 +385,33 @@ local function do_grammar(grammar, properties)
   end
 
   for symbol_name,isym_props in pairs(properties.isym) do
-    local entry = { isym_props = isym_props, name = symbol_name,
+    local symbol_props = { isym_props = isym_props, name = symbol_name,
       lhs_by_rhs = {},
       rhs_by_lhs = {},
       irule_by_rhs = {},
       irule_by_lhs = {},
       is_khil = true -- true if a KHIL symbol
     }
-    table.insert(symbol_by_id, entry)
-    symbol_by_name[symbol_name] = entry
-    entry.id = #symbol_by_id
-    if (isym_props.char_class) then
-      entry.productive = true;
-      entry.terminal = true;
-      entry.nullable = false;
+    table.insert(symbol_by_id, symbol_props)
+    symbol_by_name[symbol_name] = symbol_props
+    symbol_props.id = #symbol_by_id
+    if (isym_props.charclass) then
+      symbol_props.productive = true;
+      symbol_props.terminal = true;
+      symbol_props.nullable = false;
     end
     if (isym_props.lexeme) then
       if (g_is_structural) then
-        error('Internal error: Lexeme "' .. symbol .. '" declared in structural grammar')
+        error('Internal error: Lexeme "' .. symbol_name .. '" declared in structural grammar')
       end
-      entry.lexeme = true;
+      print ( symbol_name .. ' is a lexeme ')
+      symbol_props.lexeme = true;
     end
     if (isym_props.start) then
       if (not g_is_structural) then
-        error('Internal error: Start symboisym_props "' .. symbol '" declared in lexical grammar')
+        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
       end
-      top_symbol = symbol
+      top_symbol = symbol_props
     end
   end
 
@@ -437,7 +446,7 @@ local function do_grammar(grammar, properties)
     if (not symbol_props[lhs_by_rhs] and not symbol_props[rhs_by_lhs] and symbol_props[is_khil]) then
       error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
     end
-    if (symbol_props['charclass'] and symbol_props[#irule_by_lhs] > 0) then
+    if (symbol_props.charclass and symbol_props[#irule_by_lhs] > 0) then
       error("Internal error: Symbol " .. symbol_name .. " has charclass but is on LHS of irule")
     end
   end
@@ -445,26 +454,58 @@ local function do_grammar(grammar, properties)
   -- now set up the reach matrix
   local reach_matrix = matrix_init(#symbol_by_id)
   if not g_is_structural then
-      matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
+    matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
   end
+
   for symbol_id,symbol_props in ipairs(symbol_by_id) do
-      local symi_props = symbol_props.symi_props
-      if symi_props then
-           for lhs_name,lhs_props in symbol_props.lhs_by_rhs do
-              matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
-           end
-           if symbol_props.terminal then
-              matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
-           end
-           if symbol_props.lexeme then
-              matrix_bit_set(reach_matrix, top.symbol.id, symbol_id)
-           end
+    local isym_props = symbol_props.isym_props
+    -- every symbol reaches itself
+    matrix_bit_set(reach_matrix, symbol_id, symbol_id)
+    if isym_props then
+      for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
+        matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
+      end
+      if symbol_props.terminal then
+        matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
+      end
+      if symbol_props.lexeme then
+        matrix_bit_set(reach_matrix, top_symbol.id, symbol_id)
+      end
+    end
+  end
+
+  transitive_closure(reach_matrix)
+
+  for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
+      for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+          if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+              print( from_symbol_props.name, "reaches", to_symbol_props.name)
+          end
       end
   end
-  transitive_closure(reach_matrix)
 
   rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
   rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
+
+  for symbol_id,symbol_props in ipairs(symbol_by_id) do
+    if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
+      print("Symbol " .. symbol_props.name .. " is not accessible")
+    end
+    if not symbol_props.productive then
+      print("Symbol " .. symbol_props.name .. " is not productive")
+    end
+    if symbol_props.nullable and
+    not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
+    then symbol_props.nulling = true end
+
+    if symbol_props.nulling then
+        print("Symbol " .. symbol_props.name .. " is nulling")
+    end
+    if symbol_props.nullable then
+        print("Symbol " .. symbol_props.name .. " is nullable")
+    end
+
+  end
 
 end
 
