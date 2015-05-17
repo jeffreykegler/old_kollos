@@ -202,17 +202,18 @@ local function transitive_closure(matrix)
   -- that we don't have to create a table
   -- for each duple
   local dim = #matrix
+  local max_column_word = bit.rshift(dim-1, 5)+1
   for from_ix = 1,dim do
     local from_vector = matrix[from_ix]
     for to_ix = 1,dim do
-      local to_word = bit.rshift(to_ix, 5)+1
-      local to_bit = bit.band(to_ix, 0x1F) -- 0-based
-      if bit.band(matrix[from_ix][to_word], bit.lshift(1, to_bit)) ~= 0 then
+      local from_word = bit.rshift(from_ix-1, 5)+1
+      local from_bit = bit.band(from_ix-1, 0x1F)
+      if bit.band(matrix[to_ix][from_word], bit.lshift(1, from_bit)) ~= 0 then
         -- 32 bits at a time -- fast!
         -- in the Luajit, it should pipeline, and be several times faster
         local to_vector = matrix[to_ix]
-        for word_ix = 1,bit.rshift(dim-1, 5)+1 do
-          from_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
+        for word_ix = 1,max_column_word do
+          to_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
         end
       end
     end
@@ -221,9 +222,9 @@ end
 
 local function matrix_init( dim)
   local matrix = {}
+  local max_column_word = bit.rshift(dim-1, 5)+1
   for i = 1,dim do
     matrix[i] = {}
-    local max_column_word = bit.rshift(dim-1, 5)+1
     for j = 1,max_column_word do
       matrix[i][j] = 0
     end
@@ -237,16 +238,16 @@ everything is 1-based. Except, of course, bit position.
 In Pall's 32-bit vectors, that is 0-based.
 --]]
 local function matrix_bit_set(matrix, row, column)
-  local column_word = bit.rshift(column, 5)+1
-  local column_bit = bit.band(column, 0x1F) -- 0-based
+  local column_word = bit.rshift(column-1, 5)+1
+  local column_bit = bit.band(column-1, 0x1F)
   -- print("column_word:", column_word, " column_bit: ", column_bit)
   local bit_vector = matrix[row]
   bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
 end
 
 local function matrix_bit_test(matrix, row, column)
-  local column_word = bit.rshift(column, 5)+1
-  local column_bit = bit.band(column, 0x1F) -- 0-based
+  local column_word = bit.rshift(column-1, 5)+1
+  local column_bit = bit.band(column-1, 0x1F)
   -- print("column_word:", column_word, " column_bit: ", column_bit)
   return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
 end
@@ -291,7 +292,6 @@ of a rule with property `P`.
 In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
 --]]
-
 local function rhs_transitive_closure(irules, symbol_by_name, property)
   local worklist = {}
   for symbol_name, symbol_props in pairs(symbol_by_name) do
@@ -302,23 +302,31 @@ local function rhs_transitive_closure(irules, symbol_by_name, property)
   while true do
     local symbol_props = table.remove(worklist)
     if not symbol_props then break end
+    print("Symbol taken from work list: ", symbol_props.name)
+    print( dumper.dumper(symbol_props.irule_by_rhs))
     for _,irule_props in pairs(symbol_props.irule_by_rhs) do
+      print("Start of testing rule for propetry ", property);
       local lh_sym_props = symbol_by_name[irule_props.lhs]
-      if lh_sym_props[property] == true then break end
-      local rule_has_property = true -- default to true
-      for _,rhs_name in pairs(irule_props.rhs) do
-        local rh_sym_props = symbol_by_name[rhs_name]
-        if not rh_sym_props[property] then
-          rule_has_property = false
-          break
+      if lh_sym_props[property] ~= true then
+        print("Rule LHS: ", lh_sym_props.name)
+        local rule_has_property = true -- default to true
+        for _,rhs_name in pairs(irule_props.rhs) do
+          local rh_sym_props = symbol_by_name[rhs_name]
+          print("Rule RHS symbol: ", rh_sym_props.name)
+          if not rh_sym_props[property] then
+            rule_has_property = false
+            break
+          end
         end
-      end
-      if rule_has_property then
-        -- we don't get here if the LHS symbol already
-        -- has the property, so no symbol is ever
-        -- put on worklist twice
-        lh_sym_props[property] = true
-        table.insert(worklist, lh_sym_props)
+        print("End of testing rule, result = ", rule_has_property);
+        if rule_has_property then
+          -- we don't get here if the LHS symbol already
+          -- has the property, so no symbol is ever
+          -- put on worklist twice
+          lh_sym_props[property] = true
+          print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
+          table.insert(worklist, lh_sym_props)
+        end
       end
     end
   end
@@ -382,6 +390,7 @@ local function do_grammar(grammar, properties)
     symbol_props.rhs_by_lhs = {}
     symbol_props.irule_by_rhs = {}
     symbol_props.irule_by_lhs = {}
+
   end
 
   for symbol_name,isym_props in pairs(properties.isym) do
@@ -404,7 +413,6 @@ local function do_grammar(grammar, properties)
       if (g_is_structural) then
         error('Internal error: Lexeme "' .. symbol_name .. '" declared in structural grammar')
       end
-      print ( symbol_name .. ' is a lexeme ')
       symbol_props.lexeme = true;
     end
     if (isym_props.start) then
@@ -436,13 +444,18 @@ local function do_grammar(grammar, properties)
       if (not rhs_props) then
         error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
       end
-      table.insert(rhs_props.irule_by_rhs, irule_props)
+
+      -- built different from irule_by_lhs, because symbols
+      -- may occur several times on the RHS
+      rhs_props.irule_by_rhs[rule_ix] = irule_props
+
       rhs_props.lhs_by_rhs[lhs_name] = lhs_props
       lhs_props.rhs_by_lhs[rhs_name] = rhs_props
     end
   end
 
   for symbol_name,symbol_props in pairs(symbol_by_name) do
+    print( symbol_name, dumper.dumper(symbol_props.irule_by_rhs))
     if (not symbol_props[lhs_by_rhs] and not symbol_props[rhs_by_lhs] and symbol_props[is_khil]) then
       error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
     end
@@ -463,6 +476,9 @@ local function do_grammar(grammar, properties)
     matrix_bit_set(reach_matrix, symbol_id, symbol_id)
     if isym_props then
       for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
+        -- print( "LHS by RHS, setting ",  lhs_props.name, " reaches ", symbol_props.name,
+        -- "IDS: ", lhs_props.id, symbol_id
+        -- )
         matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
       end
       if symbol_props.terminal then
@@ -497,12 +513,24 @@ local function do_grammar(grammar, properties)
     if symbol_props.nullable and
     not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
     then symbol_props.nulling = true end
+    if symbol_props.lexeme then
+        if symbol_props.nullable then
+        print("Symbol " .. symbol_props.name .. " is a nullable lexeme -- A FATAL ERROR")
+        end
+        if not symbol_props.productive then
+        print("Symbol " .. symbol_props.name .. " is an unproductive lexeme -- A FATAL ERROR")
+        end
+    end
 
     if symbol_props.nulling then
         print("Symbol " .. symbol_props.name .. " is nulling")
     end
     if symbol_props.nullable then
         print("Symbol " .. symbol_props.name .. " is nullable")
+    end
+
+    if top_symbol.unproductive then
+        print("Start symbol " .. top_symbol.name .. " is unproductive -- A FATAL ERROR")
     end
 
   end
