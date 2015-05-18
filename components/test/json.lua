@@ -292,6 +292,7 @@ of a rule with property `P`.
 In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
 --]]
+
 local function rhs_transitive_closure(irules, symbol_by_name, property)
   local worklist = {}
   for symbol_name, symbol_props in pairs(symbol_by_name) do
@@ -299,28 +300,37 @@ local function rhs_transitive_closure(irules, symbol_by_name, property)
       table.insert(worklist, symbol_props)
     end
   end
+
   while true do
     local symbol_props = table.remove(worklist)
     if not symbol_props then break end
+    print("Symbol taken from work list: ", symbol_props.name)
+    print( dumper.dumper(symbol_props.irule_by_rhs))
     for _,irule_props in pairs(symbol_props.irule_by_rhs) do
+      print("Start of testing rule for propetry ", property);
       local lh_sym_props = symbol_by_name[irule_props.lhs]
       if lh_sym_props[property] ~= true then
+        print("Rule LHS: ", lh_sym_props.name)
         local rule_has_property = true -- default to true
         for _,rhs_name in pairs(irule_props.rhs) do
           local rh_sym_props = symbol_by_name[rhs_name]
+          print("Rule RHS symbol: ", rh_sym_props.name)
           if not rh_sym_props[property] then
             rule_has_property = false
             break
           end
         end
+        print("End of testing rule, result = ", rule_has_property);
         if rule_has_property then
           -- we don't get here if the LHS symbol already
           -- has the property, so no symbol is ever
           -- put on worklist twice
           lh_sym_props[property] = true
+          print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
           table.insert(worklist, lh_sym_props)
         end
       end
+
     end
   end
 end
@@ -482,8 +492,16 @@ local function do_grammar(grammar, properties)
 
   end
 
-  if top_symbol.unproductive then
-    print("Start symbol " .. top_symbol.name .. " is unproductive -- A FATAL ERROR")
+for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
+  for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+    if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+      print( from_symbol_props.name, "reaches", to_symbol_props.name)
+    end
+  end
+end
+
+if not top_symbol.productive then
+    print("Start symbol " .. top_symbol.name .. " is not productive -- A FATAL ERROR")
   end
 
   if top_symbol.nulling then
