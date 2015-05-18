@@ -916,12 +916,20 @@ static int wrap_grammar_new(lua_State *L)
   return 1;
 }
 
+/* Rule RHS limited to 7 symbols --
+ * 7 because I can encode dot position in 3 bit
+ */
 static int wrap_grammar_rule_new(lua_State *L)
 {
     Marpa_Grammar *p_g;
     Marpa_Rule_ID result;
     Marpa_Symbol_ID lhs;
-    Marpa_Symbol_ID rhs[2];
+    /* As an old kernel driver programmer, I
+     * don't like to put arrays on the stack,
+     * but one of this size should be safe on
+     * anything like a modern architecture.
+     */
+    Marpa_Symbol_ID rhs[7];
     int rhs_length;
     /* [ grammar_object, lhs, rhs ... ] */
     const int grammar_stack_ix = 1;
