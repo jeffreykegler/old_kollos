@@ -302,29 +302,22 @@ local function rhs_transitive_closure(irules, symbol_by_name, property)
   while true do
     local symbol_props = table.remove(worklist)
     if not symbol_props then break end
-    print("Symbol taken from work list: ", symbol_props.name)
-    print( dumper.dumper(symbol_props.irule_by_rhs))
     for _,irule_props in pairs(symbol_props.irule_by_rhs) do
-      print("Start of testing rule for propetry ", property);
       local lh_sym_props = symbol_by_name[irule_props.lhs]
       if lh_sym_props[property] ~= true then
-        print("Rule LHS: ", lh_sym_props.name)
         local rule_has_property = true -- default to true
         for _,rhs_name in pairs(irule_props.rhs) do
           local rh_sym_props = symbol_by_name[rhs_name]
-          print("Rule RHS symbol: ", rh_sym_props.name)
           if not rh_sym_props[property] then
             rule_has_property = false
             break
           end
         end
-        print("End of testing rule, result = ", rule_has_property);
         if rule_has_property then
           -- we don't get here if the LHS symbol already
           -- has the property, so no symbol is ever
           -- put on worklist twice
           lh_sym_props[property] = true
-          print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
           table.insert(worklist, lh_sym_props)
         end
       end
@@ -452,9 +445,6 @@ local function do_grammar(grammar, properties)
     matrix_bit_set(reach_matrix, symbol_id, symbol_id)
     if isym_props then
       for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
-        -- print( "LHS by RHS, setting ", lhs_props.name, " reaches ", symbol_props.name,
-        -- "IDS: ", lhs_props.id, symbol_id
-        -- )
         matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
       end
       if symbol_props.terminal then
@@ -467,14 +457,6 @@ local function do_grammar(grammar, properties)
   end
 
   transitive_closure(reach_matrix)
-
-  for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
-    for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
-      if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
-        print( from_symbol_props.name, "reaches", to_symbol_props.name)
-      end
-    end
-  end
 
   rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
   rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
