@@ -337,6 +337,9 @@ end
 
 local function do_grammar(grammar, properties)
 
+  -- I expect to handle cycles eventually, so this logic must be
+  -- cycle-safe.
+
   local g_is_structural = properties.structural
 
   -- while developing we do all the "hygenic" tests to
@@ -350,60 +353,34 @@ local function do_grammar(grammar, properties)
   -- Next we start the database of intermediate KLOL symbols
   local symbol_by_name = {} -- create an symbol to integer index
   local symbol_by_id = {} -- create an integer to symbol index
-  local augment_symbol -- will be LHS of augmented start rule
+
+  local function klol_symbol_new(props)
+    props.lhs_by_rhs = {}
+    props.rhs_by_lhs = {}
+    props.irule_by_rhs = {}
+    props.irule_by_lhs = {}
+    symbol_by_name[props.name] = props
+    local symbol_id = #symbol_by_id+1
+    props.id = symbol_id
+    symbol_by_id[symbol_id] = props
+    return props
+  end
+
   local top_symbol -- will be RHS of augmented start rule
 
   -- a pseudo-symbol "reached" by all terminals
   -- for convenience in determinal if a symbol reaches any terminal
-  local sink_symbol
+  local sink_terminal = klol_symbol_new{ name = '?sink_terminal'}
+  local augment_symbol = klol_symbol_new{ name = '?augment'}
 
-  -- I expect to handle cycles eventually, so this logic must be
-  -- cycle-safe.
-
-  do
-    -- a pseudo-symbol, used to make it easy to find out
-    -- if another symbol reaches any terminal
-    sink_terminal = { name = '?sink_terminal'}
-    table.insert(symbol_by_id, sink_terminal)
-    symbol_by_name[sink_terminal.name] = sink_terminal
-
-    -- the augmented start symbol
-    augment_symbol = { name = '?augment'}
-    table.insert(symbol_by_id, augment_symbol)
-    symbol_by_name[augment_symbol.name] = augment_symbol
-
-    if (not g_is_structural) then
-      -- a lexical grammar needs a top symbol
-      -- as the RHS of its augmented start rule
-      top = { name = '?top'}
-      table.insert(symbol_by_id, top)
-      symbol_by_name[top.name] = top
-      top_symbol = top
-    end
-
-  end
-
-  -- set up some default fields
-  for symbol_id,symbol_props in pairs(symbol_by_id) do
-    symbol_props.id = symbol_id
-    symbol_props.lhs_by_rhs = {}
-    symbol_props.rhs_by_lhs = {}
-    symbol_props.irule_by_rhs = {}
-    symbol_props.irule_by_lhs = {}
-
+  if (not g_is_structural) then
+    top_symbol = klol_symbol_new{ name = '?top'}
   end
 
   for symbol_name,isym_props in pairs(properties.isym) do
-    local symbol_props = { isym_props = isym_props, name = symbol_name,
-      lhs_by_rhs = {},
-      rhs_by_lhs = {},
-      irule_by_rhs = {},
-      irule_by_lhs = {},
+    local symbol_props = klol_symbol_new{ isym_props = isym_props, name = symbol_name,
       is_khil = true -- true if a KHIL symbol
     }
-    table.insert(symbol_by_id, symbol_props)
-    symbol_by_name[symbol_name] = symbol_props
-    symbol_props.id = #symbol_by_id
     if (isym_props.charclass) then
       symbol_props.productive = true;
       symbol_props.terminal = true;
@@ -433,7 +410,7 @@ local function do_grammar(grammar, properties)
     if (not lhs_props) then
       error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
     end
-    table.insert(lhs_props.irule_by_lhs, irule_props)
+    lhs_props.irule_by_lhs[#lhs_props.irule_by_lhs+1] = irule_props
     local rhs_names = irule_props.rhs
     if (#rhs_names == 0) then
       lhs_props.nullable = true
@@ -455,7 +432,6 @@ local function do_grammar(grammar, properties)
   end
 
   for symbol_name,symbol_props in pairs(symbol_by_name) do
-    print( symbol_name, dumper.dumper(symbol_props.irule_by_rhs))
     if (not symbol_props[lhs_by_rhs] and not symbol_props[rhs_by_lhs] and symbol_props[is_khil]) then
       error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
     end
@@ -476,7 +452,7 @@ local function do_grammar(grammar, properties)
     matrix_bit_set(reach_matrix, symbol_id, symbol_id)
     if isym_props then
       for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
-        -- print( "LHS by RHS, setting ",  lhs_props.name, " reaches ", symbol_props.name,
+        -- print( "LHS by RHS, setting ", lhs_props.name, " reaches ", symbol_props.name,
         -- "IDS: ", lhs_props.id, symbol_id
         -- )
         matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
@@ -493,11 +469,11 @@ local function do_grammar(grammar, properties)
   transitive_closure(reach_matrix)
 
   for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
-      for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
-          if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
-              print( from_symbol_props.name, "reaches", to_symbol_props.name)
-          end
+    for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+      if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+        print( from_symbol_props.name, "reaches", to_symbol_props.name)
       end
+    end
   end
 
   rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
@@ -514,25 +490,26 @@ local function do_grammar(grammar, properties)
     not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
     then symbol_props.nulling = true end
     if symbol_props.lexeme then
-        if symbol_props.nullable then
-        print("Symbol " .. symbol_props.name .. " is a nullable lexeme -- A FATAL ERROR")
-        end
-        if not symbol_props.productive then
+      if symbol_props.nulling then
+        print("Symbol " .. symbol_props.name .. " is a nulling lexeme -- A FATAL ERROR")
+      end
+      if not symbol_props.productive then
         print("Symbol " .. symbol_props.name .. " is an unproductive lexeme -- A FATAL ERROR")
-        end
+      end
+    end
+
+    if symbol_props.nullable then
+      print("Symbol " .. symbol_props.name .. " is nullable")
     end
 
     if symbol_props.nulling then
-        print("Symbol " .. symbol_props.name .. " is nulling")
-    end
-    if symbol_props.nullable then
-        print("Symbol " .. symbol_props.name .. " is nullable")
+      print("Symbol " .. symbol_props.name .. " is nulling")
     end
 
-    if top_symbol.unproductive then
-        print("Start symbol " .. top_symbol.name .. " is unproductive -- A FATAL ERROR")
-    end
+  end
 
+  if top_symbol.unproductive then
+    print("Start symbol " .. top_symbol.name .. " is unproductive -- A FATAL ERROR")
   end
 
 end
