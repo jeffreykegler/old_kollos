@@ -363,7 +363,7 @@ local function do_grammar(grammar, properties)
 
   -- a pseudo-symbol "reached" by all terminals
   -- for convenience in determinal if a symbol reaches any terminal
-  local sink_terminal = klol_symbol_new{ name = '?sink_terminal'}
+  local sink_terminal = klol_symbol_new{ name = '?sink_terminal', productive = true}
   local augment_symbol = klol_symbol_new{ name = '?augment'}
 
   if (not g_is_structural) then
@@ -480,18 +480,29 @@ local function do_grammar(grammar, properties)
       end
     end
 
-    if symbol_props.nullable then
-      print("Symbol " .. symbol_props.name .. " is nullable")
-    end
-
-    if symbol_props.nulling then
-      print("Symbol " .. symbol_props.name .. " is nulling")
-    end
-
   end
 
   if top_symbol.unproductive then
     print("Start symbol " .. top_symbol.name .. " is unproductive -- A FATAL ERROR")
+  end
+
+  if top_symbol.nulling then
+    print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
+  end
+
+  for _,symbol_props in ipairs(symbol_by_id) do
+    if symbol_props.nullable and not symbol_props.nulling then
+      print("Symbol " .. symbol_props.name .. " is proper nullable")
+      local null_variant = klol_symbol_new{
+        name = (symbol_props.name .. '?null'),
+        isym_props = symbol_props.isym_props,
+        bulk_variant = symbol_props,
+        nullable = true,
+        nulling = true,
+        productive = true
+      }
+      symbol_props.null_variant = null_variant
+    end
   end
 
 end
