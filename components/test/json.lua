@@ -560,10 +560,40 @@ local function do_grammar(grammar, properties)
       local rh_sym_props = symbol_by_name[rhs_name]
       rh_side[#rh_side+1] = rh_sym_props
     end
-    klol_rule_new{
-      lhs = lh_sym_props,
-      rhs = rh_side,
-    }
+    local stack = {}
+    local kir_dot_ix =  #rh_side
+    local stack_ix = 1
+    local unique_number = 1
+    while kir_dot_ix > 0 do
+        -- print("kir_dot_ix = ", kir_dot_ix)
+        while stack_ix <= 2 do
+            -- print("stack_ix, kir_dot_ix = ", stack_ix, kir_dot_ix)
+             stack[stack_ix] = rh_side[kir_dot_ix]
+             stack_ix = stack_ix + 1
+             kir_dot_ix = kir_dot_ix-1
+             if kir_dot_ix <= 0 then break end
+        end
+        local piece_rh_side = {}
+        for ix = stack_ix-1,1,-1 do
+            -- print("ix, stack_ix-1 = ", ix, stack_ix-1)
+            piece_rh_side[#piece_rh_side + 1] = stack[ix]
+        end
+        local piece_lh_sym
+        if kir_dot_ix <= 0 then
+            piece_lh_sym = lhs
+        else
+            local new_lhs_name =
+                irule_props.lhs .. '?' .. unique_number .. '@' .. kir_dot_ix
+            unique_number = unique_number + 1
+            piece_lh_sym = klol_symbol_new{ name = new_lhs_name }
+            stack[1] = piece_lh_sym
+            stack_ix = 2
+        end
+        klol_rule_new{
+          lhs = piece_lh_sym,
+          rhs = piece_rh_side,
+        }
+    end
   end
 
 end
