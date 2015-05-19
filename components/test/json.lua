@@ -369,12 +369,28 @@ local function do_grammar(grammar, properties)
     return props
   end
 
+  -- clone a null symbol from a proper
+  -- nullable and make the original bulky
+  local function klol_null_new(nullable_symbol)
+      local null_variant = klol_symbol_new{
+        name = (nullable_symbol.name .. '?null'),
+        isym_props = nullable_symbol.isym_props,
+        bulk_variant = nullable_symbol,
+        nullable = true,
+        nulling = true,
+        productive = true
+      }
+      nullable_symbol.null_variant = null_variant
+      nullable_symbol.nullable = false
+      return null_variant
+  end
+
   local function klol_rule_new(props)
-     local rule_desc = props.lhs.name .. ' ::='
-     for dot_ix = 1,#props.rhs do
-         rule_desc = rule_desc .. ' ' .. props.rhs[dot_ix].name
-     end
-     print("KLOL rule:", rule_desc)
+    local rule_desc = props.lhs.name .. ' ::='
+    for dot_ix = 1,#props.rhs do
+      rule_desc = rule_desc .. ' ' .. props.rhs[dot_ix].name
+    end
+    print("KLOL rule:", rule_desc)
   end
 
   local top_symbol -- will be RHS of augmented start rule
@@ -479,12 +495,12 @@ local function do_grammar(grammar, properties)
   rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
   rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
 
---[[
-   I don't want to get into adding the KLOL rules until later, so for
-   a lexical grammar we mark the top symbol productive to silence the
-   error message.  We will test that all the lexemes were productive,
-   and that is sufficient.
---]]
+  --[[
+  I don't want to get into adding the KLOL rules until later, so for
+  a lexical grammar we mark the top symbol productive to silence the
+  error message. We will test that all the lexemes were productive,
+  and that is sufficient.
+  --]]
 
   if not g_is_structural then
     top_symbol.productive = true
@@ -511,7 +527,7 @@ local function do_grammar(grammar, properties)
 
   end
 
---[[ COMMENTED OUT
+  --[[ COMMENTED OUT
   for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
     for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
       if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
@@ -519,42 +535,36 @@ local function do_grammar(grammar, properties)
       end
     end
   end
---]]
+  --]]
 
   if top_symbol.nulling then
     print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
   end
 
-  for _,symbol_props in ipairs(symbol_by_id) do
+  -- we do not need to traverse symbols to symbol_by_id
+  for ix = 1,#symbol_by_id do
+    symbol_props = symbol_by_id[ix]
     if symbol_props.nullable and not symbol_props.nulling then
       print("Symbol " .. symbol_props.name .. " is proper nullable")
-      local null_variant = klol_symbol_new{
-        name = (symbol_props.name .. '?null'),
-        isym_props = symbol_props.isym_props,
-        bulk_variant = symbol_props,
-        nullable = true,
-        nulling = true,
-        productive = true
-      }
-      symbol_props.null_variant = null_variant
+      klol_symbol_new(symbol_props)
     end
   end
 
-for _,irule_props in ipairs(properties.irule) do
-  local lh_sym_name = irule_props.lhs
-  local lh_sym_props = symbol_by_name[lh_sym_name]
-  local lhs = symbol_by_name[lh_sym_name]
-  local rhs_names = irule_props.rhs
-  local rh_side = {}
-  for dot_ix,rhs_name in ipairs(rhs_names) do
-    local rh_sym_props = symbol_by_name[rhs_name]
-    rh_side[#rh_side+1] = rh_sym_props
+  for _,irule_props in ipairs(properties.irule) do
+    local lh_sym_name = irule_props.lhs
+    local lh_sym_props = symbol_by_name[lh_sym_name]
+    local lhs = symbol_by_name[lh_sym_name]
+    local rhs_names = irule_props.rhs
+    local rh_side = {}
+    for dot_ix,rhs_name in ipairs(rhs_names) do
+      local rh_sym_props = symbol_by_name[rhs_name]
+      rh_side[#rh_side+1] = rh_sym_props
+    end
+    klol_rule_new{
+      lhs = lh_sym_props,
+      rhs = rh_side,
+    }
   end
-  klol_rule_new{
-    lhs = lh_sym_props,
-    rhs = rh_side,
-  }
-end
 
 end
 
