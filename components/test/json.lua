@@ -304,29 +304,29 @@ local function rhs_transitive_closure(irules, symbol_by_name, property)
   while true do
     local symbol_props = table.remove(worklist)
     if not symbol_props then break end
-    print("Symbol taken from work list: ", symbol_props.name)
-    print( dumper.dumper(symbol_props.irule_by_rhs))
+    -- print("Symbol taken from work list: ", symbol_props.name)
+    -- print( dumper.dumper(symbol_props.irule_by_rhs))
     for _,irule_props in pairs(symbol_props.irule_by_rhs) do
-      print("Start of testing rule for propetry ", property);
+      -- print("Start of testing rule for propetry ", property);
       local lh_sym_props = symbol_by_name[irule_props.lhs]
       if lh_sym_props[property] ~= true then
-        print("Rule LHS: ", lh_sym_props.name)
+        -- print("Rule LHS: ", lh_sym_props.name)
         local rule_has_property = true -- default to true
         for _,rhs_name in pairs(irule_props.rhs) do
           local rh_sym_props = symbol_by_name[rhs_name]
-          print("Rule RHS symbol: ", rh_sym_props.name)
+          -- print("Rule RHS symbol: ", rh_sym_props.name)
           if not rh_sym_props[property] then
             rule_has_property = false
             break
           end
         end
-        print("End of testing rule, result = ", rule_has_property);
+        -- print("End of testing rule, result = ", rule_has_property);
         if rule_has_property then
           -- we don't get here if the LHS symbol already
           -- has the property, so no symbol is ever
           -- put on worklist twice
           lh_sym_props[property] = true
-          print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
+          -- print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
           table.insert(worklist, lh_sym_props)
         end
       end
@@ -367,6 +367,14 @@ local function do_grammar(grammar, properties)
     props.id = symbol_id
     symbol_by_id[symbol_id] = props
     return props
+  end
+
+  local function klol_rule_new(props)
+     local rule_desc = props.lhs.name .. ' ::='
+     for dot_ix = 1,#props.rhs do
+         rule_desc = rule_desc .. ' ' .. props.rhs[dot_ix].name
+     end
+     print("KLOL rule:", rule_desc)
   end
 
   local top_symbol -- will be RHS of augmented start rule
@@ -471,6 +479,17 @@ local function do_grammar(grammar, properties)
   rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
   rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
 
+--[[
+   I don't want to get into adding the KLOL rules until later, so for
+   a lexical grammar we mark the top symbol productive to silence the
+   error message.  We will test that all the lexemes were productive,
+   and that is sufficient.
+--]]
+
+  if not g_is_structural then
+    top_symbol.productive = true
+  end
+
   for symbol_id,symbol_props in ipairs(symbol_by_id) do
     if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
       print("Symbol " .. symbol_props.name .. " is not accessible")
@@ -492,17 +511,15 @@ local function do_grammar(grammar, properties)
 
   end
 
-for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
-  for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
-    if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
-      print( from_symbol_props.name, "reaches", to_symbol_props.name)
+--[[ COMMENTED OUT
+  for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
+    for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+      if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+        print( from_symbol_props.name, "reaches", to_symbol_props.name)
+      end
     end
   end
-end
-
-if not top_symbol.productive then
-    print("Start symbol " .. top_symbol.name .. " is not productive -- A FATAL ERROR")
-  end
+--]]
 
   if top_symbol.nulling then
     print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
@@ -523,22 +540,23 @@ if not top_symbol.productive then
     end
   end
 
+for _,irule_props in ipairs(properties.irule) do
+  local lh_sym_name = irule_props.lhs
+  local lh_sym_props = symbol_by_name[lh_sym_name]
+  local lhs = symbol_by_name[lh_sym_name]
+  local rhs_names = irule_props.rhs
+  local rh_side = {}
+  for dot_ix,rhs_name in ipairs(rhs_names) do
+    local rh_sym_props = symbol_by_name[rhs_name]
+    rh_side[#rh_side+1] = rh_sym_props
+  end
+  klol_rule_new{
+    lhs = lh_sym_props,
+    rhs = rh_side,
+  }
 end
 
--- local reach_matrix = matrix_init(43)
--- matrix_bit_set(reach_matrix, 42, 7)
--- print (matrix_bit_test(reach_matrix, 41, 6))
--- print (matrix_bit_test(reach_matrix, 42, 6))
--- print (matrix_bit_test(reach_matrix, 42, 7))
--- print (matrix_bit_test(reach_matrix, 42, 8))
--- print (matrix_bit_test(reach_matrix, 43, 7))
--- matrix_bit_set(reach_matrix, 7, 42)
--- print (matrix_bit_test(reach_matrix, 6, 30))
--- print (matrix_bit_test(reach_matrix, 6, 31))
--- print (matrix_bit_test(reach_matrix, 7, 32))
--- print (matrix_bit_test(reach_matrix, 8, 33))
--- print (matrix_bit_test(reach_matrix, 7, 34))
--- transitive_closure(reach_matrix)
+end
 
 for grammar,properties in pairs(json_kir) do
   do_grammar(grammar, properties)
