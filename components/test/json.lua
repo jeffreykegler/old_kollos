@@ -369,6 +369,7 @@ local function do_grammar(grammar, properties)
     return props
   end
 
+  --[[ COMMENTED OUT
   -- clone a null symbol from a proper
   -- nullable and make the original bulky
   local function klol_null_new(nullable_symbol)
@@ -384,11 +385,13 @@ local function do_grammar(grammar, properties)
     nullable_symbol.nullable = false
     return null_variant
   end
+  --]]
 
-  local function klol_rule_new(props)
-    local rule_desc = props.lhs.name .. ' ::='
-    for dot_ix = 1,#props.rhs do
-      rule_desc = rule_desc .. ' ' .. props.rhs[dot_ix].name
+  local function klol_rule_new(rule_props)
+    local rule_desc = rule_props.lhs.symbol.name .. ' ::='
+    for dot_ix = 1,#rule_props.rhs do
+         -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
+      rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
   end
@@ -577,39 +580,92 @@ local function do_grammar(grammar, properties)
       end
     end
 
-    local stack = {}
-    local instance_stack_ix = #instance_stack
-    local stack_ix = 1
-    while instance_stack_ix > 0 do
-      -- print("instance_stack_ix = ", instance_stack_ix)
-      while stack_ix <= 2 do
-        -- print("stack_ix, instance_stack_ix = ", stack_ix, instance_stack_ix)
-        stack[stack_ix] = instance_stack[instance_stack_ix].symbol
-        stack_ix = stack_ix + 1
-        instance_stack_ix = instance_stack_ix-1
-        if instance_stack_ix <= 0 then break end
-      end
-      local piece_rh_side = {}
-      for ix = stack_ix-1,1,-1 do
-        -- print("ix, stack_ix-1 = ", ix, stack_ix-1)
-        piece_rh_side[#piece_rh_side + 1] = stack[ix]
-      end
-      local piece_lh_sym
-      if instance_stack_ix <= 0 then
-        piece_lh_sym = lhs
-      else
-        local new_lhs_name =
-        irule_props.lhs .. '?' .. unique_number .. '@' .. instance_stack_ix
-        unique_number = unique_number + 1
-        piece_lh_sym = klol_symbol_new{ name = new_lhs_name }
-        stack[1] = piece_lh_sym
-        stack_ix = 2
-      end
-      klol_rule_new{
-        lhs = piece_lh_sym,
-        rhs = piece_rh_side,
+local start_of_nullable_suffix = #instance_stack+1
+for i=#instance_stack,1,-1 do
+  if not instance_stack[i].symbol.nullable then break end
+  start_of_nullable_suffix = i
+end
+
+    -- first LHS is that of the original rule
+    local lh_sides = {}
+    lh_sides[1] = {
+      irule = irule_props,
+      kir_dot = 1,
+      symbol = lh_sym_props
+    }
+    -- we need a new LHS for the length of the original
+    -- RHS, less 2
+    for instance_ix=2,#instance_stack-1 do
+      local new_lhs_name =
+      irule_props.lhs .. '?' .. unique_number .. '@' .. instance_ix
+      unique_number = unique_number + 1
+      local new_lh_symbol = klol_symbol_new{ name = new_lhs_name }
+      lh_sides[#lh_sides+1] = {
+        irule = irule_props,
+        kir_dot = instance_stack[instance_ix].kir_dot,
+        symbol = new_lh_symbol
       }
     end
+
+    -- if the rule is empty (zero length) it will
+    -- "fall through" the following logic
+    local next_rule_base = 1
+    while #instance_stack - next_rule_base >= 2 do
+      local new_rule_lhs = lh_sides[next_rule_base]
+      local rhs_instance_1 = instance_stack[next_rule_base]
+      local next_lhs = lh_sides[next_rule_base+1]
+      local new_rule
+      klol_rule_new{
+        lhs = new_rule_lhs,
+        rhs = { rhs_instance_1, next_lhs }
+      }
+      if start_of_nullable_suffix <= next_rule_base+1 then
+        klol_rule_new{
+          lhs = new_rule_lhs,
+          rhs = { rhs_instance_1 }
+        }
+      end
+      if rhs_instance_1.symbol.nullable then
+        klol_rule_new{
+          lhs = new_rule_lhs,
+          rhs = { next_lhs }
+        }
+      end
+      next_rule_base = next_rule_base+1
+    end
+
+    -- If two RHS instances remain ...
+    if #instance_stack - next_rule_base == 1 then
+      local new_rule_lhs = lh_sides[next_rule_base]
+      local rhs_instance_1 = instance_stack[next_rule_base]
+      local rhs_instance_2 = instance_stack[next_rule_base+1]
+      klol_rule_new{
+        lhs = new_rule_lhs,
+        rhs = { rhs_instance_1, rhs_instance_2 }
+      }
+      if rhs_instance_1.symbol.nullable then
+        klol_rule_new{
+          lhs = new_rule_lhs,
+          rhs = { rhs_instance_2 }
+        }
+      end
+      if rhs_instance_2.symbol.nullable then
+        klol_rule_new{
+          lhs = new_rule_lhs,
+          rhs = { rhs_instance_1 }
+        }
+      end
+    end
+
+    -- If one RHS instance remains ...
+    if #instance_stack - next_rule_base == 0 then
+      local new_rule_lhs = lh_sides[next_rule_base]
+      local rhs_instance_1 = instance_stack[next_rule_base]
+      klol_rule_new{
+        lhs = new_rule_lhs, rhs = { rhs_instance_1 }
+      }
+    end
+
   end
 
 end
