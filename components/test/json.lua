@@ -177,6 +177,74 @@ local json_kir =
     }
 
   },
+
+  test4xA = {
+    irule = {
+      { lhs='top', rhs={ 'A', 'B', 'C', 'D' } },
+      { lhs='A', rhs={ } },
+      { lhs='B', rhs={ } },
+      { lhs='C', rhs={ } },
+      { lhs='D', rhs={ } },
+      { lhs='A', rhs={ 'char_a' } },
+      { lhs='B', rhs={ 'char_a' } },
+      { lhs='C', rhs={ 'char_a' } },
+      { lhs='D', rhs={ 'char_a' } },
+    },
+
+    isym = {
+      ['top'] = { lexeme = true },
+      ['A'] = {},
+      ['B'] = {},
+      ['C'] = {},
+      ['D'] = {},
+      ['char_a'] = { charclass = "[a]" },
+    }
+    },
+
+  test2_nul = {
+    irule = {
+      { lhs='top', rhs={ 'A', 'B', 'C', 'nul', 'nul' } },
+      { lhs='A', rhs={ } },
+      { lhs='B', rhs={ } },
+      { lhs='nul', rhs={ } },
+      { lhs='A', rhs={ 'char_a' } },
+      { lhs='B', rhs={ 'char_a' } },
+      { lhs='C', rhs={ 'char_a' } },
+    },
+
+    isym = {
+      ['top'] = { lexeme = true },
+      ['A'] = {},
+      ['B'] = {},
+      ['C'] = {},
+      ['nul'] = {},
+      ['char_a'] = { charclass = "[a]" },
+    }
+    },
+
+  mid_nulling = {
+    irule = {
+      { lhs='top', rhs={ 'A', 'B', 'C', 'D', 'nul' } },
+      { lhs='A', rhs={ } },
+      { lhs='C', rhs={ } },
+      { lhs='D', rhs={ } },
+      { lhs='nul', rhs={ } },
+      { lhs='A', rhs={ 'char_a' } },
+      { lhs='B', rhs={ 'char_a' } },
+      { lhs='D', rhs={ 'char_a' } },
+    },
+
+    isym = {
+      ['top'] = { lexeme = true },
+      ['A'] = {},
+      ['B'] = {},
+      ['C'] = {},
+      ['D'] = {},
+      ['nul'] = {},
+      ['char_a'] = { charclass = "[a]" },
+    }
+
+  },
 }
 
 --[[
@@ -449,7 +517,7 @@ local function do_grammar(grammar, properties)
     for dot_ix,rhs_name in ipairs(rhs_names) do
       local rhs_props = symbol_by_name[rhs_name]
       if (not rhs_props) then
-        error("Internal error: Symbol " .. rhs_item .. " is rhs of irule but not in isym")
+        error("Internal error: Symbol " .. rhs_name .. " is rhs of irule but not in isym")
       end
 
       -- built different from irule_by_lhs, because symbols
@@ -643,16 +711,21 @@ end
         lhs = new_rule_lhs,
         rhs = { rhs_instance_1, rhs_instance_2 }
       }
-      if rhs_instance_1.symbol.nullable then
-        klol_rule_new{
-          lhs = new_rule_lhs,
-          rhs = { rhs_instance_2 }
-        }
-      end
+
+      -- order by symbol used on the RHS,
+      -- not by symbol tested so that
+      -- the output is easier to read
       if rhs_instance_2.symbol.nullable then
         klol_rule_new{
           lhs = new_rule_lhs,
           rhs = { rhs_instance_1 }
+        }
+      end
+
+      if rhs_instance_1.symbol.nullable then
+        klol_rule_new{
+          lhs = new_rule_lhs,
+          rhs = { rhs_instance_2 }
         }
       end
     end
@@ -671,7 +744,10 @@ end
 end
 
 for grammar,properties in pairs(json_kir) do
-  do_grammar(grammar, properties)
+  if grammar == 'l0' then
+    print( "Grammar", grammar)
+    do_grammar(grammar, properties)
+  end
 end
 
 -- vim: expandtab shiftwidth=4:
