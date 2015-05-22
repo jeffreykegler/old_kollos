@@ -199,7 +199,7 @@ local json_kir =
       ['D'] = {},
       ['char_a'] = { charclass = "[a]" },
     }
-    },
+  },
 
   test2_nul = {
     irule = {
@@ -220,7 +220,7 @@ local json_kir =
       ['nul'] = {},
       ['char_a'] = { charclass = "[a]" },
     }
-    },
+  },
 
   mid_nulling = {
     irule = {
@@ -361,9 +361,9 @@ In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
 --]]
 
-local function rhs_transitive_closure(irules, symbol_by_name, property)
+local function rhs_transitive_closure(symbol_by_name, property)
   local worklist = {}
-  for symbol_name, symbol_props in pairs(symbol_by_name) do
+  for _, symbol_props in pairs(symbol_by_name) do
     if symbol_props[property] == true then
       table.insert(worklist, symbol_props)
     end
@@ -406,6 +406,7 @@ end
 -- We leave the KIR as is, and work with
 -- intermediate databases
 
+-- currently grammar is unused, but someday we may need the grammar name
 local function do_grammar(grammar, properties)
 
   -- I expect to handle cycles eventually, so this logic must be
@@ -458,7 +459,7 @@ local function do_grammar(grammar, properties)
   local function klol_rule_new(rule_props)
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
-         -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
+      -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
       rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
@@ -492,7 +493,7 @@ local function do_grammar(grammar, properties)
     end
     if (isym_props.start) then
       if (not g_is_structural) then
-        error('Internal error: Start symbol "' .. symbol '" declared in lexical grammar')
+        error('Internal error: Start symbol "' .. symbol_name '" declared in lexical grammar')
       end
       top_symbol = symbol_props
     end
@@ -506,7 +507,7 @@ local function do_grammar(grammar, properties)
     local lhs_name = irule_props.lhs
     local lhs_props = symbol_by_name[lhs_name]
     if (not lhs_props) then
-      error("Internal error: Symbol " .. lhs .. " is lhs of irule but not in isym")
+      error("Internal error: Symbol " .. lhs_name .. " is lhs of irule but not in isym")
     end
     lhs_props.irule_by_lhs[#lhs_props.irule_by_lhs+1] = irule_props
     local rhs_names = irule_props.rhs
@@ -514,7 +515,7 @@ local function do_grammar(grammar, properties)
       lhs_props.nullable = true
       lhs_props.productive = true
     end
-    for dot_ix,rhs_name in ipairs(rhs_names) do
+    for _,rhs_name in ipairs(rhs_names) do
       local rhs_props = symbol_by_name[rhs_name]
       if (not rhs_props) then
         error("Internal error: Symbol " .. rhs_name .. " is rhs of irule but not in isym")
@@ -530,10 +531,10 @@ local function do_grammar(grammar, properties)
   end
 
   for symbol_name,symbol_props in pairs(symbol_by_name) do
-    if (not symbol_props[lhs_by_rhs] and not symbol_props[rhs_by_lhs] and symbol_props[is_khil]) then
-      error("Internal error: Symbol " .. symbol .. " is in isym but not in irule")
+    if (not symbol_props.lhs_by_rhs and not symbol_props.rhs_by_lhs and symbol_props.is_khil) then
+      error("Internal error: Symbol " .. symbol_name .. " is in isym but not in irule")
     end
-    if (symbol_props.charclass and symbol_props[#irule_by_lhs] > 0) then
+    if (symbol_props.charclass and #symbol_props.irule_by_lhs > 0) then
       error("Internal error: Symbol " .. symbol_name .. " has charclass but is on LHS of irule")
     end
   end
@@ -563,8 +564,8 @@ local function do_grammar(grammar, properties)
 
   transitive_closure(reach_matrix)
 
-  rhs_transitive_closure(properties.irule, symbol_by_name, 'nullable')
-  rhs_transitive_closure(properties.irule, symbol_by_name, 'productive')
+  rhs_transitive_closure(symbol_by_name, 'nullable')
+  rhs_transitive_closure(symbol_by_name, 'productive')
 
   --[[
   I don't want to get into adding the KLOL rules until later, so for
@@ -614,7 +615,7 @@ local function do_grammar(grammar, properties)
 
   -- we do not need to traverse symbols to symbol_by_id
   for ix = 1,#symbol_by_id do
-    symbol_props = symbol_by_id[ix]
+    local symbol_props = symbol_by_id[ix]
     if symbol_props.nullable and not symbol_props.nulling then
       print("Symbol " .. symbol_props.name .. " is proper nullable")
       klol_symbol_new(symbol_props)
@@ -626,12 +627,10 @@ local function do_grammar(grammar, properties)
   for _,irule_props in ipairs(properties.irule) do
     local lh_sym_name = irule_props.lhs
     local lh_sym_props = symbol_by_name[lh_sym_name]
-    local lhs = symbol_by_name[lh_sym_name]
     local rhs_names = irule_props.rhs
     local instance_stack = {}
     for dot_ix,rhs_name in ipairs(rhs_names) do
       local rh_sym_props = symbol_by_name[rhs_name]
-      kir_instance_span_start = kir_instance_span_start or dot_ix
 
       -- skip nulling symbols
       -- the span and dot info is a prototype of the kind
@@ -640,7 +639,6 @@ local function do_grammar(grammar, properties)
       -- and to do the semantics
       if not rh_sym_props.nulling then
         local instance = {
-          kir_span_start = kir_instance_span_start,
           kir_dot = dot_ix,
           symbol = rh_sym_props
         }
@@ -648,11 +646,11 @@ local function do_grammar(grammar, properties)
       end
     end
 
-local start_of_nullable_suffix = #instance_stack+1
-for i=#instance_stack,1,-1 do
-  if not instance_stack[i].symbol.nullable then break end
-  start_of_nullable_suffix = i
-end
+    local start_of_nullable_suffix = #instance_stack+1
+    for i=#instance_stack,1,-1 do
+      if not instance_stack[i].symbol.nullable then break end
+      start_of_nullable_suffix = i
+    end
 
     -- first LHS is that of the original rule
     local lh_sides = {}
@@ -682,7 +680,6 @@ end
       local new_rule_lhs = lh_sides[next_rule_base]
       local rhs_instance_1 = instance_stack[next_rule_base]
       local next_lhs = lh_sides[next_rule_base+1]
-      local new_rule
       klol_rule_new{
         lhs = new_rule_lhs,
         rhs = { rhs_instance_1, next_lhs }
@@ -739,6 +736,21 @@ end
       }
     end
 
+  end -- of for _,irule_props in ipairs(properties.irule)
+
+  -- now create additional rules ...
+  -- first the augment rule
+-- klol_rule_new{
+  -- lhs = augment_symbol,
+  -- rhs = { top_symbol }
+-- }
+   
+   -- and now deal with the lexemes ...
+   -- which will only be present in a lexical grammar ...
+   -- we need to create the "lexeme prefix symbols"
+   -- and to add rules which connect them to the
+   -- top symbol
+  for symbol_id,symbol_props in ipairs(symbol_by_id) do
   end
 
 end
