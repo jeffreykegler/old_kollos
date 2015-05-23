@@ -814,8 +814,14 @@ for ix = 1, #c_fn_signatures do
    io.write("  if (result == -1) { lua_pushnil(L); return 1; }\n")
    io.write("  if (result < -1) {\n")
    io.write("    Marpa_Error_Code marpa_error = marpa_g_error(grammar, NULL);\n")
+   io.write("    int throw_flag;\n")
    local wrapper_name_as_c_string = '"' .. wrapper_name .. '()"'
-   io.write('    kollos_throw( L, marpa_error, ', wrapper_name_as_c_string, ');\n')
+   io.write('    lua_getfield (L, -1, "throw");\n')
+   -- stack is [ self, throw_flag ]
+   io.write("    throw_flag = lua_toboolean (L, -1);\n")
+   io.write('    if (throw_flag) {\n')
+   io.write('        kollos_throw( L, marpa_error, ', wrapper_name_as_c_string, ');\n')
+   io.write('    }\n')
    io.write("  }\n")
    io.write("  lua_pushinteger(L, (lua_Integer)result);\n")
    io.write("  return 1;\n")
@@ -833,7 +839,8 @@ static int wrap_grammar_new(lua_State *L)
 {
   /* [ grammar_table ] */
   const int grammar_stack_ix = 1;
-  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
   /* expecting a table */
   if (1)
@@ -875,10 +882,7 @@ static int wrap_grammar_new(lua_State *L)
       luif_err_throw2 (L, LUIF_ERR_MICRO_VERSION_MISMATCH, library_mismatch);
   }
 
-  /* For testing the error mechanism */
-  /* luif_err_throw(L, LUIF_ERR_I_AM_NOT_OK); */
-
-  /* [ grammar_table ] */
+  /* stack is [ grammar_table ] */
   {
     Marpa_Config marpa_config;
     Marpa_Grammar *p_g;
@@ -902,17 +906,31 @@ static int wrap_grammar_new(lua_State *L)
     *p_g = marpa_g_new (&marpa_config);
     if (!*p_g)
       {
+	int throw_flag;
+	lua_getfield (L, -1, "throw");
+	throw_flag = lua_toboolean (L, -1);
+        /* [ grammar_table, throw_flag ] */
 	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
-	kollos_throw (L, marpa_error, "marpa_g_new()");
+	if (throw_flag)
+	  {
+	    kollos_throw (L, marpa_error, "marpa_g_new()");
+	  }
       }
     result = marpa_g_force_valued (*p_g);
     if (result < 0)
       {
+	int throw_flag;
 	Marpa_Error_Code marpa_error = marpa_g_error (*p_g, NULL);
-	kollos_throw (L, marpa_error, "marpa_g_force_valued()");
+	throw_flag = lua_toboolean (L, -1);
+        /* [ grammar_table, throw_flag ] */
+	if (throw_flag)
+	  {
+	    kollos_throw (L, marpa_error, "marpa_g_force_valued()");
+	  }
       }
   }
-  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ grammar_table ] */
   return 1;
 }
@@ -1165,9 +1183,6 @@ io.write[=[
   /* [ kollos ] */
   /* For debugging */
   if (0) dump_table(L, -1);
-
-  /* For testing the error mechanism */
-  if (0) kollos_throw( L, LUIF_ERR_I_AM_NOT_OK, "test" );
 
   /* Fail if not 5.1 ? */
 

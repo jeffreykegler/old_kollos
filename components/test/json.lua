@@ -45,6 +45,10 @@ than what is here, but I do not use it.
 -- luacheck: std lua51
 -- luacheck: globals bit
 
+function here() return
+    debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
+end
+
 local dumper = require "dumper" -- luacheck: ignore
 
 -- eventually most of this code becomes part of kollos
@@ -474,14 +478,13 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   local function klol_rule_new(rule_props)
     klol_rules[ #klol_rules + 1 ] = rule_props
 
-    --[[ COMMENTED OUT
+    print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
       -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
       rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
-    --]]
 
   end
 
@@ -649,8 +652,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     local lh_sym_props = symbol_by_name[lh_sym_name]
     local rhs_names = irule_props.rhs
     local instance_stack = {}
+
+    print(here())
+    print('LHS:', lh_sym_name)
+
     for dot_ix,rhs_name in ipairs(rhs_names) do
       local rh_sym_props = symbol_by_name[rhs_name]
+
+        print('RHS:', rhs_name)
 
       -- skip nulling symbols
       -- the span and dot info is a prototype of the kind
@@ -665,6 +674,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         instance_stack[#instance_stack + 1] = instance
       end
     end
+
+    print(here())
 
     local start_of_nullable_suffix = #instance_stack+1
     for i=#instance_stack,1,-1 do
@@ -719,11 +730,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       next_rule_base = next_rule_base+1
     end
 
+      print(here())
+
     -- If two RHS instances remain ...
     if #instance_stack - next_rule_base == 1 then
       local new_rule_lhs = lh_sides[next_rule_base]
       local rhs_instance_1 = instance_stack[next_rule_base]
       local rhs_instance_2 = instance_stack[next_rule_base+1]
+      print(here())
       klol_rule_new{
         lhs = new_rule_lhs,
         rhs = { rhs_instance_1, rhs_instance_2 }
@@ -732,6 +746,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       -- order by symbol used on the RHS,
       -- not by symbol tested so that
       -- the output is easier to read
+      print(here())
       if rhs_instance_2.symbol.nullable then
         klol_rule_new{
           lhs = new_rule_lhs,
@@ -739,6 +754,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         }
       end
 
+      print(here())
       if rhs_instance_1.symbol.nullable then
         klol_rule_new{
           lhs = new_rule_lhs,
@@ -747,6 +763,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       end
     end
 
+      print(here())
     -- If one RHS instance remains ...
     if #instance_stack - next_rule_base == 0 then
       local new_rule_lhs = lh_sides[next_rule_base]
@@ -793,17 +810,23 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     symbol_props.libmarpa_id = libmarpa_id
   end
 
-  for _,rule_props in pairs(klol_rules) do
-    local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
-    local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
-    local rhs2_libmarpa_id = rule_props.rhs[2] and
-      rule_props.rhs[2].symbol.libmarpa_id
-    print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
-        lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
-    local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
-      rhs1_libmarpa_id, rhs2_libmarpa_id)
-    rule_props.libmarpa_rule_id = libmarpa_rule_id
-  end
+for _,rule_props in pairs(klol_rules) do
+  local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
+  local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
+  local rhs2_libmarpa_id = rule_props.rhs[2] and
+  rule_props.rhs[2].symbol.libmarpa_id
+  print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
+    lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
+  print(
+    symbol_by_libmarpa_id[lhs_libmarpa_id].name,
+    symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
+    (rhs2_libmarpa_id and
+      symbol_by_libmarpa_id[rhs2_libmarpa_id].name
+  ))
+  local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
+    rhs1_libmarpa_id, rhs2_libmarpa_id)
+  rule_props.libmarpa_rule_id = libmarpa_rule_id
+end
 
   g:start_symbol_set(augment_symbol.libmarpa_id)
   g:precompute()
