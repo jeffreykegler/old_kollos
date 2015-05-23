@@ -47,6 +47,17 @@ than what is here, but I do not use it.
 
 local dumper = require "dumper" -- luacheck: ignore
 
+-- eventually most of this code becomes part of kollos
+-- for now we bring the already written part in as a
+-- module
+local kollos_external = require "kollos"
+local _klol = kollos_external._klol
+
+local luif_err_none -- luacheck: ignore
+= _klol.error.code['LUIF_ERR_NONE'] -- luacheck: ignore
+local luif_err_unexpected_token -- luacheck: ignore
+= _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+
 local json_kir =
 {
   -- tokens in l0 are at a lower level than
@@ -463,14 +474,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   local function klol_rule_new(rule_props)
     klol_rules[ #klol_rules + 1 ] = rule_props
 
---[[ COMMENTED OUT
+    --[[ COMMENTED OUT
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
       -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
       rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
---]]
+    --]]
 
   end
 
@@ -752,32 +763,73 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   -- do not yet know what to do about location information
   -- for instances
   klol_rule_new{
-      lhs = { symbol = augment_symbol },
-      rhs = { { symbol = top_symbol } }
+    lhs = { symbol = augment_symbol },
+    rhs = { { symbol = top_symbol } }
   }
-   
-   -- and now deal with the lexemes ...
-   -- which will only be present in a lexical grammar ...
-   -- we need to create the "lexeme prefix symbols"
-   -- and to add rules which connect them to the
-   -- top symbol
+
+  -- and now deal with the lexemes ...
+  -- which will only be present in a lexical grammar ...
+  -- we need to create the "lexeme prefix symbols"
+  -- and to add rules which connect them to the
+  -- top symbol
   for _,symbol_props in ipairs(symbol_by_id) do
     if symbol_props.lexeme then
-        local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
-        klol_rule_new{
-            lhs = { symbol = top_symbol },
-            rhs = {
-                { symbol = lexeme_prefix },
-                { symbol = symbol_props },
-            }
+      local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
+      klol_rule_new{
+        lhs = { symbol = top_symbol },
+        rhs = {
+          { symbol = lexeme_prefix },
+          { symbol = symbol_props },
         }
+      }
     end
   end
+
+  local g = _klol.grammar()
+  local symbol_by_libmarpa_id = {}
+  for _,symbol_props in ipairs(symbol_by_id) do
+    local libmarpa_id = g:symbol_new()
+    symbol_by_libmarpa_id[libmarpa_id] = symbol_props
+    symbol_props.libmarpa_id = libmarpa_id
+  end
+
+  for _,rule_props in pairs(klol_rules) do
+    local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
+    local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
+    local rhs2_libmarpa_id = rule_props.rhs[2] and
+      rule_props.rhs[2].symbol.libmarpa_id
+    local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
+      rhs1_libmarpa_id, rhs2_libmarpa_id)
+    rule_props.libmarpa_rule_id = libmarpa_rule_id
+  end
+
+  g:start_symbol_set(augment_symbol.libmarpa_id)
+  g:precompute()
+
+  local r = _klol.recce(g)
+  r:start_input()
+
+--[[ NOT YET IMPLEMENTED
+local result = r:alternative(prefix, 1, 1) -- luacheck: ignore result
+result = r:earleme_complete() -- luacheck: ignore result
+
+while r:is_exhausted() ~= 1 do
+  result = r:alternative(a, 1, 1)
+  if (not result) then
+    -- print("reached earley set " .. r:latest_earley_set())
+    break
+  end
+  result = r:earleme_complete()
+  if (result < 0) then
+    error("result of earleme_complete = " .. result)
+  end
+end
+--]]
 
   return {}
 
 end
 
-local klog_g_l0 = do_grammar(grammar, json_kir['l0'])
+local klog_g_l0 = do_grammar('l0', json_kir['l0']) -- luacheck: ignore klog_g_l0
 
 -- vim: expandtab shiftwidth=4:
