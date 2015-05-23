@@ -798,6 +798,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
     local rhs2_libmarpa_id = rule_props.rhs[2] and
       rule_props.rhs[2].symbol.libmarpa_id
+    print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
+        lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
     local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
       rhs1_libmarpa_id, rhs2_libmarpa_id)
     rule_props.libmarpa_rule_id = libmarpa_rule_id
