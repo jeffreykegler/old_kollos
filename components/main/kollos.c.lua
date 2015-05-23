@@ -4,16 +4,18 @@
 -- of Lua wrappers for the libmarpa methods, alone,
 -- allows the elimination of thousands of lines of code.
 
+-- luacheck: std lua51
+
 -- assumes that, when called, out_file to set to output file
 local error_file
 
-function c_safe_string (s)
+local function c_safe_string (s)
     s = string.gsub(s, '"', '\\034')
     s = string.gsub(s, '\\', '\\092')
     return '"' .. s .. '"'
 end
 
-for k,v in ipairs(arg) do
+for _,v in ipairs(arg) do
    if not v:find("=")
    then return nil, "Bad options: ", arg end
    local id, val = v:match("^([^=]+)%=(.*)") -- no space around =
@@ -185,7 +187,8 @@ do
     while true do
         local line = f:read()
         if line == nil then break end
-        local i, j = string.find(line, "#")
+        local i,_ = string.find(line, "#")
+        local stripped
         if (i == nil) then stripped = line
         else stripped = string.sub(line, 0, i-1)
         end
@@ -248,7 +251,7 @@ do
     -- 1.) duplicate mnenomics
     -- 2.) duplicate error codes
 
-    function luif_error_add (code, mnemonic, description)
+    local function luif_error_add (code, mnemonic, description)
         code_mnemonics[code] = mnemonic
         code_lines[code] = string.format( '   { %d, %s, %s },',
             code,
@@ -740,15 +743,13 @@ for ix = 1, #c_fn_signatures do
    local arg_count = math.floor(#signature/2)
    local function_name = signature[1]
    local unprefixed_name = string.gsub(function_name, "^[_]?marpa_", "");
-   class_letter = string.gsub(unprefixed_name, "_.*$", "");
-   -- print( class_letter )
+   local class_letter = string.gsub(unprefixed_name, "_.*$", "");
    local wrapper_name = "wrap_" .. unprefixed_name;
    io.write("static int ", wrapper_name, "(lua_State *L)\n");
    io.write("{\n");
    io.write("  ", libmarpa_class_type[class_letter], " self;\n");
    io.write("  const int self_stack_ix = 1;\n");
    io.write("  Marpa_Grammar grammar;\n");
-   local arg_ix = 2;
    for arg_ix = 1, arg_count do
      local arg_type = signature[arg_ix*2]
      local arg_name = signature[1 + arg_ix*2]

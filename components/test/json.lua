@@ -42,7 +42,10 @@ than what is here, but I do not use it.
 -- for now, we include it when we get various utility methods
 -- local kollos_external = require "kollos"
 
-local dumper = require "dumper"
+-- luacheck: std lua51
+-- luacheck: globals bit
+
+local dumper = require "dumper" -- luacheck: ignore
 
 local json_kir =
 {
@@ -407,7 +410,7 @@ end
 -- intermediate databases
 
 -- currently grammar is unused, but someday we may need the grammar name
-local function do_grammar(grammar, properties)
+local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
   -- I expect to handle cycles eventually, so this logic must be
   -- cycle-safe.
@@ -420,11 +423,12 @@ local function do_grammar(grammar, properties)
   -- In production, the KIR will be produced by Kollos's
   -- own logic, so this boolean should only be set
   -- for debugging
-  local hygenic = true
+  local hygenic = true -- luacheck: ignore hygenic
 
   -- Next we start the database of intermediate KLOL symbols
   local symbol_by_name = {} -- create an symbol to integer index
   local symbol_by_id = {} -- create an integer to symbol index
+  local klol_rules = {} -- an array of the KLOL rules
 
   local function klol_symbol_new(props)
     props.lhs_by_rhs = {}
@@ -457,12 +461,17 @@ local function do_grammar(grammar, properties)
   --]]
 
   local function klol_rule_new(rule_props)
+    klol_rules[ #klol_rules + 1 ] = rule_props
+
+--[[ COMMENTED OUT
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
       -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
       rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
+--]]
+
   end
 
   local top_symbol -- will be RHS of augmented start rule
@@ -740,26 +749,35 @@ local function do_grammar(grammar, properties)
 
   -- now create additional rules ...
   -- first the augment rule
--- klol_rule_new{
-  -- lhs = augment_symbol,
-  -- rhs = { top_symbol }
--- }
+  -- do not yet know what to do about location information
+  -- for instances
+  klol_rule_new{
+      lhs = { symbol = augment_symbol },
+      rhs = { { symbol = top_symbol } }
+  }
    
    -- and now deal with the lexemes ...
    -- which will only be present in a lexical grammar ...
    -- we need to create the "lexeme prefix symbols"
    -- and to add rules which connect them to the
    -- top symbol
-  for symbol_id,symbol_props in ipairs(symbol_by_id) do
+  for _,symbol_props in ipairs(symbol_by_id) do
+    if symbol_props.lexeme then
+        local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
+        klol_rule_new{
+            lhs = { symbol = top_symbol },
+            rhs = {
+                { symbol = lexeme_prefix },
+                { symbol = symbol_props },
+            }
+        }
+    end
   end
+
+  return {}
 
 end
 
-for grammar,properties in pairs(json_kir) do
-  if grammar == 'l0' then
-    print( "Grammar", grammar)
-    do_grammar(grammar, properties)
-  end
-end
+local klog_g_l0 = do_grammar(grammar, json_kir['l0'])
 
 -- vim: expandtab shiftwidth=4:
