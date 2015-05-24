@@ -822,15 +822,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       rhs1_libmarpa_id, rhs2_libmarpa_id)
     if libmarpa_rule_id < 0 then
       local error_code = g:error()
-      print( "error code", error_code)
-      print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
-        lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
-      print(
+      print('Problem with rule',
         symbol_by_libmarpa_id[lhs_libmarpa_id].name,
+        ' ::= ',
         symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
-        (rhs2_libmarpa_id and
+        ((rhs2_libmarpa_id and
           symbol_by_libmarpa_id[rhs2_libmarpa_id].name
-      ))
+          ) or '')
+      )
       if error_code == luif_err_duplicate_rule then
           print('Duplicate rule -- non-fatal')
       else
