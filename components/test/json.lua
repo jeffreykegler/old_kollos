@@ -58,9 +58,11 @@ local kollos_external = require "kollos"
 local _klol = kollos_external._klol
 
 local luif_err_none -- luacheck: ignore
-= kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
+    = kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
 local luif_err_unexpected_token -- luacheck: ignore
-= kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+    = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+local luif_err_duplicate_rule -- luacheck: ignore
+    = kollos_external.error.code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
 
 local json_kir =
 {
@@ -829,7 +831,11 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         (rhs2_libmarpa_id and
           symbol_by_libmarpa_id[rhs2_libmarpa_id].name
       ))
-      kollos_external.error.throw(error_code, 'problem with rule_new()')
+      if error_code == luif_err_duplicate_rule then
+          print('Duplicate rule -- non-fatal')
+      else
+          kollos_external.error.throw(error_code, 'problem with rule_new()')
+      end
     end
     rule_props.libmarpa_rule_id = libmarpa_rule_id
   end
