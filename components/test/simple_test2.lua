@@ -4,12 +4,10 @@
 local kollos_external = require "kollos"
 local _klol = kollos_external._klol
 
--- print (kollos_external.table.tostring(kollos_external))
-
 local luif_err_none -- luacheck: ignore
-  = _klol.error.code['LUIF_ERR_NONE'] -- luacheck: ignore
+  = kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
 local luif_err_unexpected_token -- luacheck: ignore
-  = _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+  = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 
 local g = _klol.grammar()
 local top = g:symbol_new()

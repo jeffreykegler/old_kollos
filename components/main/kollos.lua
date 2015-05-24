@@ -61,21 +61,16 @@ function kollos_table.tostring( tbl )
   return "{" .. table.concat( result, "," ) .. "}"
 end
 
-local _klol = {
-  error =  {
-    name = kollos_c.error_name,
-    description = kollos_c.error_description,
-    code = kollos_c.error_code,
-  }
-}
+local _klol = { }
 
 -- make certain useful error codes more visible
-local luif_err_none = _klol.error.code['LUIF_ERR_NONE']
-local luif_err_unexpected_token = _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID']
+local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
+local luif_err_unexpected_token = kollos_c.error_code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID']
 
 local grammar_class  = {
   ["rule_new"] = kollos_c.grammar_rule_new,
   ["completion_symbol_activate"] = kollos_c.grammar_completion_symbol_activate,
+  ["error"] = kollos_c.error,
   ["error_clear"] = kollos_c.grammar_error_clear,
   ["event_count"] = kollos_c.grammar_event_count,
   ["force_valued"] = kollos_c.grammar_force_valued,
@@ -124,7 +119,7 @@ local grammar_class  = {
 
 function _klol.grammar()
   local grammar_object = kollos_c.grammar_new(
-      { _type = "grammar" }
+      { _type = "grammar", throw = true }
   )
   setmetatable(grammar_object, {
       __index = grammar_class,
@@ -165,7 +160,7 @@ end
 
 function _klol.recce(grammar_object)
   local recce_object = kollos_c.recce_new(
-      { _type = "recce" },
+      { _type = "recce", throw = grammar_object.throw },
       grammar_object
   )
   setmetatable(recce_object, {
@@ -174,6 +169,13 @@ function _klol.recce(grammar_object)
   return recce_object
 end
 
-return { ["_klol"] =_klol, table = kollos_table }
+local kollos_error = {
+  name = kollos_c.error_name,
+  description = kollos_c.error_description,
+  code_by_name = kollos_c.error_code_by_name,
+  error_throw = kollos_c.error_throw
+}
+
+return { ["_klol"] =_klol, ["error"] = kollos_error, table = kollos_table }
 
 -- vim: expandtab shiftwidth=4:

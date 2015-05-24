@@ -907,10 +907,10 @@ static int wrap_grammar_new(lua_State *L)
     if (!*p_g)
       {
 	int throw_flag;
+	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
 	lua_getfield (L, -1, "throw");
 	throw_flag = lua_toboolean (L, -1);
         /* [ grammar_table, throw_flag ] */
-	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
 	if (throw_flag)
 	  {
 	    kollos_throw (L, marpa_error, "marpa_g_new()");
@@ -982,8 +982,17 @@ static int wrap_grammar_rule_new(lua_State *L)
 
     result = (Marpa_Rule_ID)marpa_g_rule_new(*p_g, lhs, rhs, rhs_length);
     if (result <= -1) {
+
+	int throw_flag;
         Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-        kollos_throw( L, marpa_error, "marpa_g_rule_new()" );
+	lua_getfield (L, grammar_stack_ix, "throw");
+        /* [ grammar_object, grammar_ud, throw_flag ] */
+	throw_flag = lua_toboolean (L, -1);
+	if (throw_flag)
+	  {
+            kollos_throw( L, marpa_error, "marpa_g_rule_new()" );
+	  }
+
     }
     lua_pushinteger(L, (lua_Integer)result);
     return 1;
@@ -999,7 +1008,8 @@ static int wrap_recce_new(lua_State *L)
 {
   const int recce_stack_ix = 1;
   const int grammar_stack_ix = 2;
-  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ recce_table, grammar_table ] */
   if (1)
     {
@@ -1034,12 +1044,20 @@ static int wrap_recce_new(lua_State *L)
     if (!*recce_ud)
       {
 	Marpa_Error_Code marpa_error = marpa_g_error (*grammar_ud, NULL);
-	kollos_throw (L, marpa_error, "marpa_r_new()");
+	int throw_flag;
+	lua_getfield (L, recce_stack_ix, "throw");
+	throw_flag = lua_toboolean (L, -1);
+	/* [ recce_table, grammar_table, throw_flag ] */
+	if (throw_flag)
+	  {
+	    kollos_throw (L, marpa_error, "marpa_r_new()");
+	  }
       }
   }
-  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
   /* [ recce_table, grammar_table ] */
-  lua_pop(L, 1);
+  lua_pop (L, 1);
   /* [ recce_table ] */
   return 1;
 }
@@ -1132,7 +1150,7 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_kollos_throw);
     /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "error");
+    lua_setfield(L, kollos_table_stack_ix, "error_throw");
     /* [ kollos ] */
 
     lua_newtable (L);
@@ -1160,7 +1178,7 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
       /* if (1) dump_table(L, -1); */
 
     /* [ kollos, error_code_table ] */
-    lua_setfield (L, kollos_table_stack_ix, "error_code");
+    lua_setfield (L, kollos_table_stack_ix, "error_code_by_name");
 
 ]=]
 

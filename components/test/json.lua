@@ -46,7 +46,7 @@ than what is here, but I do not use it.
 -- luacheck: globals bit
 
 function here() return
-    debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
+  debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
 local dumper = require "dumper" -- luacheck: ignore
@@ -58,9 +58,9 @@ local kollos_external = require "kollos"
 local _klol = kollos_external._klol
 
 local luif_err_none -- luacheck: ignore
-= _klol.error.code['LUIF_ERR_NONE'] -- luacheck: ignore
+= kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
 local luif_err_unexpected_token -- luacheck: ignore
-= _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+= kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 
 local json_kir =
 {
@@ -659,7 +659,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     for dot_ix,rhs_name in ipairs(rhs_names) do
       local rh_sym_props = symbol_by_name[rhs_name]
 
-        print('RHS:', rhs_name)
+      print('RHS:', rhs_name)
 
       -- skip nulling symbols
       -- the span and dot info is a prototype of the kind
@@ -730,7 +730,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       next_rule_base = next_rule_base+1
     end
 
-      print(here())
+    print(here())
 
     -- If two RHS instances remain ...
     if #instance_stack - next_rule_base == 1 then
@@ -763,7 +763,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       end
     end
 
-      print(here())
+    print(here())
     -- If one RHS instance remains ...
     if #instance_stack - next_rule_base == 0 then
       local new_rule_lhs = lh_sides[next_rule_base]
@@ -810,23 +810,28 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     symbol_props.libmarpa_id = libmarpa_id
   end
 
-for _,rule_props in pairs(klol_rules) do
-  local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
-  local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
-  local rhs2_libmarpa_id = rule_props.rhs[2] and
-  rule_props.rhs[2].symbol.libmarpa_id
-  print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
-    lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
-  print(
-    symbol_by_libmarpa_id[lhs_libmarpa_id].name,
-    symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
-    (rhs2_libmarpa_id and
-      symbol_by_libmarpa_id[rhs2_libmarpa_id].name
-  ))
-  local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
-    rhs1_libmarpa_id, rhs2_libmarpa_id)
-  rule_props.libmarpa_rule_id = libmarpa_rule_id
-end
+  g.throw = false
+  for _,rule_props in pairs(klol_rules) do
+    local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
+    local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
+    local rhs2_libmarpa_id = rule_props.rhs[2] and
+    rule_props.rhs[2].symbol.libmarpa_id
+    local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
+      rhs1_libmarpa_id, rhs2_libmarpa_id)
+    if libmarpa_rule_id < 0 then
+      print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
+        lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
+      print(
+        symbol_by_libmarpa_id[lhs_libmarpa_id].name,
+        symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
+        (rhs2_libmarpa_id and
+          symbol_by_libmarpa_id[rhs2_libmarpa_id].name
+      ))
+      kollos_external.error('problem with rule_new()')
+    end
+    rule_props.libmarpa_rule_id = libmarpa_rule_id
+  end
+  g.throw = true
 
   g:start_symbol_set(augment_symbol.libmarpa_id)
   g:precompute()
@@ -834,22 +839,22 @@ end
   local r = _klol.recce(g)
   r:start_input()
 
---[[ NOT YET IMPLEMENTED
-local result = r:alternative(prefix, 1, 1) -- luacheck: ignore result
-result = r:earleme_complete() -- luacheck: ignore result
+  --[[ NOT YET IMPLEMENTED
+  local result = r:alternative(prefix, 1, 1) -- luacheck: ignore result
+  result = r:earleme_complete() -- luacheck: ignore result
 
-while r:is_exhausted() ~= 1 do
-  result = r:alternative(a, 1, 1)
-  if (not result) then
-    -- print("reached earley set " .. r:latest_earley_set())
-    break
+  while r:is_exhausted() ~= 1 do
+    result = r:alternative(a, 1, 1)
+    if (not result) then
+      -- print("reached earley set " .. r:latest_earley_set())
+      break
+    end
+    result = r:earleme_complete()
+    if (result < 0) then
+      error("result of earleme_complete = " .. result)
+    end
   end
-  result = r:earleme_complete()
-  if (result < 0) then
-    error("result of earleme_complete = " .. result)
-  end
-end
---]]
+  --]]
 
   return {}
 

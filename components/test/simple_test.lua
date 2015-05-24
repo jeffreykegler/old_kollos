@@ -2,9 +2,9 @@ local kollos_external = require "kollos"
 local _klol = kollos_external._klol
 
 local luif_err_none -- luacheck: ignore luif_err_none
-  = _klol.error.code['LUIF_ERR_NONE']
+  = kollos_external.error.code_by_name['LUIF_ERR_NONE']
 local luif_err_unexpected_token -- luacheck: ignore luif_err_unexpected_token
-  = _klol.error.code['LUIF_ERR_UNEXPECTED_TOKEN_ID']
+  = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID']
 
 local g = _klol.grammar()
 local top = g:symbol_new()
