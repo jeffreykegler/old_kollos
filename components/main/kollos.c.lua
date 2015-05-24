@@ -935,6 +935,25 @@ static int wrap_grammar_new(lua_State *L)
   return 1;
 }
 
+/* The grammar error code */
+static int wrap_grammar_error(lua_State *L)
+{
+   /* [ grammar_object ] */
+  const int grammar_stack_ix = 1;
+  Marpa_Grammar *p_g;
+  Marpa_Error_Code marpa_error;
+  const char *error_string = NULL;
+
+  lua_getfield (L, grammar_stack_ix, "_ud");
+  /* [ grammar_object, grammar_ud ] */
+  p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+  marpa_error = marpa_g_error(*p_g, &error_string);
+  lua_pushinteger(L, (lua_Integer)marpa_error);
+  lua_pushstring(L, error_string);
+  /* [ grammar_object, grammar_ud, error_code, error_string ] */
+  return 2;
+}
+
 /* Rule RHS limited to 7 symbols --
  * 7 because I can encode dot position in 3 bit
  */
@@ -1129,6 +1148,9 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     /* [ kollos, grammar_new_function ] */
     lua_setfield(L, kollos_table_stack_ix, "grammar_new");
     /* [ kollos ] */
+
+    lua_pushcfunction(L, wrap_grammar_error);
+    lua_setfield(L, kollos_table_stack_ix, "grammar_error");
 
     lua_pushcfunction(L, wrap_grammar_rule_new);
     lua_setfield(L, kollos_table_stack_ix, "grammar_rule_new");
