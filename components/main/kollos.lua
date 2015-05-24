@@ -173,7 +173,7 @@ local kollos_error = {
   name = kollos_c.error_name,
   description = kollos_c.error_description,
   code_by_name = kollos_c.error_code_by_name,
-  error_throw = kollos_c.error_throw
+  throw = kollos_c.error_throw
 }
 
 return { ["_klol"] =_klol, ["error"] = kollos_error, table = kollos_table }

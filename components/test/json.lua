@@ -478,7 +478,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   local function klol_rule_new(rule_props)
     klol_rules[ #klol_rules + 1 ] = rule_props
 
-    print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
+    -- print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
       -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
@@ -653,13 +653,13 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     local rhs_names = irule_props.rhs
     local instance_stack = {}
 
-    print(here())
-    print('LHS:', lh_sym_name)
+    -- print(here())
+    -- print('LHS:', lh_sym_name)
 
     for dot_ix,rhs_name in ipairs(rhs_names) do
       local rh_sym_props = symbol_by_name[rhs_name]
 
-      print('RHS:', rhs_name)
+      -- print('RHS:', rhs_name)
 
       -- skip nulling symbols
       -- the span and dot info is a prototype of the kind
@@ -675,7 +675,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       end
     end
 
-    print(here())
+    -- print(here())
 
     local start_of_nullable_suffix = #instance_stack+1
     for i=#instance_stack,1,-1 do
@@ -730,14 +730,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       next_rule_base = next_rule_base+1
     end
 
-    print(here())
+    -- print(here())
 
     -- If two RHS instances remain ...
     if #instance_stack - next_rule_base == 1 then
       local new_rule_lhs = lh_sides[next_rule_base]
       local rhs_instance_1 = instance_stack[next_rule_base]
       local rhs_instance_2 = instance_stack[next_rule_base+1]
-      print(here())
+      -- print(here())
       klol_rule_new{
         lhs = new_rule_lhs,
         rhs = { rhs_instance_1, rhs_instance_2 }
@@ -746,7 +746,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       -- order by symbol used on the RHS,
       -- not by symbol tested so that
       -- the output is easier to read
-      print(here())
+      -- print(here())
       if rhs_instance_2.symbol.nullable then
         klol_rule_new{
           lhs = new_rule_lhs,
@@ -754,7 +754,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         }
       end
 
-      print(here())
+      -- print(here())
       if rhs_instance_1.symbol.nullable then
         klol_rule_new{
           lhs = new_rule_lhs,
@@ -763,7 +763,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       end
     end
 
-    print(here())
+    -- print(here())
     -- If one RHS instance remains ...
     if #instance_stack - next_rule_base == 0 then
       local new_rule_lhs = lh_sides[next_rule_base]
@@ -819,6 +819,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
       rhs1_libmarpa_id, rhs2_libmarpa_id)
     if libmarpa_rule_id < 0 then
+      local error_code = g:error()
+      print( "error code", error_code)
       print( "lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id",
         lhs_libmarpa_id, rhs1_libmarpa_id, rhs2_libmarpa_id)
       print(
@@ -827,7 +829,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         (rhs2_libmarpa_id and
           symbol_by_libmarpa_id[rhs2_libmarpa_id].name
       ))
-      kollos_external.error('problem with rule_new()')
+      kollos_external.error.throw(error_code, 'problem with rule_new()')
     end
     rule_props.libmarpa_rule_id = libmarpa_rule_id
   end
