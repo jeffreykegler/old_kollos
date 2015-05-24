@@ -155,7 +155,7 @@ function recce_class.alternative(recce, symbol)
     local result = kollos_c.recce_alternative(recce, symbol, 1, 1)
     if (result == luif_err_unexpected_token) then return nil end
     if (result == luif_err_none) then return 1 end
-    kollos_c.error(result, "alternative()");
+    kollos_c.error_throw(result, "alternative()");
 end
 
 function _klol.recce(grammar_object)

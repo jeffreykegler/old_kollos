@@ -45,7 +45,7 @@ than what is here, but I do not use it.
 -- luacheck: std lua51
 -- luacheck: globals bit
 
-function here() return
+local function here() return -- luacheck: ignore here
   debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
@@ -58,11 +58,11 @@ local kollos_external = require "kollos"
 local _klol = kollos_external._klol
 
 local luif_err_none -- luacheck: ignore
-    = kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
+= kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
 local luif_err_unexpected_token -- luacheck: ignore
-    = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+= kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 local luif_err_duplicate_rule -- luacheck: ignore
-    = kollos_external.error.code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
+= kollos_external.error.code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
 
 local json_kir =
 {
@@ -452,30 +452,16 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     props.rhs_by_lhs = {}
     props.irule_by_rhs = {}
     props.irule_by_lhs = {}
+    if symbol_by_name[props.name] then
+        error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
+    end
+    print('Creating symbol : "' .. props.name .. '"')
     symbol_by_name[props.name] = props
     local symbol_id = #symbol_by_id+1
     props.id = symbol_id
     symbol_by_id[symbol_id] = props
     return props
   end
-
-  --[[ COMMENTED OUT
-  -- clone a null symbol from a proper
-  -- nullable and make the original bulky
-  local function klol_null_new(nullable_symbol)
-    local null_variant = klol_symbol_new{
-      name = (nullable_symbol.name .. '?null'),
-      isym_props = nullable_symbol.isym_props,
-      bulk_variant = nullable_symbol,
-      nullable = true,
-      nulling = true,
-      productive = true
-    }
-    nullable_symbol.null_variant = null_variant
-    nullable_symbol.nullable = false
-    return null_variant
-  end
-  --]]
 
   local function klol_rule_new(rule_props)
     klol_rules[ #klol_rules + 1 ] = rule_props
@@ -570,7 +556,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
   end
 
-  for symbol_id,symbol_props in ipairs(symbol_by_id) do
+  for symbol_id = 1,#symbol_by_id do
+    local symbol_props = symbol_by_id[symbol_id]
     local isym_props = symbol_props.isym_props
     -- every symbol reaches itself
     matrix_bit_set(reach_matrix, symbol_id, symbol_id)
@@ -603,7 +590,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     top_symbol.productive = true
   end
 
-  for symbol_id,symbol_props in ipairs(symbol_by_id) do
+  for symbol_id = 1,#symbol_by_id do
+    local symbol_props = symbol_by_id[symbol_id]
     if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
       print("Symbol " .. symbol_props.name .. " is not accessible")
     end
@@ -636,15 +624,6 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
   if top_symbol.nulling then
     print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
-  end
-
-  -- we do not need to traverse symbols to symbol_by_id
-  for ix = 1,#symbol_by_id do
-    local symbol_props = symbol_by_id[ix]
-    if symbol_props.nullable and not symbol_props.nulling then
-      print("Symbol " .. symbol_props.name .. " is proper nullable")
-      klol_symbol_new(symbol_props)
-    end
   end
 
   local unique_number = 1 -- used in forming names of symbols
@@ -786,27 +765,51 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     rhs = { { symbol = top_symbol } }
   }
 
-  -- and now deal with the lexemes ...
-  -- which will only be present in a lexical grammar ...
-  -- we need to create the "lexeme prefix symbols"
-  -- and to add rules which connect them to the
-  -- top symbol
-  for _,symbol_props in ipairs(symbol_by_id) do
-    if symbol_props.lexeme then
-      local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
-      klol_rule_new{
-        lhs = { symbol = top_symbol },
-        rhs = {
-          { symbol = lexeme_prefix },
-          { symbol = symbol_props },
-        }
+  if not g_is_structural then
+
+    local lexeme_seq = top_symbol
+    local lexeme_item = klol_symbol_new{ name = '?lexeme_item' }
+    klol_rule_new{
+      lhs = { symbol = lexeme_seq },
+      rhs = {
+        { symbol = lexeme_seq },
+        { symbol = lexeme_item }
       }
+    }
+    klol_rule_new{
+      lhs = { symbol = lexeme_seq },
+      rhs = {
+        { symbol = lexeme_item }
+      }
+    }
+
+    -- and now deal with the lexemes ...
+    -- which will only be present in a lexical grammar ...
+    -- we need to create the "lexeme prefix symbols"
+    -- and to add rules which connect them to the
+    -- top symbol
+    for symbol_id = 1,#symbol_by_id do
+      local symbol_props = symbol_by_id[symbol_id]
+      if symbol_props.lexeme then
+        print("Creating prelex for ", symbol_props.name)
+        local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
+        symbol_props.lexeme_prefix = lexeme_prefix
+        klol_rule_new{
+          lhs = { symbol = lexeme_item },
+          rhs = {
+            { symbol = lexeme_prefix },
+            { symbol = symbol_props },
+          }
+        }
+      end
     end
-  end
+
+  end -- if not g_is_structural
 
   local g = _klol.grammar()
   local symbol_by_libmarpa_id = {}
-  for _,symbol_props in ipairs(symbol_by_id) do
+  for symbol_id = 1,#symbol_by_id do
+    local symbol_props = symbol_by_id[symbol_id]
     local libmarpa_id = g:symbol_new()
     symbol_by_libmarpa_id[libmarpa_id] = symbol_props
     symbol_props.libmarpa_id = libmarpa_id
@@ -827,13 +830,13 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         ' ::= ',
         symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
         ((rhs2_libmarpa_id and
-          symbol_by_libmarpa_id[rhs2_libmarpa_id].name
-          ) or '')
+            symbol_by_libmarpa_id[rhs2_libmarpa_id].name
+        ) or '')
       )
       if error_code == luif_err_duplicate_rule then
-          print('Duplicate rule -- non-fatal')
+        print('Duplicate rule -- non-fatal')
       else
-          kollos_external.error.throw(error_code, 'problem with rule_new()')
+        kollos_external.error.throw(error_code, 'problem with rule_new()')
       end
     end
     rule_props.libmarpa_rule_id = libmarpa_rule_id
@@ -843,13 +846,25 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   g:start_symbol_set(augment_symbol.libmarpa_id)
   g:precompute()
 
+local lexeme_prefixes = {}
+  for symbol_id = 1,#symbol_by_id do
+    local symbol_props = symbol_by_id[symbol_id]
+  if symbol_props.lexeme then
+      print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
+    lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
+  end
+end
+
   local r = _klol.recce(g)
   r:start_input()
 
-  --[[ NOT YET IMPLEMENTED
-  local result = r:alternative(prefix, 1, 1) -- luacheck: ignore result
+  for _,lexeme_prefix in ipairs(lexeme_prefixes) do
+      print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
+      local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+  end
   result = r:earleme_complete() -- luacheck: ignore result
 
+  --[[ NOT YET IMPLEMENTED
   while r:is_exhausted() ~= 1 do
     result = r:alternative(a, 1, 1)
     if (not result) then
