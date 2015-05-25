@@ -20,7 +20,10 @@ ELSE ()
   message( FATAL_ERROR "Lua 5.1 not available.  Kollos cannot be built" )
 ENDIF (LUA_INCLUDE_DIR)
 
-set(LUA_Sources "main.lua" "dumper.lua" "location.lua")
+set(LUA_Sources
+    "main.lua" "dumper.lua" "location.lua"
+    "util.lua"
+    )
 source_group("lua" FILES ${LUA_Sources})
 
 set(LUA_Outputs "")
