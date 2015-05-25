@@ -19,8 +19,7 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
-local current_folder = (...)
-local kollos_c = require 'kollos_c'
+local kollos_c = require 'kollos.kollos_c'
 local location = require 'kollos.location'
 
 local kollos_table = {}
