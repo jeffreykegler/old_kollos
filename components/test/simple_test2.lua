@@ -2,14 +2,14 @@
 -- luacheck: std lua51
 
 local kollos_external = require "kollos"
-local _klol = kollos_external._klol
+local wrap = kollos_external.wrap
 
 local luif_err_none -- luacheck: ignore
   = kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
 local luif_err_unexpected_token -- luacheck: ignore
   = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 
-local g = _klol.grammar()
+local g = wrap.grammar()
 local top = g:symbol_new()
 local seq = g:symbol_new()
 local item = g:symbol_new()
@@ -24,7 +24,7 @@ local body_rule = g:rule_new(body, a, a) -- luacheck: ignore
 g:start_symbol_set(top)
 g:precompute()
 
-local r = _klol.recce(g)
+local r = wrap.recce(g)
 r:start_input()
 
 local pass_count = 0

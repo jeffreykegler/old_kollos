@@ -55,7 +55,7 @@ local dumper = require "kollos.dumper" -- luacheck: ignore
 -- for now we bring the already written part in as a
 -- module
 local kollos_external = require "kollos"
-local _klol = kollos_external._klol
+local wrap = kollos_external.wrap
 
 local luif_err_none -- luacheck: ignore
 = kollos_external.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
@@ -807,7 +807,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
   end -- if not g_is_structural
 
-  local g = _klol.grammar()
+  local g = wrap.grammar()
   local symbol_by_libmarpa_id = {}
   for symbol_id = 1,#symbol_by_id do
     local symbol_props = symbol_by_id[symbol_id]
@@ -856,7 +856,7 @@ local lexeme_prefixes = {}
   end
 end
 
-  local r = _klol.recce(g)
+  local r = wrap.recce(g)
   r:start_input()
 
   for _,lexeme_prefix in ipairs(lexeme_prefixes) do

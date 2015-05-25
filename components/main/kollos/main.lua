@@ -62,7 +62,8 @@ function kollos_table.tostring( tbl )
   return "{" .. table.concat( result, "," ) .. "}"
 end
 
-local _klol = { }
+-- The Libmarpa wrapper layer
+local _wrap = { }
 
 -- make certain useful error codes more visible
 local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
@@ -118,7 +119,7 @@ local grammar_class  = {
   ["zwa_place"] = kollos_c.grammar_zwa_place,
 }
 
-function _klol.grammar()
+function _wrap.grammar()
   local grammar_object = kollos_c.grammar_new(
       { _type = "grammar", throw = true }
   )
@@ -159,7 +160,7 @@ function recce_class.alternative(recce, symbol)
     kollos_c.error_throw(result, "alternative()");
 end
 
-function _klol.recce(grammar_object)
+function _wrap.recce(grammar_object)
   local recce_object = kollos_c.recce_new(
       { _type = "recce", throw = grammar_object.throw },
       grammar_object
@@ -177,7 +178,7 @@ local kollos_error = {
   throw = kollos_c.error_throw
 }
 return { location = location,
-  ["_klol"] =_klol,
+  wrap =_wrap,
   ["error"] = kollos_error,
   table = kollos_table
 }

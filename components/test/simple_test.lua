@@ -1,12 +1,12 @@
 local kollos_external = require "kollos"
-local _klol = kollos_external._klol
+local wrap = kollos_external.wrap
 
 local luif_err_none -- luacheck: ignore luif_err_none
   = kollos_external.error.code_by_name['LUIF_ERR_NONE']
 local luif_err_unexpected_token -- luacheck: ignore luif_err_unexpected_token
   = kollos_external.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID']
 
-local g = _klol.grammar()
+local g = wrap.grammar()
 local top = g:symbol_new()
 local seq = g:symbol_new()
 local item = g:symbol_new()
@@ -25,7 +25,7 @@ local pass_count = 0
 local max_pass = arg[1] or 10000
 for _ = 1,max_pass do
 
-  local r = _klol.recce(g)
+  local r = wrap.recce(g)
   r:start_input()
 
   local result = r:alternative(prefix, 1, 1) -- luacheck: ignore result
