@@ -860,8 +860,15 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
 end
 
-local lex_g = do_grammar('l0', json_kir['l0']) -- luacheck: ignore klog_g_l0
+function kir_compile(kir)
+    local compiled = {}
+    for grammar,grammar_props in pairs(kir) do
+        compiled[grammar] = do_grammar(grammar, grammar_props)
+    end
+    return compiled
+end
 
+local lex_g = kir_compile(json_kir).l0
 local g = lex_g.libmarpa_g
 local r = wrap.recce(g)
 r:start_input()
