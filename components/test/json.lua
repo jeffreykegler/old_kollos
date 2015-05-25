@@ -455,7 +455,6 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     if symbol_by_name[props.name] then
         error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
     end
-    print('Creating symbol : "' .. props.name .. '"')
     symbol_by_name[props.name] = props
     local symbol_id = #symbol_by_id+1
     props.id = symbol_id
@@ -466,6 +465,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   local function klol_rule_new(rule_props)
     klol_rules[ #klol_rules + 1 ] = rule_props
 
+    --[[ COMMENTED OUT
     -- print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
     local rule_desc = rule_props.lhs.symbol.name .. ' ::='
     for dot_ix = 1,#rule_props.rhs do
@@ -473,6 +473,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
       rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
     end
     print("KLOL rule:", rule_desc)
+    --]]
 
   end
 
@@ -791,7 +792,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     for symbol_id = 1,#symbol_by_id do
       local symbol_props = symbol_by_id[symbol_id]
       if symbol_props.lexeme then
-        print("Creating prelex for ", symbol_props.name)
+        -- print("Creating prelex for ", symbol_props.name)
         local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
         symbol_props.lexeme_prefix = lexeme_prefix
         klol_rule_new{
@@ -850,7 +851,7 @@ local lexeme_prefixes = {}
   for symbol_id = 1,#symbol_by_id do
     local symbol_props = symbol_by_id[symbol_id]
   if symbol_props.lexeme then
-      print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
+      -- print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
     lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
   end
 end
@@ -859,10 +860,42 @@ end
   r:start_input()
 
   for _,lexeme_prefix in ipairs(lexeme_prefixes) do
-      print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
+      -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
       local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
   end
   result = r:earleme_complete() -- luacheck: ignore result
+
+
+local json_example = [===[
+[
+      {
+         "precision": "zip",
+         "Latitude":  37.7668,
+         "Longitude": -122.3959,
+         "Address":   "",
+         "City":      "SAN FRANCISCO",
+         "State":     "CA",
+         "Zip":       "94107",
+         "Country":   "US"
+      },
+      {
+         "precision": "zip",
+         "Latitude":  37.371991,
+         "Longitude": -122.026020,
+         "Address":   "",
+         "City":      "SUNNYVALE",
+         "State":     "CA",
+         "Zip":       "94085",
+         "Country":   "US"
+      }
+]
+]===] -- end of JSON example
+
+local reader = kollos_external.location.new_from_string(json_example)
+local input_string = reader:fixed_string()
+for c in input_string:gmatch"." do
+    -- print(c)
+end
 
   --[[ NOT YET IMPLEMENTED
   while r:is_exhausted() ~= 1 do

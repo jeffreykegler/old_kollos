@@ -70,13 +70,15 @@ local function cursor(self)
     return self.cursor
 end
 
--- this is for optimized reading -- so that we don't have to
--- call a function for each character
+--[[
+This is for optimized reading of long strings, so that we don't have to
+call a function for each character
+--]]
 local function fixed_string(self)
     if self._subtype ~= 'reader' then
-        error("cursor() called, but object is ", trace_subtype(self))
+        error("fixed_string() called, but object is " .. trace_subtype(self))
     end
-    return self.string, cursor
+    return self._string, cursor
 end
 
 -- Some day we may do dynamic strings, and this method may
@@ -110,7 +112,7 @@ location_class.mt = {}
 -- be created from this one, and share the same metatable
 -- and prototype
 function location_class.new_from_string (string)
-    local location_object = { _subtype = 'cursor', cursor = 0 }
+    local location_object = { _subtype = 'reader', cursor = 0 }
     local prototype = {}
     for field,default_value in pairs(default_prototype) do
          prototype[field] = default_value
