@@ -453,7 +453,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     props.irule_by_rhs = {}
     props.irule_by_lhs = {}
     if symbol_by_name[props.name] then
-        error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
+      error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
     end
     symbol_by_name[props.name] = props
     local symbol_id = #symbol_by_id+1
@@ -847,74 +847,76 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
   g:start_symbol_set(augment_symbol.libmarpa_id)
   g:precompute()
 
-local lexeme_prefixes = {}
+  local lexeme_prefixes = {}
   for symbol_id = 1,#symbol_by_id do
     local symbol_props = symbol_by_id[symbol_id]
-  if symbol_props.lexeme then
+    if symbol_props.lexeme then
       -- print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
-    lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
+      lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
+    end
   end
+
+  return { libmarpa_g = g, lexeme_prefixes = lexeme_prefixes }
+
 end
 
-  local r = wrap.recce(g)
-  r:start_input()
+local lex_g = do_grammar('l0', json_kir['l0']) -- luacheck: ignore klog_g_l0
 
-  for _,lexeme_prefix in ipairs(lexeme_prefixes) do
-      -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
-      local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
-  end
-  result = r:earleme_complete() -- luacheck: ignore result
+local g = lex_g.libmarpa_g
+local r = wrap.recce(g)
+r:start_input()
 
+for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
+  -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
+  local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+end
+result = r:earleme_complete() -- luacheck: ignore result
 
 local json_example = [===[
 [
-      {
-         "precision": "zip",
-         "Latitude":  37.7668,
-         "Longitude": -122.3959,
-         "Address":   "",
-         "City":      "SAN FRANCISCO",
-         "State":     "CA",
-         "Zip":       "94107",
-         "Country":   "US"
-      },
-      {
-         "precision": "zip",
-         "Latitude":  37.371991,
-         "Longitude": -122.026020,
-         "Address":   "",
-         "City":      "SUNNYVALE",
-         "State":     "CA",
-         "Zip":       "94085",
-         "Country":   "US"
-      }
+{
+  "precision": "zip",
+  "Latitude": 37.7668,
+  "Longitude": -122.3959,
+  "Address": "",
+  "City": "SAN FRANCISCO",
+  "State": "CA",
+  "Zip": "94107",
+  "Country": "US"
+},
+{
+  "precision": "zip",
+  "Latitude": 37.371991,
+  "Longitude": -122.026020,
+  "Address": "",
+  "City": "SUNNYVALE",
+  "State": "CA",
+  "Zip": "94085",
+  "Country": "US"
+}
 ]
 ]===] -- end of JSON example
 
 local reader = kollos_external.location.new_from_string(json_example)
 local input_string = reader:fixed_string()
 for c in input_string:gmatch"." do
-    -- print(c)
+  -- print(c)
 end
 
-  --[[ NOT YET IMPLEMENTED
-  while r:is_exhausted() ~= 1 do
-    result = r:alternative(a, 1, 1)
-    if (not result) then
-      -- print("reached earley set " .. r:latest_earley_set())
-      break
-    end
-    result = r:earleme_complete()
-    if (result < 0) then
-      error("result of earleme_complete = " .. result)
-    end
+--[[ NOT YET IMPLEMENTED
+while r:is_exhausted() ~= 1 do
+  result = r:alternative(a, 1, 1)
+  if (not result) then
+    -- print("reached earley set " .. r:latest_earley_set())
+    break
   end
-  --]]
-
-  return {}
-
+  result = r:earleme_complete()
+  if (result < 0) then
+    error("result of earleme_complete = " .. result)
+  end
 end
+--]]
 
-local klog_g_l0 = do_grammar('l0', json_kir['l0']) -- luacheck: ignore klog_g_l0
+return {}
 
 -- vim: expandtab shiftwidth=4:
