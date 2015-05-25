@@ -19,7 +19,9 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
-local kollos_c = require "kollos_c"
+local current_folder = (...)
+local kollos_c = require 'kollos_c'
+local location = require 'kollos.location'
 
 local kollos_table = {}
 
@@ -175,7 +177,10 @@ local kollos_error = {
   code_by_name = kollos_c.error_code_by_name,
   throw = kollos_c.error_throw
 }
-
-return { ["_klol"] =_klol, ["error"] = kollos_error, table = kollos_table }
+return { location = location,
+  ["_klol"] =_klol,
+  ["error"] = kollos_error,
+  table = kollos_table
+}
 
 -- vim: expandtab shiftwidth=4:
