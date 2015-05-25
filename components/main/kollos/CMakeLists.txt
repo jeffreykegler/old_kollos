@@ -87,6 +87,4 @@ include_directories("${libmarpa_SOURCE_DIR}/include")
 ADD_LIBRARY(kollos_c SHARED ${CMAKE_CURRENT_BINARY_DIR}/kollos.c)
 target_link_libraries(kollos_c ${libmarpa_BINARY_DIR}/libmarpa_s.a ${lua_BINARY_DIR}/src/liblua.a ${LUA_LIBRARIES})
 
-add_subdirectory(kollos) # kollos-wide tests
-
 # vim: expandtab shiftwidth=4:
