@@ -40,7 +40,7 @@ function kollos_util.key_to_str ( k )
   if "string" == type( k ) and string.match( k, "^[_%a][_%a%d]*$" ) then
     return k
   else
-    return "[" .. kollos_table.val_to_str( k ) .. "]"
+    return "[" .. kollos_util.val_to_str( k ) .. "]"
   end
 end
 

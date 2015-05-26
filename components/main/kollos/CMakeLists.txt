@@ -21,8 +21,12 @@ ELSE ()
 ENDIF (LUA_INCLUDE_DIR)
 
 set(LUA_Sources
-    "main.lua" "dumper.lua" "location.lua"
+    "dumper.lua"
+    "location.lua"
+    "lo_g.lua"
+    "main.lua"
     "util.lua"
+    "wrap.lua"
     )
 source_group("lua" FILES ${LUA_Sources})
 
