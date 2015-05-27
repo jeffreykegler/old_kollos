@@ -57,7 +57,7 @@ local all_255_chars -- predeclare
 do
     local temp_table = {}
     for byte_value = 0, 255 do
-        temp_table[byte_value] = string.char(byte_value)
+        temp_table[byte_value+1] = string.char(byte_value)
     end
     all_255_chars = table.concat(temp_table)
 end

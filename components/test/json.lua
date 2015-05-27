@@ -256,6 +256,9 @@ local json_kir =
 }
 
 local lex_g = kollos.lo_g.kir_compile(json_kir).l0
+
+-- print(dumper.dumper(lex_g.tokens_by_char))
+
 local g = lex_g.libmarpa_g
 local r = kollos.wrap.recce(g)
 r:start_input()
@@ -292,22 +295,29 @@ local json_example = [===[
 ]===] -- end of JSON example
 
 local reader = kollos.location.new_from_string(json_example)
-local input_string = reader:fixed_string()
-for c in input_string:gmatch"." do
-    -- print(c)
+local input_string,start_cursor = reader:fixed_string()
+for cursor = start_cursor,#input_string do
+     local byte = input_string:byte(cursor)
+     print ("cursor ", cursor)
+     print ("byte ", byte)
+     local tokens = lex_g.tokens_by_char[byte]
+     if #tokens <= 0 then
+        local char_desc = {'Character'}
+        if input_string:find('^[^%c%s]', cursor) then
+            char_desc[#char_desc + 1] = '"' .. input_string:sub(cursor, cursor) .. '",'
+        end
+        char_desc[#char_desc + 1] = string.format("0x%.2X", byte)
+        char_desc[#char_desc + 1] = 'is in the input, but can never be produced by the grammar'
+        error(table.concat(char_desc, ' '))
+     end
+     for _,token_id in ipairs(tokens) do
+         r:alternative(token_id)
+     end
+     r:earleme_complete() -- luacheck: ignore result
 end
 
 --[[ NOT YET IMPLEMENTED
 while r:is_exhausted() ~= 1 do
-    result = r:alternative(a, 1, 1)
-    if (not result) then
-        -- print("reached earley set " .. r:latest_earley_set())
-        break
-    end
-    result = r:earleme_complete()
-    if (result < 0) then
-        error("result of earleme_complete = " .. result)
-    end
 end
 --]]
 

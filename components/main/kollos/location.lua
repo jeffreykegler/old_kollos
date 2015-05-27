@@ -78,7 +78,7 @@ local function fixed_string(self)
     if self._subtype ~= 'reader' then
         error("fixed_string() called, but object is " .. trace_subtype(self))
     end
-    return self._string, cursor
+    return self._string, self.cursor
 end
 
 -- Some day we may do dynamic strings, and this method may
@@ -112,7 +112,7 @@ location_class.mt = {}
 -- be created from this one, and share the same metatable
 -- and prototype
 function location_class.new_from_string (string)
-    local location_object = { _subtype = 'reader', cursor = 0 }
+    local location_object = { _subtype = 'reader', cursor = 1 }
     local prototype = {}
     for field,default_value in pairs(default_prototype) do
          prototype[field] = default_value
