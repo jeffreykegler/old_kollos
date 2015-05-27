@@ -655,6 +655,9 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
             lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
         end
 
+        -- When we do Unicode, we switch to (add?) a method for
+        -- lazy computation of the tokens for each character
+        -- with a value greater than 255
         if symbol_props.terminal then
             local charclass = symbol_props.isym_props.charclass
             local initial_char = 1
