@@ -53,13 +53,13 @@ local luif_err_duplicate_rule -- luacheck: ignore
 
 -- Create a string of bytes with values from 0 to 255
 -- for use in creating a table from byte to charclass
-local eight_bit_chars -- predeclare
+local all_255_chars -- predeclare
 do
-    local temp_table;
-    for byte_value = 1, 256 do
-        temp_table[byte_value] = string.char(byte_value-1)
+    local temp_table = {}
+    for byte_value = 0, 255 do
+        temp_table[byte_value] = string.char(byte_value)
     end
-    eight_bit_chars = table.concat(temp_table)
+    all_255_chars = table.concat(temp_table)
 end
 
 --[[
@@ -643,15 +643,36 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     g:precompute()
 
     local lexeme_prefixes = {}
+    local tokens_by_char = {}
+    for i = 0,255 do
+        tokens_by_char[i] = {}
+    end
+
     for symbol_id = 1,#symbol_by_id do
         local symbol_props = symbol_by_id[symbol_id]
         if symbol_props.lexeme then
             -- print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
             lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
         end
+
+        if symbol_props.terminal then
+            local charclass = symbol_props.isym_props.charclass
+            local initial_char = 1
+            while true do
+                local found_char = all_255_chars:find(charclass, initial_char)
+                if not found_char then break end
+                local token_list = tokens_by_char[found_char-1] -- 0-based indexing
+                token_list[#token_list + 1] = symbol_props.libmarpa_id
+                initial_char = found_char + 1
+            end
+        end
+
     end
 
-    return { libmarpa_g = g, lexeme_prefixes = lexeme_prefixes }
+    return { libmarpa_g = g,
+        tokens_by_char = tokens_by_char, -- 0-based index
+        lexeme_prefixes = lexeme_prefixes,
+    }
 
 end
 
