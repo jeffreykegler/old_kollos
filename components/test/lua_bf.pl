@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use constant INDENT => '  ';
+use constant INDENT => (' ' x 4);
 my($currIndent, $nextIndent, $prevLength) = (0, 0, 0);
 
 while (<>) {
