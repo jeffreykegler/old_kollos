@@ -33,7 +33,7 @@ The Kollos low level grammar logic
 -- luacheck: globals bit
 
 local function here() return -- luacheck: ignore here
-  debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
+    debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
 local dumper = require "kollos.dumper" -- luacheck: ignore
@@ -50,6 +50,17 @@ local luif_err_unexpected_token -- luacheck: ignore
 = kollos_c.error_code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 local luif_err_duplicate_rule -- luacheck: ignore
 = kollos_c.error_code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
+
+-- Create a string of bytes with values from 0 to 255
+-- for use in creating a table from byte to charclass
+local eight_bit_chars -- predeclare
+do
+    local temp_table;
+    for byte_value = 1, 256 do
+        temp_table[byte_value] = string.char(byte_value-1)
+    end
+    eight_bit_chars = table.concat(temp_table)
+end
 
 --[[
 
@@ -69,39 +80,39 @@ change it into its closure
 --]]
 
 local function transitive_closure(matrix)
-  -- as an efficiency hack, we store the
-  -- from, to duples as two entries, so
-  -- that we don't have to create a table
-  -- for each duple
-  local dim = #matrix
-  local max_column_word = bit.rshift(dim-1, 5)+1
-  for from_ix = 1,dim do
-    local from_vector = matrix[from_ix]
-    for to_ix = 1,dim do
-      local from_word = bit.rshift(from_ix-1, 5)+1
-      local from_bit = bit.band(from_ix-1, 0x1F)
-      if bit.band(matrix[to_ix][from_word], bit.lshift(1, from_bit)) ~= 0 then
-        -- 32 bits at a time -- fast!
-        -- in the Luajit, it should pipeline, and be several times faster
-        local to_vector = matrix[to_ix]
-        for word_ix = 1,max_column_word do
-          to_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
+    -- as an efficiency hack, we store the
+    -- from, to duples as two entries, so
+    -- that we don't have to create a table
+    -- for each duple
+    local dim = #matrix
+    local max_column_word = bit.rshift(dim-1, 5)+1
+    for from_ix = 1,dim do
+        local from_vector = matrix[from_ix]
+        for to_ix = 1,dim do
+            local from_word = bit.rshift(from_ix-1, 5)+1
+            local from_bit = bit.band(from_ix-1, 0x1F)
+            if bit.band(matrix[to_ix][from_word], bit.lshift(1, from_bit)) ~= 0 then
+                -- 32 bits at a time -- fast!
+                -- in the Luajit, it should pipeline, and be several times faster
+                local to_vector = matrix[to_ix]
+                for word_ix = 1,max_column_word do
+                    to_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
+                end
+            end
         end
-      end
     end
-  end
 end
 
 local function matrix_init( dim)
-  local matrix = {}
-  local max_column_word = bit.rshift(dim-1, 5)+1
-  for i = 1,dim do
-    matrix[i] = {}
-    for j = 1,max_column_word do
-      matrix[i][j] = 0
+    local matrix = {}
+    local max_column_word = bit.rshift(dim-1, 5)+1
+    for i = 1,dim do
+        matrix[i] = {}
+        for j = 1,max_column_word do
+            matrix[i][j] = 0
+        end
     end
-  end
-  return matrix
+    return matrix
 end
 
 --[[
@@ -110,18 +121,18 @@ everything is 1-based. Except, of course, bit position.
 In Pall's 32-bit vectors, that is 0-based.
 --]]
 local function matrix_bit_set(matrix, row, column)
-  local column_word = bit.rshift(column-1, 5)+1
-  local column_bit = bit.band(column-1, 0x1F)
-  -- print("column_word:", column_word, " column_bit: ", column_bit)
-  local bit_vector = matrix[row]
-  bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
+    local column_word = bit.rshift(column-1, 5)+1
+    local column_bit = bit.band(column-1, 0x1F)
+    -- print("column_word:", column_word, " column_bit: ", column_bit)
+    local bit_vector = matrix[row]
+    bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
 end
 
 local function matrix_bit_test(matrix, row, column)
-  local column_word = bit.rshift(column-1, 5)+1
-  local column_bit = bit.band(column-1, 0x1F)
-  -- print("column_word:", column_word, " column_bit: ", column_bit)
-  return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
+    local column_word = bit.rshift(column-1, 5)+1
+    local column_bit = bit.band(column-1, 0x1F)
+    -- print("column_word:", column_word, " column_bit: ", column_bit)
+    return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
 end
 
 --[[
@@ -166,45 +177,45 @@ In Marpa, "being productive" and
 --]]
 
 local function rhs_transitive_closure(symbol_by_name, property)
-  local worklist = {}
-  for _, symbol_props in pairs(symbol_by_name) do
-    if symbol_props[property] == true then
-      table.insert(worklist, symbol_props)
-    end
-  end
-
-  while true do
-    local symbol_props = table.remove(worklist)
-    if not symbol_props then break end
-    -- print("Symbol taken from work list: ", symbol_props.name)
-    -- print( dumper.dumper(symbol_props.irule_by_rhs))
-    for _,irule_props in pairs(symbol_props.irule_by_rhs) do
-      -- print("Start of testing rule for propetry ", property);
-      local lh_sym_props = symbol_by_name[irule_props.lhs]
-      if lh_sym_props[property] ~= true then
-        -- print("Rule LHS: ", lh_sym_props.name)
-        local rule_has_property = true -- default to true
-        for _,rhs_name in pairs(irule_props.rhs) do
-          local rh_sym_props = symbol_by_name[rhs_name]
-          -- print("Rule RHS symbol: ", rh_sym_props.name)
-          if not rh_sym_props[property] then
-            rule_has_property = false
-            break
-          end
+    local worklist = {}
+    for _, symbol_props in pairs(symbol_by_name) do
+        if symbol_props[property] == true then
+            table.insert(worklist, symbol_props)
         end
-        -- print("End of testing rule, result = ", rule_has_property);
-        if rule_has_property then
-          -- we don't get here if the LHS symbol already
-          -- has the property, so no symbol is ever
-          -- put on worklist twice
-          lh_sym_props[property] = true
-          -- print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
-          table.insert(worklist, lh_sym_props)
-        end
-      end
-
     end
-  end
+
+    while true do
+        local symbol_props = table.remove(worklist)
+        if not symbol_props then break end
+        -- print("Symbol taken from work list: ", symbol_props.name)
+        -- print( dumper.dumper(symbol_props.irule_by_rhs))
+        for _,irule_props in pairs(symbol_props.irule_by_rhs) do
+            -- print("Start of testing rule for propetry ", property);
+            local lh_sym_props = symbol_by_name[irule_props.lhs]
+            if lh_sym_props[property] ~= true then
+                -- print("Rule LHS: ", lh_sym_props.name)
+                local rule_has_property = true -- default to true
+                for _,rhs_name in pairs(irule_props.rhs) do
+                    local rh_sym_props = symbol_by_name[rhs_name]
+                    -- print("Rule RHS symbol: ", rh_sym_props.name)
+                    if not rh_sym_props[property] then
+                        rule_has_property = false
+                        break
+                    end
+                end
+                -- print("End of testing rule, result = ", rule_has_property);
+                if rule_has_property then
+                    -- we don't get here if the LHS symbol already
+                    -- has the property, so no symbol is ever
+                    -- put on worklist twice
+                    lh_sym_props[property] = true
+                    -- print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
+                    table.insert(worklist, lh_sym_props)
+                end
+            end
+
+        end
+    end
 end
 
 -- We leave the KIR as is, and work with
@@ -213,434 +224,434 @@ end
 -- currently grammar is unused, but someday we may need the grammar name
 local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
-  -- I expect to handle cycles eventually, so this logic must be
-  -- cycle-safe.
+    -- I expect to handle cycles eventually, so this logic must be
+    -- cycle-safe.
 
-  local g_is_structural = properties.structural
+    local g_is_structural = properties.structural
 
-  -- while developing we do all the "hygenic" tests to
-  -- make sure the KIR is sane
+    -- while developing we do all the "hygenic" tests to
+    -- make sure the KIR is sane
 
-  -- In production, the KIR will be produced by Kollos's
-  -- own logic, so this boolean should only be set
-  -- for debugging
-  local hygenic = true -- luacheck: ignore hygenic
+    -- In production, the KIR will be produced by Kollos's
+    -- own logic, so this boolean should only be set
+    -- for debugging
+    local hygenic = true -- luacheck: ignore hygenic
 
-  -- Next we start the database of intermediate KLOL symbols
-  local symbol_by_name = {} -- create an symbol to integer index
-  local symbol_by_id = {} -- create an integer to symbol index
-  local klol_rules = {} -- an array of the KLOL rules
+    -- Next we start the database of intermediate KLOL symbols
+    local symbol_by_name = {} -- create an symbol to integer index
+    local symbol_by_id = {} -- create an integer to symbol index
+    local klol_rules = {} -- an array of the KLOL rules
 
-  local function klol_symbol_new(props)
-    props.lhs_by_rhs = {}
-    props.rhs_by_lhs = {}
-    props.irule_by_rhs = {}
-    props.irule_by_lhs = {}
-    if symbol_by_name[props.name] then
-      error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
+    local function klol_symbol_new(props)
+        props.lhs_by_rhs = {}
+        props.rhs_by_lhs = {}
+        props.irule_by_rhs = {}
+        props.irule_by_lhs = {}
+        if symbol_by_name[props.name] then
+            error('Internal error: Attempt to create duplicate symbol : "' .. props.name .. '"')
+        end
+        symbol_by_name[props.name] = props
+        local symbol_id = #symbol_by_id+1
+        props.id = symbol_id
+        symbol_by_id[symbol_id] = props
+        return props
     end
-    symbol_by_name[props.name] = props
-    local symbol_id = #symbol_by_id+1
-    props.id = symbol_id
-    symbol_by_id[symbol_id] = props
-    return props
-  end
 
-  local function klol_rule_new(rule_props)
-    klol_rules[ #klol_rules + 1 ] = rule_props
+    local function klol_rule_new(rule_props)
+        klol_rules[ #klol_rules + 1 ] = rule_props
 
-    --[[ COMMENTED OUT
-    -- print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
-    local rule_desc = rule_props.lhs.symbol.name .. ' ::='
-    for dot_ix = 1,#rule_props.rhs do
-      -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
-      rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
+        --[[ COMMENTED OUT
+        -- print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
+        local rule_desc = rule_props.lhs.symbol.name .. ' ::='
+        for dot_ix = 1,#rule_props.rhs do
+            -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
+            rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
+        end
+        print("KLOL rule:", rule_desc)
+        --]]
+
     end
-    print("KLOL rule:", rule_desc)
+
+    local top_symbol -- will be RHS of augmented start rule
+
+    -- a pseudo-symbol "reached" by all terminals
+    -- for convenience in determinal if a symbol reaches any terminal
+    local sink_terminal = klol_symbol_new{ name = '?sink_terminal', productive = true}
+    local augment_symbol = klol_symbol_new{ name = '?augment'}
+
+    if (not g_is_structural) then
+        top_symbol = klol_symbol_new{ name = '?top'}
+    end
+
+    for symbol_name,isym_props in pairs(properties.isym) do
+        local symbol_props = klol_symbol_new{ isym_props = isym_props, name = symbol_name,
+            is_khil = true -- true if a KHIL symbol
+        }
+        if (isym_props.charclass) then
+            symbol_props.productive = true;
+            symbol_props.terminal = true;
+            symbol_props.nullable = false;
+        end
+        if (isym_props.lexeme) then
+            if (g_is_structural) then
+                error('Internal error: Lexeme "' .. symbol_name .. '" declared in structural grammar')
+            end
+            symbol_props.lexeme = true;
+        end
+        if (isym_props.start) then
+            if (not g_is_structural) then
+                error('Internal error: Start symbol "' .. symbol_name '" declared in lexical grammar')
+            end
+            top_symbol = symbol_props
+        end
+    end
+
+    if (not top_symbol) then
+        error('Internal error: No start symbol found in grammar')
+    end
+
+    for rule_ix,irule_props in ipairs(properties.irule) do
+        local lhs_name = irule_props.lhs
+        local lhs_props = symbol_by_name[lhs_name]
+        if (not lhs_props) then
+            error("Internal error: Symbol " .. lhs_name .. " is lhs of irule but not in isym")
+        end
+        lhs_props.irule_by_lhs[#lhs_props.irule_by_lhs+1] = irule_props
+        local rhs_names = irule_props.rhs
+        if (#rhs_names == 0) then
+            lhs_props.nullable = true
+            lhs_props.productive = true
+        end
+        for _,rhs_name in ipairs(rhs_names) do
+            local rhs_props = symbol_by_name[rhs_name]
+            if (not rhs_props) then
+                error("Internal error: Symbol " .. rhs_name .. " is rhs of irule but not in isym")
+            end
+
+            -- built different from irule_by_lhs, because symbols
+            -- may occur several times on the RHS
+            rhs_props.irule_by_rhs[rule_ix] = irule_props
+
+            rhs_props.lhs_by_rhs[lhs_name] = lhs_props
+            lhs_props.rhs_by_lhs[rhs_name] = rhs_props
+        end
+    end
+
+    for symbol_name,symbol_props in pairs(symbol_by_name) do
+        if (not symbol_props.lhs_by_rhs and not symbol_props.rhs_by_lhs and symbol_props.is_khil) then
+            error("Internal error: Symbol " .. symbol_name .. " is in isym but not in irule")
+        end
+        if (symbol_props.charclass and #symbol_props.irule_by_lhs > 0) then
+            error("Internal error: Symbol " .. symbol_name .. " has charclass but is on LHS of irule")
+        end
+    end
+
+    -- now set up the reach matrix
+    local reach_matrix = matrix_init(#symbol_by_id)
+    if not g_is_structural then
+        matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
+    end
+
+    for symbol_id = 1,#symbol_by_id do
+        local symbol_props = symbol_by_id[symbol_id]
+        local isym_props = symbol_props.isym_props
+        -- every symbol reaches itself
+        matrix_bit_set(reach_matrix, symbol_id, symbol_id)
+        if isym_props then
+            for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
+                matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
+            end
+            if symbol_props.terminal then
+                matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
+            end
+            if symbol_props.lexeme then
+                matrix_bit_set(reach_matrix, top_symbol.id, symbol_id)
+            end
+        end
+    end
+
+    transitive_closure(reach_matrix)
+
+    rhs_transitive_closure(symbol_by_name, 'nullable')
+    rhs_transitive_closure(symbol_by_name, 'productive')
+
+    --[[
+    I don't want to get into adding the KLOL rules until later, so for
+    a lexical grammar we mark the top symbol productive to silence the
+    error message. We will test that all the lexemes were productive,
+    and that is sufficient.
     --]]
 
-  end
-
-  local top_symbol -- will be RHS of augmented start rule
-
-  -- a pseudo-symbol "reached" by all terminals
-  -- for convenience in determinal if a symbol reaches any terminal
-  local sink_terminal = klol_symbol_new{ name = '?sink_terminal', productive = true}
-  local augment_symbol = klol_symbol_new{ name = '?augment'}
-
-  if (not g_is_structural) then
-    top_symbol = klol_symbol_new{ name = '?top'}
-  end
-
-  for symbol_name,isym_props in pairs(properties.isym) do
-    local symbol_props = klol_symbol_new{ isym_props = isym_props, name = symbol_name,
-      is_khil = true -- true if a KHIL symbol
-    }
-    if (isym_props.charclass) then
-      symbol_props.productive = true;
-      symbol_props.terminal = true;
-      symbol_props.nullable = false;
-    end
-    if (isym_props.lexeme) then
-      if (g_is_structural) then
-        error('Internal error: Lexeme "' .. symbol_name .. '" declared in structural grammar')
-      end
-      symbol_props.lexeme = true;
-    end
-    if (isym_props.start) then
-      if (not g_is_structural) then
-        error('Internal error: Start symbol "' .. symbol_name '" declared in lexical grammar')
-      end
-      top_symbol = symbol_props
-    end
-  end
-
-  if (not top_symbol) then
-    error('Internal error: No start symbol found in grammar')
-  end
-
-  for rule_ix,irule_props in ipairs(properties.irule) do
-    local lhs_name = irule_props.lhs
-    local lhs_props = symbol_by_name[lhs_name]
-    if (not lhs_props) then
-      error("Internal error: Symbol " .. lhs_name .. " is lhs of irule but not in isym")
-    end
-    lhs_props.irule_by_lhs[#lhs_props.irule_by_lhs+1] = irule_props
-    local rhs_names = irule_props.rhs
-    if (#rhs_names == 0) then
-      lhs_props.nullable = true
-      lhs_props.productive = true
-    end
-    for _,rhs_name in ipairs(rhs_names) do
-      local rhs_props = symbol_by_name[rhs_name]
-      if (not rhs_props) then
-        error("Internal error: Symbol " .. rhs_name .. " is rhs of irule but not in isym")
-      end
-
-      -- built different from irule_by_lhs, because symbols
-      -- may occur several times on the RHS
-      rhs_props.irule_by_rhs[rule_ix] = irule_props
-
-      rhs_props.lhs_by_rhs[lhs_name] = lhs_props
-      lhs_props.rhs_by_lhs[rhs_name] = rhs_props
-    end
-  end
-
-  for symbol_name,symbol_props in pairs(symbol_by_name) do
-    if (not symbol_props.lhs_by_rhs and not symbol_props.rhs_by_lhs and symbol_props.is_khil) then
-      error("Internal error: Symbol " .. symbol_name .. " is in isym but not in irule")
-    end
-    if (symbol_props.charclass and #symbol_props.irule_by_lhs > 0) then
-      error("Internal error: Symbol " .. symbol_name .. " has charclass but is on LHS of irule")
-    end
-  end
-
-  -- now set up the reach matrix
-  local reach_matrix = matrix_init(#symbol_by_id)
-  if not g_is_structural then
-    matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
-  end
-
-  for symbol_id = 1,#symbol_by_id do
-    local symbol_props = symbol_by_id[symbol_id]
-    local isym_props = symbol_props.isym_props
-    -- every symbol reaches itself
-    matrix_bit_set(reach_matrix, symbol_id, symbol_id)
-    if isym_props then
-      for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
-        matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
-      end
-      if symbol_props.terminal then
-        matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
-      end
-      if symbol_props.lexeme then
-        matrix_bit_set(reach_matrix, top_symbol.id, symbol_id)
-      end
-    end
-  end
-
-  transitive_closure(reach_matrix)
-
-  rhs_transitive_closure(symbol_by_name, 'nullable')
-  rhs_transitive_closure(symbol_by_name, 'productive')
-
-  --[[
-  I don't want to get into adding the KLOL rules until later, so for
-  a lexical grammar we mark the top symbol productive to silence the
-  error message. We will test that all the lexemes were productive,
-  and that is sufficient.
-  --]]
-
-  if not g_is_structural then
-    top_symbol.productive = true
-  end
-
-  for symbol_id = 1,#symbol_by_id do
-    local symbol_props = symbol_by_id[symbol_id]
-    if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
-      print("Symbol " .. symbol_props.name .. " is not accessible")
-    end
-    if not symbol_props.productive then
-      print("Symbol " .. symbol_props.name .. " is not productive")
-    end
-    if symbol_props.nullable and
-    not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
-    then symbol_props.nulling = true end
-    if symbol_props.lexeme then
-      if symbol_props.nulling then
-        print("Symbol " .. symbol_props.name .. " is a nulling lexeme -- A FATAL ERROR")
-      end
-      if not symbol_props.productive then
-        print("Symbol " .. symbol_props.name .. " is an unproductive lexeme -- A FATAL ERROR")
-      end
+    if not g_is_structural then
+        top_symbol.productive = true
     end
 
-  end
-
-  --[[ COMMENTED OUT
-  for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
-    for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
-      if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
-        print( from_symbol_props.name, "reaches", to_symbol_props.name)
-      end
-    end
-  end
-  --]]
-
-  if top_symbol.nulling then
-    print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
-  end
-
-  local unique_number = 1 -- used in forming names of symbols
-
-  for _,irule_props in ipairs(properties.irule) do
-    local lh_sym_name = irule_props.lhs
-    local lh_sym_props = symbol_by_name[lh_sym_name]
-    local rhs_names = irule_props.rhs
-    local instance_stack = {}
-
-    -- print(here())
-    -- print('LHS:', lh_sym_name)
-
-    for dot_ix,rhs_name in ipairs(rhs_names) do
-      local rh_sym_props = symbol_by_name[rhs_name]
-
-      -- print('RHS:', rhs_name)
-
-      -- skip nulling symbols
-      -- the span and dot info is a prototype of the kind
-      -- of information about location in the xrule that
-      -- I will need to reconstruct the external rule,
-      -- and to do the semantics
-      if not rh_sym_props.nulling then
-        local instance = {
-          kir_dot = dot_ix,
-          symbol = rh_sym_props
-        }
-        instance_stack[#instance_stack + 1] = instance
-      end
-    end
-
-    -- print(here())
-
-    local start_of_nullable_suffix = #instance_stack+1
-    for i=#instance_stack,1,-1 do
-      if not instance_stack[i].symbol.nullable then break end
-      start_of_nullable_suffix = i
-    end
-
-    -- first LHS is that of the original rule
-    local lh_sides = {}
-    lh_sides[1] = {
-      irule = irule_props,
-      kir_dot = 1,
-      symbol = lh_sym_props
-    }
-    -- we need a new LHS for the length of the original
-    -- RHS, less 2
-    for instance_ix=2,#instance_stack-1 do
-      local new_lhs_name =
-      irule_props.lhs .. '?' .. unique_number .. '@' .. instance_ix
-      unique_number = unique_number + 1
-      local new_lh_symbol = klol_symbol_new{ name = new_lhs_name }
-      lh_sides[#lh_sides+1] = {
-        irule = irule_props,
-        kir_dot = instance_stack[instance_ix].kir_dot,
-        symbol = new_lh_symbol
-      }
-    end
-
-    -- if the rule is empty (zero length) it will
-    -- "fall through" the following logic
-    local next_rule_base = 1
-    while #instance_stack - next_rule_base >= 2 do
-      local new_rule_lhs = lh_sides[next_rule_base]
-      local rhs_instance_1 = instance_stack[next_rule_base]
-      local next_lhs = lh_sides[next_rule_base+1]
-      klol_rule_new{
-        lhs = new_rule_lhs,
-        rhs = { rhs_instance_1, next_lhs }
-      }
-      if start_of_nullable_suffix <= next_rule_base+1 then
-        klol_rule_new{
-          lhs = new_rule_lhs,
-          rhs = { rhs_instance_1 }
-        }
-      end
-      if rhs_instance_1.symbol.nullable then
-        klol_rule_new{
-          lhs = new_rule_lhs,
-          rhs = { next_lhs }
-        }
-      end
-      next_rule_base = next_rule_base+1
-    end
-
-    -- print(here())
-
-    -- If two RHS instances remain ...
-    if #instance_stack - next_rule_base == 1 then
-      local new_rule_lhs = lh_sides[next_rule_base]
-      local rhs_instance_1 = instance_stack[next_rule_base]
-      local rhs_instance_2 = instance_stack[next_rule_base+1]
-      -- print(here())
-      klol_rule_new{
-        lhs = new_rule_lhs,
-        rhs = { rhs_instance_1, rhs_instance_2 }
-      }
-
-      -- order by symbol used on the RHS,
-      -- not by symbol tested so that
-      -- the output is easier to read
-      -- print(here())
-      if rhs_instance_2.symbol.nullable then
-        klol_rule_new{
-          lhs = new_rule_lhs,
-          rhs = { rhs_instance_1 }
-        }
-      end
-
-      -- print(here())
-      if rhs_instance_1.symbol.nullable then
-        klol_rule_new{
-          lhs = new_rule_lhs,
-          rhs = { rhs_instance_2 }
-        }
-      end
-    end
-
-    -- print(here())
-    -- If one RHS instance remains ...
-    if #instance_stack - next_rule_base == 0 then
-      local new_rule_lhs = lh_sides[next_rule_base]
-      local rhs_instance_1 = instance_stack[next_rule_base]
-      klol_rule_new{
-        lhs = new_rule_lhs, rhs = { rhs_instance_1 }
-      }
-    end
-
-  end -- of for _,irule_props in ipairs(properties.irule)
-
-  -- now create additional rules ...
-  -- first the augment rule
-  -- do not yet know what to do about location information
-  -- for instances
-  klol_rule_new{
-    lhs = { symbol = augment_symbol },
-    rhs = { { symbol = top_symbol } }
-  }
-
-  if not g_is_structural then
-
-    local lexeme_seq = top_symbol
-    local lexeme_item = klol_symbol_new{ name = '?lexeme_item' }
-    klol_rule_new{
-      lhs = { symbol = lexeme_seq },
-      rhs = {
-        { symbol = lexeme_seq },
-        { symbol = lexeme_item }
-      }
-    }
-    klol_rule_new{
-      lhs = { symbol = lexeme_seq },
-      rhs = {
-        { symbol = lexeme_item }
-      }
-    }
-
-    -- and now deal with the lexemes ...
-    -- which will only be present in a lexical grammar ...
-    -- we need to create the "lexeme prefix symbols"
-    -- and to add rules which connect them to the
-    -- top symbol
     for symbol_id = 1,#symbol_by_id do
-      local symbol_props = symbol_by_id[symbol_id]
-      if symbol_props.lexeme then
-        -- print("Creating prelex for ", symbol_props.name)
-        local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
-        symbol_props.lexeme_prefix = lexeme_prefix
-        klol_rule_new{
-          lhs = { symbol = lexeme_item },
-          rhs = {
-            { symbol = lexeme_prefix },
-            { symbol = symbol_props },
-          }
+        local symbol_props = symbol_by_id[symbol_id]
+        if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
+            print("Symbol " .. symbol_props.name .. " is not accessible")
+        end
+        if not symbol_props.productive then
+            print("Symbol " .. symbol_props.name .. " is not productive")
+        end
+        if symbol_props.nullable and
+        not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
+        then symbol_props.nulling = true end
+        if symbol_props.lexeme then
+            if symbol_props.nulling then
+                print("Symbol " .. symbol_props.name .. " is a nulling lexeme -- A FATAL ERROR")
+            end
+            if not symbol_props.productive then
+                print("Symbol " .. symbol_props.name .. " is an unproductive lexeme -- A FATAL ERROR")
+            end
+        end
+
+    end
+
+    --[[ COMMENTED OUT
+    for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
+        for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+            if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+                print( from_symbol_props.name, "reaches", to_symbol_props.name)
+            end
+        end
+    end
+    --]]
+
+    if top_symbol.nulling then
+        print("Start symbol " .. top_symbol.name .. " is nulling -- NOT YET IMPLEMENTED SPECIAL CASE")
+    end
+
+    local unique_number = 1 -- used in forming names of symbols
+
+    for _,irule_props in ipairs(properties.irule) do
+        local lh_sym_name = irule_props.lhs
+        local lh_sym_props = symbol_by_name[lh_sym_name]
+        local rhs_names = irule_props.rhs
+        local instance_stack = {}
+
+        -- print(here())
+        -- print('LHS:', lh_sym_name)
+
+        for dot_ix,rhs_name in ipairs(rhs_names) do
+            local rh_sym_props = symbol_by_name[rhs_name]
+
+            -- print('RHS:', rhs_name)
+
+            -- skip nulling symbols
+            -- the span and dot info is a prototype of the kind
+            -- of information about location in the xrule that
+            -- I will need to reconstruct the external rule,
+            -- and to do the semantics
+            if not rh_sym_props.nulling then
+                local instance = {
+                    kir_dot = dot_ix,
+                    symbol = rh_sym_props
+                }
+                instance_stack[#instance_stack + 1] = instance
+            end
+        end
+
+        -- print(here())
+
+        local start_of_nullable_suffix = #instance_stack+1
+        for i=#instance_stack,1,-1 do
+            if not instance_stack[i].symbol.nullable then break end
+            start_of_nullable_suffix = i
+        end
+
+        -- first LHS is that of the original rule
+        local lh_sides = {}
+        lh_sides[1] = {
+            irule = irule_props,
+            kir_dot = 1,
+            symbol = lh_sym_props
         }
-      end
+        -- we need a new LHS for the length of the original
+        -- RHS, less 2
+        for instance_ix=2,#instance_stack-1 do
+            local new_lhs_name =
+            irule_props.lhs .. '?' .. unique_number .. '@' .. instance_ix
+            unique_number = unique_number + 1
+            local new_lh_symbol = klol_symbol_new{ name = new_lhs_name }
+            lh_sides[#lh_sides+1] = {
+                irule = irule_props,
+                kir_dot = instance_stack[instance_ix].kir_dot,
+                symbol = new_lh_symbol
+            }
+        end
+
+        -- if the rule is empty (zero length) it will
+        -- "fall through" the following logic
+        local next_rule_base = 1
+        while #instance_stack - next_rule_base >= 2 do
+            local new_rule_lhs = lh_sides[next_rule_base]
+            local rhs_instance_1 = instance_stack[next_rule_base]
+            local next_lhs = lh_sides[next_rule_base+1]
+            klol_rule_new{
+                lhs = new_rule_lhs,
+                rhs = { rhs_instance_1, next_lhs }
+            }
+            if start_of_nullable_suffix <= next_rule_base+1 then
+                klol_rule_new{
+                    lhs = new_rule_lhs,
+                    rhs = { rhs_instance_1 }
+                }
+            end
+            if rhs_instance_1.symbol.nullable then
+                klol_rule_new{
+                    lhs = new_rule_lhs,
+                    rhs = { next_lhs }
+                }
+            end
+            next_rule_base = next_rule_base+1
+        end
+
+        -- print(here())
+
+        -- If two RHS instances remain ...
+        if #instance_stack - next_rule_base == 1 then
+            local new_rule_lhs = lh_sides[next_rule_base]
+            local rhs_instance_1 = instance_stack[next_rule_base]
+            local rhs_instance_2 = instance_stack[next_rule_base+1]
+            -- print(here())
+            klol_rule_new{
+                lhs = new_rule_lhs,
+                rhs = { rhs_instance_1, rhs_instance_2 }
+            }
+
+            -- order by symbol used on the RHS,
+            -- not by symbol tested so that
+            -- the output is easier to read
+            -- print(here())
+            if rhs_instance_2.symbol.nullable then
+                klol_rule_new{
+                    lhs = new_rule_lhs,
+                    rhs = { rhs_instance_1 }
+                }
+            end
+
+            -- print(here())
+            if rhs_instance_1.symbol.nullable then
+                klol_rule_new{
+                    lhs = new_rule_lhs,
+                    rhs = { rhs_instance_2 }
+                }
+            end
+        end
+
+        -- print(here())
+        -- If one RHS instance remains ...
+        if #instance_stack - next_rule_base == 0 then
+            local new_rule_lhs = lh_sides[next_rule_base]
+            local rhs_instance_1 = instance_stack[next_rule_base]
+            klol_rule_new{
+                lhs = new_rule_lhs, rhs = { rhs_instance_1 }
+            }
+        end
+
+    end -- of for _,irule_props in ipairs(properties.irule)
+
+    -- now create additional rules ...
+    -- first the augment rule
+    -- do not yet know what to do about location information
+    -- for instances
+    klol_rule_new{
+        lhs = { symbol = augment_symbol },
+        rhs = { { symbol = top_symbol } }
+    }
+
+    if not g_is_structural then
+
+        local lexeme_seq = top_symbol
+        local lexeme_item = klol_symbol_new{ name = '?lexeme_item' }
+        klol_rule_new{
+            lhs = { symbol = lexeme_seq },
+            rhs = {
+                { symbol = lexeme_seq },
+                { symbol = lexeme_item }
+            }
+        }
+        klol_rule_new{
+            lhs = { symbol = lexeme_seq },
+            rhs = {
+                { symbol = lexeme_item }
+            }
+        }
+
+        -- and now deal with the lexemes ...
+        -- which will only be present in a lexical grammar ...
+        -- we need to create the "lexeme prefix symbols"
+        -- and to add rules which connect them to the
+        -- top symbol
+        for symbol_id = 1,#symbol_by_id do
+            local symbol_props = symbol_by_id[symbol_id]
+            if symbol_props.lexeme then
+                -- print("Creating prelex for ", symbol_props.name)
+                local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
+                symbol_props.lexeme_prefix = lexeme_prefix
+                klol_rule_new{
+                    lhs = { symbol = lexeme_item },
+                    rhs = {
+                        { symbol = lexeme_prefix },
+                        { symbol = symbol_props },
+                    }
+                }
+            end
+        end
+
+    end -- if not g_is_structural
+
+    local g = wrap.grammar()
+    local symbol_by_libmarpa_id = {}
+    for symbol_id = 1,#symbol_by_id do
+        local symbol_props = symbol_by_id[symbol_id]
+        local libmarpa_id = g:symbol_new()
+        symbol_by_libmarpa_id[libmarpa_id] = symbol_props
+        symbol_props.libmarpa_id = libmarpa_id
     end
 
-  end -- if not g_is_structural
-
-  local g = wrap.grammar()
-  local symbol_by_libmarpa_id = {}
-  for symbol_id = 1,#symbol_by_id do
-    local symbol_props = symbol_by_id[symbol_id]
-    local libmarpa_id = g:symbol_new()
-    symbol_by_libmarpa_id[libmarpa_id] = symbol_props
-    symbol_props.libmarpa_id = libmarpa_id
-  end
-
-  g.throw = false
-  for _,rule_props in pairs(klol_rules) do
-    local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
-    local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
-    local rhs2_libmarpa_id = rule_props.rhs[2] and
-    rule_props.rhs[2].symbol.libmarpa_id
-    local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
-      rhs1_libmarpa_id, rhs2_libmarpa_id)
-    if libmarpa_rule_id < 0 then
-      local error_code = g:error()
-      print('Problem with rule',
-        symbol_by_libmarpa_id[lhs_libmarpa_id].name,
-        ' ::= ',
-        symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
-        ((rhs2_libmarpa_id and
-            symbol_by_libmarpa_id[rhs2_libmarpa_id].name
-        ) or '')
-      )
-      if error_code == luif_err_duplicate_rule then
-        print('Duplicate rule -- non-fatal')
-      else
-        kollos_c.error_throw(error_code, 'problem with rule_new()')
-      end
+    g.throw = false
+    for _,rule_props in pairs(klol_rules) do
+        local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
+        local rhs1_libmarpa_id = rule_props.rhs[1].symbol.libmarpa_id
+        local rhs2_libmarpa_id = rule_props.rhs[2] and
+        rule_props.rhs[2].symbol.libmarpa_id
+        local libmarpa_rule_id = g:rule_new( lhs_libmarpa_id,
+            rhs1_libmarpa_id, rhs2_libmarpa_id)
+        if libmarpa_rule_id < 0 then
+            local error_code = g:error()
+            print('Problem with rule',
+                symbol_by_libmarpa_id[lhs_libmarpa_id].name,
+                ' ::= ',
+                symbol_by_libmarpa_id[rhs1_libmarpa_id].name,
+                ((rhs2_libmarpa_id and
+                        symbol_by_libmarpa_id[rhs2_libmarpa_id].name
+                ) or '')
+            )
+            if error_code == luif_err_duplicate_rule then
+                print('Duplicate rule -- non-fatal')
+            else
+                kollos_c.error_throw(error_code, 'problem with rule_new()')
+            end
+        end
+        rule_props.libmarpa_rule_id = libmarpa_rule_id
     end
-    rule_props.libmarpa_rule_id = libmarpa_rule_id
-  end
-  g.throw = true
+    g.throw = true
 
-  g:start_symbol_set(augment_symbol.libmarpa_id)
-  g:precompute()
+    g:start_symbol_set(augment_symbol.libmarpa_id)
+    g:precompute()
 
-  local lexeme_prefixes = {}
-  for symbol_id = 1,#symbol_by_id do
-    local symbol_props = symbol_by_id[symbol_id]
-    if symbol_props.lexeme then
-      -- print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
-      lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
+    local lexeme_prefixes = {}
+    for symbol_id = 1,#symbol_by_id do
+        local symbol_props = symbol_by_id[symbol_id]
+        if symbol_props.lexeme then
+            -- print(symbol_props.name, symbol_props.lexeme_prefix.name, symbol_props.lexeme_prefix.libmarpa_id)
+            lexeme_prefixes[#lexeme_prefixes + 1] = symbol_props.lexeme_prefix
+        end
     end
-  end
 
-  return { libmarpa_g = g, lexeme_prefixes = lexeme_prefixes }
+    return { libmarpa_g = g, lexeme_prefixes = lexeme_prefixes }
 
 end
 
