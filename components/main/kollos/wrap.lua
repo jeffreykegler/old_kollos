@@ -103,6 +103,7 @@ local recce_class  = {
   ["latest_earley_set_value_set"] = kollos_c.recce_latest_earley_set_value_set,
   ["nulled_symbol_activate"] = kollos_c.recce_nulled_symbol_activate,
   ["prediction_symbol_activate"] = kollos_c.recce_prediction_symbol_activate,
+  ["progress_item"] = kollos_c.recce_progress_item,
   ["progress_report_finish"] = kollos_c.recce_progress_report_finish,
   ["progress_report_start"] = kollos_c.recce_progress_report_start,
   ["start_input"] = kollos_c.recce_start_input,

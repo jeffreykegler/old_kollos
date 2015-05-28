@@ -257,21 +257,6 @@ local json_kir =
 
 local lex_g = kollos.lo_g.kir_compile(json_kir).l0
 
--- print(dumper.dumper(lex_g.tokens_by_char))
-
-err_node = kollos.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
-err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
-
-local g = lex_g.libmarpa_g
-local r = kollos.wrap.recce(g)
-r:start_input()
-
-for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
-    -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
-    local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
-end
-result = r:earleme_complete() -- luacheck: ignore result
-
 local json_example = [===[
 [
 {
@@ -297,9 +282,8 @@ local json_example = [===[
 ]
 ]===] -- end of JSON example
 
-for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
-    print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
-end
+err_node = kollos.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
+err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 
 local function describe_character(byte)
     local printable_description = ''
@@ -308,6 +292,49 @@ local function describe_character(byte)
         printable_description = '"' .. char .. '", '
     end
     return printable_description .. string.format("0x%.2X", byte)
+end
+
+local function show_rule(rule_props, dot_position)
+    local pieces = {
+        rule_props.lhs.symbol.name,
+    "::="}
+    for dot_ix = 1,#rule_props.rhs do
+        pieces[#pieces+1] = rule_props.rhs[dot_ix].symbol.name
+    end
+    if dot_position then
+        table.insert(pieces, dot_position+3, '.')
+    end
+    return table.concat(pieces, ' ')
+end
+
+local function klol_progress_report(r, earley_set)
+    local latest_earley_set = earley_set or r:latest_earley_set()
+    print("Earley set " .. latest_earley_set)
+    r:progress_report_start(latest_earley_set)
+    while true do
+        local rule_id, position, origin = r:progress_item()
+        if not rule_id then break end
+        print("@" .. origin .. '-' .. latest_earley_set ..
+           "; " .. show_rule(lex_g.rule_by_libmarpa_id[rule_id], position))
+    end
+    r:progress_report_finish()
+end
+
+local g = lex_g.libmarpa_g
+local r = kollos.wrap.recce(g)
+r:start_input()
+
+klol_progress_report(r)
+
+for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
+    -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
+    local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+end
+result = r:earleme_complete() -- luacheck: ignore result
+klol_progress_report(r)
+
+for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
+    print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
 end
 
 local reader = kollos.location.new_from_string(json_example)
@@ -339,9 +366,7 @@ for cursor = start_cursor,#input_string do
     end
     local event_count = r:earleme_complete() -- luacheck: ignore result
     print("earleme_complete() returned ", event_count)
-    local latest_earley_set = r:latest_earley_set()
-    r:progress_report_start(latest_earley_set)
-    r:progress_report_finish()
+    klol_progress_report(r)
     if r:is_exhausted() == 1 then
         print("parse exhausted at cursor ", cursor)
         break

@@ -1095,6 +1095,27 @@ static int wrap_progress_item(lua_State *L)
   /* [ recce_object, recce_ud ] */
   p_r = (Marpa_Recce *) lua_touserdata (L, -1);
   rule_id = marpa_r_progress_item(*p_r, &position, &origin);
+  if (rule_id < -1) {
+	int throw_flag;
+	Marpa_Error_Code marpa_error;
+        Marpa_Grammar *grammar_ud;
+        lua_getfield (L, recce_stack_ix, "_g_ud");
+	/* [ recce_table, recce_ud, grammar_ud ] */
+        grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+	marpa_error = marpa_g_error (*grammar_ud, NULL);
+	lua_getfield (L, recce_stack_ix, "throw");
+	/* [ recce_table, recce_ud, grammar_ud, throw_flag ] */
+	throw_flag = lua_toboolean (L, -1);
+	if (throw_flag)
+	  {
+	    kollos_throw (L, marpa_error, "marpa_r_progress_item()");
+	  }
+      lua_pushinteger(L, (lua_Integer)rule_id);
+    return 1;
+  }
+  if (rule_id == -1) {
+    return 0;
+  }
   lua_pushinteger(L, (lua_Integer)rule_id);
   lua_pushinteger(L, (lua_Integer)position);
   lua_pushinteger(L, (lua_Integer)origin);
@@ -1181,6 +1202,11 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     lua_pushcfunction(L, wrap_recce_new);
     /* [ kollos, recce_new_function ] */
     lua_setfield(L, kollos_table_stack_ix, "recce_new");
+    /* [ kollos ] */
+
+    lua_pushcfunction(L, wrap_progress_item);
+    /* [ kollos, recce_new_function ] */
+    lua_setfield(L, kollos_table_stack_ix, "recce_progress_item");
     /* [ kollos ] */
 
     lua_pushcfunction(L, l_error_name_by_code);

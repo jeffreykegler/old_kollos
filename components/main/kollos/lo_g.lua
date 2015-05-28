@@ -615,6 +615,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         symbol_props.libmarpa_id = libmarpa_id
     end
 
+    local rule_by_libmarpa_id = {}
     g.throw = false
     for _,rule_props in pairs(klol_rules) do
         local lhs_libmarpa_id = rule_props.lhs.symbol.libmarpa_id
@@ -639,6 +640,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
                 kollos_c.error_throw(error_code, 'problem with rule_new()')
             end
         end
+        rule_by_libmarpa_id[libmarpa_rule_id] = rule_props
         rule_props.libmarpa_rule_id = libmarpa_rule_id
     end
     g.throw = true
@@ -679,7 +681,8 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     return { libmarpa_g = g,
         tokens_by_char = tokens_by_char, -- 0-based index
         lexeme_prefixes = lexeme_prefixes,
-        symbol_by_libmarpa_id = symbol_by_libmarpa_id
+        symbol_by_libmarpa_id = symbol_by_libmarpa_id,
+        rule_by_libmarpa_id = rule_by_libmarpa_id,
     }
 
 end
@@ -687,6 +690,7 @@ end
 local function kir_compile(kir)
     local compiled = {}
     for grammar,grammar_props in pairs(kir) do
+        print ("Compiling grammar ", grammar)
         compiled[grammar] = do_grammar(grammar, grammar_props)
     end
     return compiled
