@@ -967,7 +967,7 @@ static int wrap_grammar_rule_new(lua_State *L)
      * but one of this size should be safe on
      * anything like a modern architecture.
      */
-    Marpa_Symbol_ID rhs[7];
+    Marpa_Symbol_ID rhs[2];
     int rhs_length;
     /* [ grammar_object, lhs, rhs ... ] */
     const int grammar_stack_ix = 1;
@@ -984,7 +984,9 @@ static int wrap_grammar_rule_new(lua_State *L)
 
     lhs = (Marpa_Symbol_ID)lua_tointeger(L, 2);
     /* Unsafe, no arg count checking */
-    rhs_length = lua_gettop(L) - 2;
+    rhs_length = lua_isnumber(L, 4) ? 2 : 1;
+  if (1)
+    printf ("%s %s %d rhs_length=%d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__, rhs_length);
     {
       int rhs_ix;
       for (rhs_ix = 0; rhs_ix < rhs_length; rhs_ix++)
