@@ -259,6 +259,9 @@ local lex_g = kollos.lo_g.kir_compile(json_kir).l0
 
 -- print(dumper.dumper(lex_g.tokens_by_char))
 
+err_node = kollos.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
+err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+
 local g = lex_g.libmarpa_g
 local r = kollos.wrap.recce(g)
 r:start_input()
@@ -294,32 +297,56 @@ local json_example = [===[
 ]
 ]===] -- end of JSON example
 
+for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
+    print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
+end
+
+local function describe_character(byte)
+    local printable_description = ''
+    local char = string.char(byte)
+    if char:find('^[^%c%s]') then
+        printable_description = '"' .. char .. '", '
+    end
+    return printable_description .. string.format("0x%.2X", byte)
+end
+
 local reader = kollos.location.new_from_string(json_example)
 local input_string,start_cursor = reader:fixed_string()
 for cursor = start_cursor,#input_string do
-     local byte = input_string:byte(cursor)
-     print ("cursor ", cursor)
-     print ("byte ", byte)
-     local tokens = lex_g.tokens_by_char[byte]
-     if #tokens <= 0 then
-        local char_desc = {'Character'}
-        if input_string:find('^[^%c%s]', cursor) then
-            char_desc[#char_desc + 1] = '"' .. input_string:sub(cursor, cursor) .. '",'
-        end
-        char_desc[#char_desc + 1] = string.format("0x%.2X", byte)
-        char_desc[#char_desc + 1] = 'is in the input, but can never be produced by the grammar'
+    local byte = input_string:byte(cursor)
+    print ("cursor ", cursor)
+    print ("byte ", byte)
+    local tokens = lex_g.tokens_by_char[byte]
+    if #tokens <= 0 then
+        local char_desc = {'Character',
+            describe_character(byte),
+            string.format("0x%.2X", byte),
+            'is in the input, but can never be produced by the grammar'
+        }
         error(table.concat(char_desc, ' '))
-     end
-     for _,token_id in ipairs(tokens) do
-         r:alternative(token_id)
-     end
-     r:earleme_complete() -- luacheck: ignore result
+    end
+    local tokens_accepted = 0
+    for _,token_id in ipairs(tokens) do
+        if r:alternative(token_id) then
+            tokens_accepted = tokens_accepted + 1
+        else
+            print("Character not accepted", describe_character(byte))
+        end
+    end
+    if tokens_accepted <= 0 then
+        print("no tokens accepted at cursor ", cursor)
+        break
+    end
+    local event_count = r:earleme_complete() -- luacheck: ignore result
+    print("earleme_complete() returned ", event_count)
+    local latest_earley_set = r:latest_earley_set()
+    r:progress_report_start(latest_earley_set)
+    r:progress_report_finish()
+    if r:is_exhausted() == 1 then
+        print("parse exhausted at cursor ", cursor)
+        break
+    end
 end
-
---[[ NOT YET IMPLEMENTED
-while r:is_exhausted() ~= 1 do
-end
---]]
 
 return {}
 
