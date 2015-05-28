@@ -609,7 +609,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         local libmarpa_id = g:symbol_new()
         if symbol_props.lexeme then
              print("Creating completion event for ", libmarpa_id, symbol_props.name)
-             g.symbol_is_completion_event_set(libmarpa_id, 1)
+             g:symbol_is_completion_event_set(libmarpa_id, 1)
         end
         symbol_by_libmarpa_id[libmarpa_id] = symbol_props
         symbol_props.libmarpa_id = libmarpa_id

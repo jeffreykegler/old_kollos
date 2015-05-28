@@ -1081,6 +1081,29 @@ static int wrap_recce_new(lua_State *L)
   return 1;
 }
 
+/* The grammar error code */
+static int wrap_progress_item(lua_State *L)
+{
+   /* [ grammar_object ] */
+  const int recce_stack_ix = 1;
+  Marpa_Recce *p_r;
+  Marpa_Earley_Set_ID origin;
+  int position;
+  Marpa_Rule_ID rule_id;
+
+  lua_getfield (L, recce_stack_ix, "_ud");
+  /* [ recce_object, recce_ud ] */
+  p_r = (Marpa_Recce *) lua_touserdata (L, -1);
+  rule_id = marpa_r_progress_item(*p_r, &position, &origin);
+  lua_pushinteger(L, (lua_Integer)rule_id);
+  lua_pushinteger(L, (lua_Integer)position);
+  lua_pushinteger(L, (lua_Integer)origin);
+  /* [ recce_object, recce_ud, 
+   *     rule_id, position, origin ]
+   */
+  return 3;
+}
+
 ]=]
 
 io.write[=[
