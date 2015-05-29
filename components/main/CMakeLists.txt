@@ -51,7 +51,9 @@ ADD_CUSTOM_COMMAND (
       ${CMAKE_CURRENT_SOURCE_DIR}/kollos.c.lua 
       out=${CMAKE_CURRENT_BINARY_DIR}/kollos.c
       errors=${libmarpa_ERROR_CODES}
+      events=${libmarpa_EVENT_CODES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kollos.c.lua ${libmarpa_ERROR_CODES}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kollos.c.lua ${libmarpa_EVENT_CODES}
   VERBATIM
   )
 
