@@ -1,8 +1,12 @@
--- This is meta-programming -- Lua code that writes C code.
--- Meta-programming introduces a lot of additonal complexity
--- for each line, but in this case the automated generation
--- of Lua wrappers for the libmarpa methods, alone,
--- allows the elimination of thousands of lines of code.
+--[[
+
+This is meta-programming -- Lua code that writes C code.  Meta-programming
+introduces a lot of additonal complexity for each line.  It's often
+far more trouble than it is worth.  But in this case, just one of its
+advantages, the automated generation of Lua wrappers for the libmarpa
+methods allows the elimination of thousands of lines of code.
+
+--]]
 
 -- luacheck: std lua51
 
@@ -835,7 +839,64 @@ end
 
 io.write[=[
 
-static int wrap_grammar_new(lua_State *L)
+/* Handle libmarpa grammar errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_g_error_handler (lua_State * L,
+		      Marpa_Grammar * p_g,
+		      int grammar_stack_ix, const char *description)
+{
+  int throw_flag;
+  const char *error_string = NULL;
+  const Marpa_Error_Code marpa_error = marpa_g_error (*p_g, &error_string);
+  /* Try to avoid any possiblity of stack overflow */
+  lua_getfield (L, grammar_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
+
+/* Handle libmarpa recce errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_r_error_handler (lua_State * L,
+			int recce_stack_ix, const char *description)
+{
+  int throw_flag;
+  Marpa_Error_Code marpa_error;
+  Marpa_Grammar *grammar_ud;
+  lua_getfield (L, recce_stack_ix, "_g_ud");
+  /* [ ..., grammar_ud ] */
+  grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+  lua_pop(L, 1);
+  marpa_error = marpa_g_error (*grammar_ud, NULL);
+  lua_getfield (L, recce_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
+static int
+wrap_grammar_new (lua_State * L)
 {
   /* [ grammar_table ] */
   const int grammar_stack_ix = 1;
@@ -910,29 +971,27 @@ static int wrap_grammar_new(lua_State *L)
 	Marpa_Error_Code marpa_error = marpa_c_error (&marpa_config, NULL);
 	lua_getfield (L, -1, "throw");
 	throw_flag = lua_toboolean (L, -1);
-        /* [ grammar_table, throw_flag ] */
+	/* [ grammar_table, throw_flag ] */
 	if (throw_flag)
 	  {
 	    kollos_throw (L, marpa_error, "marpa_g_new()");
 	  }
+	lua_pushnil (L);
+	return 1;
       }
     result = marpa_g_force_valued (*p_g);
     if (result < 0)
       {
-	int throw_flag;
-	Marpa_Error_Code marpa_error = marpa_g_error (*p_g, NULL);
-	throw_flag = lua_toboolean (L, -1);
-        /* [ grammar_table, throw_flag ] */
-	if (throw_flag)
-	  {
-	    kollos_throw (L, marpa_error, "marpa_g_force_valued()");
-	  }
+	common_g_error_handler (L, p_g, grammar_stack_ix,
+				"marpa_g_force_valued()");
+	lua_pushnil (L);
+	return 1;
       }
+    if (0)
+      printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    /* [ grammar_table ] */
+    return 1;
   }
-  if (0)
-    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-  /* [ grammar_table ] */
-  return 1;
 }
 
 /* The grammar error code */
@@ -952,6 +1011,66 @@ static int wrap_grammar_error(lua_State *L)
   lua_pushstring(L, error_string);
   /* [ grammar_object, grammar_ud, error_code, error_string ] */
   return 2;
+}
+
+/* The C wrapper for Libmarpa event reading.
+   It assumes we just want all of them -- we usually do.
+ */
+static int wrap_grammar_events(lua_State *L)
+{
+  /* [ grammar_object ] */
+  const int grammar_stack_ix = 1;
+  Marpa_Grammar *p_g;
+  int event_count;
+
+  lua_getfield (L, grammar_stack_ix, "_ud");
+  /* [ grammar_object, grammar_ud ] */
+  p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+  event_count = marpa_g_event_count (*p_g);
+  if (event_count < 0)
+    {
+      common_g_error_handler (L, p_g, grammar_stack_ix,
+			      "marpa_g_event_count()");
+      return 0;
+    }
+  lua_pop (L, 1);
+  /* [ grammar_object ] */
+  lua_createtable (L, event_count, 0);
+  /* [ grammar_object, result_table ] */
+  {
+    const int result_table_ix = lua_gettop (L);
+    int event_ix;
+    for (event_ix = 0; event_ix < event_count; event_ix++)
+      {
+	Marpa_Event_Type event_type;
+	Marpa_Event event;
+	int event_table_ix;
+	lua_pushinteger (L, event_ix+1);
+	lua_createtable (L, 2, 0);
+	/* [ grammar_object, result_table, event_ix, event_table ] */
+	event_table_ix = lua_gettop (L);
+	event_type = marpa_g_event (*p_g, &event, event_ix);
+	if (event_type <= -2)
+	  {
+	    common_g_error_handler (L, p_g, grammar_stack_ix,
+				    "marpa_g_event()");
+	    return 0;
+	  }
+	lua_pushinteger (L, 1);
+	lua_pushinteger (L, event_type);
+	/* [ grammar_object, result_table, event_ix, event_table, 0, event_type ] */
+	lua_settable (L, event_table_ix);
+	/* [ grammar_object, result_table, event_ix, event_table ] */
+	lua_pushinteger (L, 2);
+	lua_pushinteger (L, marpa_g_event_value (&event));
+	lua_settable (L, event_table_ix);
+	/* [ grammar_object, result_table, event_ix, event_table ] */
+	lua_settable (L, result_table_ix);
+	/* [ grammar_object, result_table ] */
+      }
+  }
+  /* [ grammar_object, result_table ] */
+  return 1;
 }
 
 /* Rule RHS limited to 7 symbols --
@@ -985,8 +1104,6 @@ static int wrap_grammar_rule_new(lua_State *L)
     lhs = (Marpa_Symbol_ID)lua_tointeger(L, 2);
     /* Unsafe, no arg count checking */
     rhs_length = lua_isnumber(L, 4) ? 2 : 1;
-  if (1)
-    printf ("%s %s %d rhs_length=%d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__, rhs_length);
     {
       int rhs_ix;
       for (rhs_ix = 0; rhs_ix < rhs_length; rhs_ix++)
@@ -1002,19 +1119,8 @@ static int wrap_grammar_rule_new(lua_State *L)
     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
 
     result = (Marpa_Rule_ID)marpa_g_rule_new(*p_g, lhs, rhs, rhs_length);
-    if (result <= -1) {
-
-	int throw_flag;
-        Marpa_Error_Code marpa_error = marpa_g_error(*p_g, NULL);
-	lua_getfield (L, grammar_stack_ix, "throw");
-        /* [ grammar_object, grammar_ud, throw_flag ] */
-	throw_flag = lua_toboolean (L, -1);
-	if (throw_flag)
-	  {
-            kollos_throw( L, marpa_error, "marpa_g_rule_new()" );
-	  }
-
-    }
+    if (result <= -1) common_g_error_handler (L, p_g, grammar_stack_ix,
+			    "marpa_g_rule_new()");
     lua_pushinteger(L, (lua_Integer)result);
     return 1;
 }
@@ -1025,7 +1131,8 @@ static int wrap_grammar_rule_new(lua_State *L)
 
 io.write[=[
 
-static int wrap_recce_new(lua_State *L)
+static int
+wrap_recce_new (lua_State * L)
 {
   const int recce_stack_ix = 1;
   const int grammar_stack_ix = 2;
@@ -1064,15 +1171,9 @@ static int wrap_recce_new(lua_State *L)
     *recce_ud = marpa_r_new (*grammar_ud);
     if (!*recce_ud)
       {
-	Marpa_Error_Code marpa_error = marpa_g_error (*grammar_ud, NULL);
-	int throw_flag;
-	lua_getfield (L, recce_stack_ix, "throw");
-	throw_flag = lua_toboolean (L, -1);
-	/* [ recce_table, grammar_table, throw_flag ] */
-	if (throw_flag)
-	  {
-	    kollos_throw (L, marpa_error, "marpa_r_new()");
-	  }
+	common_r_error_handler (L, recce_stack_ix, "marpa_r_new()");
+        lua_pushnil (L);
+        return 1;
       }
   }
   if (0)
@@ -1086,7 +1187,7 @@ static int wrap_recce_new(lua_State *L)
 /* The grammar error code */
 static int wrap_progress_item(lua_State *L)
 {
-   /* [ grammar_object ] */
+  /* [ grammar_object ] */
   const int recce_stack_ix = 1;
   Marpa_Recce *p_r;
   Marpa_Earley_Set_ID origin;
@@ -1096,31 +1197,20 @@ static int wrap_progress_item(lua_State *L)
   lua_getfield (L, recce_stack_ix, "_ud");
   /* [ recce_object, recce_ud ] */
   p_r = (Marpa_Recce *) lua_touserdata (L, -1);
-  rule_id = marpa_r_progress_item(*p_r, &position, &origin);
-  if (rule_id < -1) {
-	int throw_flag;
-	Marpa_Error_Code marpa_error;
-        Marpa_Grammar *grammar_ud;
-        lua_getfield (L, recce_stack_ix, "_g_ud");
-	/* [ recce_table, recce_ud, grammar_ud ] */
-        grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
-	marpa_error = marpa_g_error (*grammar_ud, NULL);
-	lua_getfield (L, recce_stack_ix, "throw");
-	/* [ recce_table, recce_ud, grammar_ud, throw_flag ] */
-	throw_flag = lua_toboolean (L, -1);
-	if (throw_flag)
-	  {
-	    kollos_throw (L, marpa_error, "marpa_r_progress_item()");
-	  }
-      lua_pushinteger(L, (lua_Integer)rule_id);
-    return 1;
-  }
-  if (rule_id == -1) {
-    return 0;
-  }
-  lua_pushinteger(L, (lua_Integer)rule_id);
-  lua_pushinteger(L, (lua_Integer)position);
-  lua_pushinteger(L, (lua_Integer)origin);
+  rule_id = marpa_r_progress_item (*p_r, &position, &origin);
+  if (rule_id < -1)
+    {
+      common_r_error_handler (L, recce_stack_ix, "marpa_r_progress_item()");
+      lua_pushinteger (L, (lua_Integer) rule_id);
+      return 1;
+    }
+  if (rule_id == -1)
+    {
+      return 0;
+    }
+  lua_pushinteger (L, (lua_Integer) rule_id);
+  lua_pushinteger (L, (lua_Integer) position);
+  lua_pushinteger (L, (lua_Integer) origin);
   /* [ recce_object, recce_ud, 
    *     rule_id, position, origin ]
    */
@@ -1197,6 +1287,9 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_grammar_error);
     lua_setfield(L, kollos_table_stack_ix, "grammar_error");
+
+    lua_pushcfunction(L, wrap_grammar_events);
+    lua_setfield(L, kollos_table_stack_ix, "grammar_events");
 
     lua_pushcfunction(L, wrap_grammar_rule_new);
     lua_setfield(L, kollos_table_stack_ix, "grammar_rule_new");

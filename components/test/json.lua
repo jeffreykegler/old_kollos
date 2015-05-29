@@ -366,6 +366,9 @@ for cursor = start_cursor,#input_string do
     end
     local event_count = r:earleme_complete() -- luacheck: ignore result
     print("earleme_complete() returned ", event_count)
+    if event_count > 0 then
+        print("Events!", dumper.dumper(lex_g.libmarpa_g:events()))
+    end
     klol_progress_report(r)
     if r:is_exhausted() == 1 then
         print("parse exhausted at cursor ", cursor)

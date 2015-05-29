@@ -33,6 +33,7 @@ local grammar_class  = {
   ["completion_symbol_activate"] = kollos_c.grammar_completion_symbol_activate,
   ["error"] = kollos_c.grammar_error,
   ["error_clear"] = kollos_c.grammar_error_clear,
+  ["events"] = kollos_c.grammar_events,
   ["event_count"] = kollos_c.grammar_event_count,
   ["force_valued"] = kollos_c.grammar_force_valued,
   ["has_cycle"] = kollos_c.grammar_has_cycle,

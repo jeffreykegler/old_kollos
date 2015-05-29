@@ -563,22 +563,6 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
     if not g_is_structural then
 
-        local lexeme_seq = top_symbol
-        local lexeme_item = klol_symbol_new{ name = '?lexeme_item' }
-        klol_rule_new{
-            lhs = { symbol = lexeme_seq },
-            rhs = {
-                { symbol = lexeme_seq },
-                { symbol = lexeme_item }
-            }
-        }
-        klol_rule_new{
-            lhs = { symbol = lexeme_seq },
-            rhs = {
-                { symbol = lexeme_item }
-            }
-        }
-
         -- and now deal with the lexemes ...
         -- which will only be present in a lexical grammar ...
         -- we need to create the "lexeme prefix symbols"
@@ -591,7 +575,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
                 local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
                 symbol_props.lexeme_prefix = lexeme_prefix
                 klol_rule_new{
-                    lhs = { symbol = lexeme_item },
+                    lhs = { symbol = top_symbol },
                     rhs = {
                         { symbol = lexeme_prefix },
                         { symbol = symbol_props },
