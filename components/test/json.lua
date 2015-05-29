@@ -282,8 +282,11 @@ local json_example = [===[
 ]
 ]===] -- end of JSON example
 
-err_node = kollos.error.code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
-err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+-- local err_none = kollos.error.code_by_name['LUIF_ERR_NONE']
+local err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+print(kollos.util.val_to_str(kollos.event))
+local symbol_completed_event = kollos.event.code_by_name['LIBMARPA_EVENT_SYMBOL_COMPLETED']
+
 
 local function describe_character(byte)
     local printable_description = ''
@@ -367,7 +370,17 @@ for cursor = start_cursor,#input_string do
     local event_count = r:earleme_complete() -- luacheck: ignore result
     print("earleme_complete() returned ", event_count)
     if event_count > 0 then
-        print("Events!", dumper.dumper(lex_g.libmarpa_g:events()))
+        local events = lex_g.libmarpa_g:events()
+        print("Events!", events)
+        for _,event in ipairs(events) do
+            local event_type = event[1]
+            local event_value = event[2]
+            if event_type ~= symbol_completed_event then
+                error("Unknown event #" .. event_type)
+            end
+            print("Symbol completed event, symbol = "
+                .. lex_g.symbol_by_libmarpa_id[event_value].name)
+        end
     end
     klol_progress_report(r)
     if r:is_exhausted() == 1 then

@@ -32,8 +32,15 @@ local kollos_error = {
   throw = kollos_c.error_throw
 }
 
+local kollos_event = {
+  name = kollos_c.event_name,
+  description = kollos_c.event_description,
+  code_by_name = kollos_c.event_code_by_name,
+}
+
 return { location = location,
   ["error"] = kollos_error,
+  event = kollos_event,
   util = kollos_util,
   lo_g = lo_g,
   wrap = wrap,

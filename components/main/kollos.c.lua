@@ -1481,6 +1481,25 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     /* [ kollos, error_code_table ] */
     lua_setfield (L, kollos_table_stack_ix, "error_code_by_name");
 
+    lua_newtable (L);
+    /* [ kollos, event_code_table ] */
+    {
+      const int name_table_stack_ix = lua_gettop (L);
+      int event_code;
+      for (event_code = LIBMARPA_MIN_EVENT_CODE;
+           event_code <= LIBMARPA_MAX_EVENT_CODE; event_code++)
+        {
+          lua_pushinteger (L, (lua_Integer) event_code);
+          lua_setfield (L, name_table_stack_ix,
+                        libmarpa_event_codes[event_code -
+                                             LIBMARPA_MIN_EVENT_CODE].mnemonic);
+        }
+    }
+      /* if (1) dump_table(L, -1); */
+
+    /* [ kollos, event_code_table ] */
+    lua_setfield (L, kollos_table_stack_ix, "event_code_by_name");
+
 ]=]
 
 -- This code goes through the signatures table again,
