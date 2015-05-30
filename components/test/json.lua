@@ -323,7 +323,7 @@ local function klol_progress_report(r, earley_set)
     r:progress_report_finish()
 end
 
-local function default_lexer_next(lexer)
+local function default_lexer_token_next(lexer)
     local lex_g = lexer.klol_g
     local r = kollos.wrap.recce(lexer.libmarpa_g)
     r:start_input()
@@ -387,6 +387,12 @@ local function default_lexer_next(lexer)
     end
 end
 
+local default_lexer_mt = {
+    __index = {
+        token_next = default_lexer_token_next,
+    }
+}
+
 local function default_lexer_new(lex_g, input)
     local input_string,start_cursor = input:fixed_string()
     local lexer= { input_object = input,
@@ -395,12 +401,13 @@ local function default_lexer_new(lex_g, input)
        libmarpa_g = lex_g.libmarpa_g,
        klol_g = lex_g
     }
+    setmetatable(lexer, default_lexer_mt)
     return lexer
 end
 
 local reader = kollos.location.new_from_string(json_example)
 local lexer = default_lexer_new(lex_g, reader)
-default_lexer_next(lexer)
+lexer:token_next()
 
 return {}
 
