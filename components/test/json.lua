@@ -323,71 +323,84 @@ local function klol_progress_report(r, earley_set)
     r:progress_report_finish()
 end
 
-local g = lex_g.libmarpa_g
-local r = kollos.wrap.recce(g)
-r:start_input()
+local function default_lexer_next(lexer)
+    local lex_g = lexer.klol_g
+    local r = kollos.wrap.recce(lexer.libmarpa_g)
+    r:start_input()
+    klol_progress_report(r)
+    for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
+        -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
+        local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+    end
+    result = r:earleme_complete() -- luacheck: ignore result
+    klol_progress_report(r)
+    for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
+        print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
+    end
 
-klol_progress_report(r)
-
-for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
-    -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
-    local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+    local input_string = lexer.input_string
+    for cursor = lexer.cursor,#input_string do
+        local byte = input_string:byte(cursor)
+        print ("cursor ", cursor)
+        print ("byte ", byte)
+        local tokens = lex_g.tokens_by_char[byte]
+        if #tokens <= 0 then
+            local char_desc = {'Character',
+                describe_character(byte),
+                string.format("0x%.2X", byte),
+                'is in the input, but can never be produced by the grammar'
+            }
+            error(table.concat(char_desc, ' '))
+        end
+        local tokens_accepted = 0
+        for _,token_id in ipairs(tokens) do
+            if r:alternative(token_id) then
+                tokens_accepted = tokens_accepted + 1
+            else
+                print("Character not accepted", describe_character(byte))
+            end
+        end
+        if tokens_accepted <= 0 then
+            print("no tokens accepted at cursor ", cursor)
+            break
+        end
+        local event_count = r:earleme_complete() -- luacheck: ignore result
+        print("earleme_complete() returned ", event_count)
+        if event_count > 0 then
+            local events = lex_g.libmarpa_g:events()
+            print("Events!", events)
+            for _,event in ipairs(events) do
+                local event_type = event[1]
+                local event_value = event[2]
+                if event_type ~= symbol_completed_event then
+                    error("Unknown event #" .. event_type)
+                end
+                print("Symbol completed event, symbol = "
+                    .. lex_g.symbol_by_libmarpa_id[event_value].name)
+            end
+        end
+        klol_progress_report(r)
+        if r:is_exhausted() == 1 then
+            print("parse exhausted at cursor ", cursor)
+            break
+        end
+    end
 end
-result = r:earleme_complete() -- luacheck: ignore result
-klol_progress_report(r)
 
-for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
-    print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
+local function default_lexer_new(lex_g, input)
+    local input_string,start_cursor = input:fixed_string()
+    local lexer= { input_object = input,
+       input_string = input_string,
+       cursor = start_cursor,
+       libmarpa_g = lex_g.libmarpa_g,
+       klol_g = lex_g
+    }
+    return lexer
 end
 
 local reader = kollos.location.new_from_string(json_example)
-local input_string,start_cursor = reader:fixed_string()
-for cursor = start_cursor,#input_string do
-    local byte = input_string:byte(cursor)
-    print ("cursor ", cursor)
-    print ("byte ", byte)
-    local tokens = lex_g.tokens_by_char[byte]
-    if #tokens <= 0 then
-        local char_desc = {'Character',
-            describe_character(byte),
-            string.format("0x%.2X", byte),
-            'is in the input, but can never be produced by the grammar'
-        }
-        error(table.concat(char_desc, ' '))
-    end
-    local tokens_accepted = 0
-    for _,token_id in ipairs(tokens) do
-        if r:alternative(token_id) then
-            tokens_accepted = tokens_accepted + 1
-        else
-            print("Character not accepted", describe_character(byte))
-        end
-    end
-    if tokens_accepted <= 0 then
-        print("no tokens accepted at cursor ", cursor)
-        break
-    end
-    local event_count = r:earleme_complete() -- luacheck: ignore result
-    print("earleme_complete() returned ", event_count)
-    if event_count > 0 then
-        local events = lex_g.libmarpa_g:events()
-        print("Events!", events)
-        for _,event in ipairs(events) do
-            local event_type = event[1]
-            local event_value = event[2]
-            if event_type ~= symbol_completed_event then
-                error("Unknown event #" .. event_type)
-            end
-            print("Symbol completed event, symbol = "
-                .. lex_g.symbol_by_libmarpa_id[event_value].name)
-        end
-    end
-    klol_progress_report(r)
-    if r:is_exhausted() == 1 then
-        print("parse exhausted at cursor ", cursor)
-        break
-    end
-end
+local lexer = default_lexer_new(lex_g, reader)
+default_lexer_next(lexer)
 
 return {}
 
