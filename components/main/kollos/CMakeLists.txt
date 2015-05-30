@@ -21,7 +21,8 @@ ELSE ()
 ENDIF (LUA_INCLUDE_DIR)
 
 set(LUA_Sources
-    "dumper.lua"
+    "inspect.lua"
+    "unindent.lua"
     "location.lua"
     "lo_g.lua"
     "main.lua"

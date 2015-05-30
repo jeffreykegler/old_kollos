@@ -45,7 +45,7 @@ local function here() return -- luacheck: ignore here
     debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
-local dumper = require "kollos.dumper" -- luacheck: ignore
+local inspect = require "kollos.inspect" -- luacheck: ignore
 
 -- eventually most of this code becomes part of kollos
 -- for now we bring the already written part in as a

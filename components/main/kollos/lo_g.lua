@@ -36,7 +36,7 @@ local function here() return -- luacheck: ignore here
     debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
-local dumper = require "kollos.dumper" -- luacheck: ignore
+local inspect = require "kollos.inspect" -- luacheck: ignore
 
 -- eventually most of this code becomes part of kollos
 -- for now we bring the already written part in as a
@@ -187,8 +187,6 @@ local function rhs_transitive_closure(symbol_by_name, property)
     while true do
         local symbol_props = table.remove(worklist)
         if not symbol_props then break end
-        -- print("Symbol taken from work list: ", symbol_props.name)
-        -- print( dumper.dumper(symbol_props.irule_by_rhs))
         for _,irule_props in pairs(symbol_props.irule_by_rhs) do
             -- print("Start of testing rule for propetry ", property);
             local lh_sym_props = symbol_by_name[irule_props.lhs]
@@ -264,7 +262,6 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         -- print(debug.getinfo(2,'S').source, debug.getinfo(2, 'l').currentline)
         local rule_desc = rule_props.lhs.symbol.name .. ' ::='
         for dot_ix = 1,#rule_props.rhs do
-            -- print( "rule_props.rhs", dumper.dumper(rule_props.rhs))
             rule_desc = rule_desc .. ' ' .. rule_props.rhs[dot_ix].symbol.name
         end
         print("KLOL rule:", rule_desc)
