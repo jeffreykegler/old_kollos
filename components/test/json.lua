@@ -52,8 +52,7 @@ local inspect = require "kollos.inspect" -- luacheck: ignore
 -- module
 local kollos = require "kollos"
 
-local json_kir =
-{
+local json_kir = {
     -- tokens in l0 are at a lower level than
     -- "tokens" as defined in RFC 7159, section 2
     -- RFC 7159 does not separate semantics from syntax --
@@ -186,73 +185,6 @@ local json_kir =
 
     },
 
-    test4xA = {
-        irule = {
-            { lhs='top', rhs={ 'A', 'B', 'C', 'D' } },
-            { lhs='A', rhs={ } },
-            { lhs='B', rhs={ } },
-            { lhs='C', rhs={ } },
-            { lhs='D', rhs={ } },
-            { lhs='A', rhs={ 'char_a' } },
-            { lhs='B', rhs={ 'char_a' } },
-            { lhs='C', rhs={ 'char_a' } },
-            { lhs='D', rhs={ 'char_a' } },
-        },
-
-        isym = {
-            ['top'] = { lexeme = true },
-            ['A'] = {},
-            ['B'] = {},
-            ['C'] = {},
-            ['D'] = {},
-            ['char_a'] = { charclass = "[a]" },
-        }
-    },
-
-    test2_nul = {
-        irule = {
-            { lhs='top', rhs={ 'A', 'B', 'C', 'nul', 'nul' } },
-            { lhs='A', rhs={ } },
-            { lhs='B', rhs={ } },
-            { lhs='nul', rhs={ } },
-            { lhs='A', rhs={ 'char_a' } },
-            { lhs='B', rhs={ 'char_a' } },
-            { lhs='C', rhs={ 'char_a' } },
-        },
-
-        isym = {
-            ['top'] = { lexeme = true },
-            ['A'] = {},
-            ['B'] = {},
-            ['C'] = {},
-            ['nul'] = {},
-            ['char_a'] = { charclass = "[a]" },
-        }
-    },
-
-    mid_nulling = {
-        irule = {
-            { lhs='top', rhs={ 'A', 'B', 'C', 'D', 'nul' } },
-            { lhs='A', rhs={ } },
-            { lhs='C', rhs={ } },
-            { lhs='D', rhs={ } },
-            { lhs='nul', rhs={ } },
-            { lhs='A', rhs={ 'char_a' } },
-            { lhs='B', rhs={ 'char_a' } },
-            { lhs='D', rhs={ 'char_a' } },
-        },
-
-        isym = {
-            ['top'] = { lexeme = true },
-            ['A'] = {},
-            ['B'] = {},
-            ['C'] = {},
-            ['D'] = {},
-            ['nul'] = {},
-            ['char_a'] = { charclass = "[a]" },
-        }
-
-    },
 }
 
 local lex_g = kollos.lo_g.kir_compile(json_kir).l0
