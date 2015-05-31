@@ -256,10 +256,10 @@ end
 
 local function result_for_events(lexer, last_events, last_events_cursor)
     print("Events!", #last_events)
-    for event_ix = 1, #last_events do
-        local event = last_events[event_ix]
-        local event_type = event[1]
-        local event_value = event[2]
+    for event_ix = 0, #last_events-1, 2 do
+        local base_index = event_ix*2 + 1
+        local event_type = last_events[base_index]
+        local event_value = last_events[base_index+1]
         if event_type ~= symbol_completed_event then
             error("Unknown event #" .. event_type)
         end
@@ -276,13 +276,13 @@ local function default_lexer_token_next(lexer)
     local last_events
     local last_events_cursor
     r:start_input()
-    klol_progress_report(r)
+    -- klol_progress_report(r)
     for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
         -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
         local result = r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
     end
     result = r:earleme_complete() -- luacheck: ignore result
-    klol_progress_report(r)
+    -- klol_progress_report(r)
     -- for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
         -- print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
     -- end
@@ -290,8 +290,6 @@ local function default_lexer_token_next(lexer)
     local input_string = lexer.input_string
     for cursor = lexer.cursor,#input_string do
         local byte = input_string:byte(cursor)
-        print ("cursor ", cursor)
-        print ("byte ", byte)
         local tokens = lex_g.tokens_by_char[byte]
         if #tokens <= 0 then
             local char_desc = {'Character',
@@ -318,12 +316,11 @@ local function default_lexer_token_next(lexer)
             -- NOT REACHED --
         end
         local event_count = r:earleme_complete() -- luacheck: ignore result
-        print("earleme_complete() returned ", event_count)
         if event_count > 0 then
             last_events = lex_g.libmarpa_g:events()
             last_events_cursor = cursor
         end
-        klol_progress_report(r)
+        -- klol_progress_report(r)
         if r:is_exhausted() == 1 then
             if not last_events then
                 print("Exhaustion at cursor", error_cursor)

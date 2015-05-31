@@ -1169,11 +1169,7 @@ static int wrap_grammar_events(lua_State *L)
       {
 	Marpa_Event_Type event_type;
 	Marpa_Event event;
-	int event_table_ix;
-	lua_pushinteger (L, event_ix+1);
-	lua_createtable (L, 2, 0);
-	/* [ grammar_object, result_table, event_ix, event_table ] */
-	event_table_ix = lua_gettop (L);
+	/* [ grammar_object, result_table ] */
 	event_type = marpa_g_event (*p_g, &event, event_ix);
 	if (event_type <= -2)
 	  {
@@ -1181,15 +1177,14 @@ static int wrap_grammar_events(lua_State *L)
 				    "marpa_g_event()");
 	    return 0;
 	  }
-	lua_pushinteger (L, 1);
+	lua_pushinteger (L, event_ix*2 + 1);
 	lua_pushinteger (L, event_type);
-	/* [ grammar_object, result_table, event_ix, event_table, 0, event_type ] */
-	lua_settable (L, event_table_ix);
-	/* [ grammar_object, result_table, event_ix, event_table ] */
-	lua_pushinteger (L, 2);
+	/* [ grammar_object, result_table, event_ix*2+1, event_type ] */
+	lua_settable (L, result_table_ix);
+	/* [ grammar_object, result_table ] */
+	lua_pushinteger (L, event_ix*2 + 2);
 	lua_pushinteger (L, marpa_g_event_value (&event));
-	lua_settable (L, event_table_ix);
-	/* [ grammar_object, result_table, event_ix, event_table ] */
+	/* [ grammar_object, result_table, event_ix*2+2, event_value ] */
 	lua_settable (L, result_table_ix);
 	/* [ grammar_object, result_table ] */
       }

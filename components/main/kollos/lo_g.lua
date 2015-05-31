@@ -568,7 +568,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         for symbol_id = 1,#symbol_by_id do
             local symbol_props = symbol_by_id[symbol_id]
             if symbol_props.lexeme then
-                print("Creating prelex for ", symbol_props.name)
+                -- print("Creating prelex for ", symbol_props.name)
                 local lexeme_prefix = klol_symbol_new{ name = symbol_props.name .. '?prelex' }
                 symbol_props.lexeme_prefix = lexeme_prefix
                 klol_rule_new{
@@ -589,7 +589,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
         local symbol_props = symbol_by_id[symbol_id]
         local libmarpa_id = g:symbol_new()
         if symbol_props.lexeme then
-             print("Creating completion event for ", libmarpa_id, symbol_props.name)
+             -- print("Creating completion event for ", libmarpa_id, symbol_props.name)
              g:symbol_is_completion_event_set(libmarpa_id, 1)
         end
         symbol_by_libmarpa_id[libmarpa_id] = symbol_props
