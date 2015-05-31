@@ -284,9 +284,8 @@ local json_example = [===[
 
 -- local err_none = kollos.error.code_by_name['LUIF_ERR_NONE']
 local err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
-print(kollos.util.val_to_str(kollos.event))
+print(inspect(kollos.event))
 local symbol_completed_event = kollos.event.code_by_name['LIBMARPA_EVENT_SYMBOL_COMPLETED']
-
 
 local function describe_character(byte)
     local printable_description = ''
@@ -318,14 +317,32 @@ local function klol_progress_report(r, earley_set)
         local rule_id, position, origin = r:progress_item()
         if not rule_id then break end
         print("@" .. origin .. '-' .. latest_earley_set ..
-           "; " .. show_rule(lex_g.rule_by_libmarpa_id[rule_id], position))
+            "; " .. show_rule(lex_g.rule_by_libmarpa_id[rule_id], position))
     end
     r:progress_report_finish()
+end
+
+local function result_for_events(lexer, last_events, last_events_cursor)
+    print("Events!", #last_events)
+    for event_ix = 1, #last_events do
+        local event = last_events[event_ix]
+        local event_type = event[1]
+        local event_value = event[2]
+        if event_type ~= symbol_completed_event then
+            error("Unknown event #" .. event_type)
+        end
+        print("Symbol completed event, symbol = "
+            .. lex_g.symbol_by_libmarpa_id[event_value].name)
+    end
+    lexer.cursor = last_events_cursor + 1
+    return {}
 end
 
 local function default_lexer_token_next(lexer)
     local lex_g = lexer.klol_g
     local r = kollos.wrap.recce(lexer.libmarpa_g)
+    local last_events
+    local last_events_cursor
     r:start_input()
     klol_progress_report(r)
     for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
@@ -334,9 +351,9 @@ local function default_lexer_token_next(lexer)
     end
     result = r:earleme_complete() -- luacheck: ignore result
     klol_progress_report(r)
-    for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
-        print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
-    end
+    -- for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
+        -- print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
+    -- end
 
     local input_string = lexer.input_string
     for cursor = lexer.cursor,#input_string do
@@ -353,38 +370,42 @@ local function default_lexer_token_next(lexer)
             error(table.concat(char_desc, ' '))
         end
         local tokens_accepted = 0
-        for _,token_id in ipairs(tokens) do
-            if r:alternative(token_id) then
+        for token_ix = 1,#tokens do
+            if r:alternative(tokens[token_ix]) then
                 tokens_accepted = tokens_accepted + 1
             else
                 print("Character not accepted", describe_character(byte))
             end
         end
         if tokens_accepted <= 0 then
-            print("no tokens accepted at cursor ", cursor)
-            break
+            if not last_events then
+                print("Rejection at cursor", error_cursor)
+                return
+            end
+            return result_for_events(lexer, last_events, last_events_cursor)
+            -- NOT REACHED --
         end
         local event_count = r:earleme_complete() -- luacheck: ignore result
         print("earleme_complete() returned ", event_count)
         if event_count > 0 then
-            local events = lex_g.libmarpa_g:events()
-            print("Events!", events)
-            for _,event in ipairs(events) do
-                local event_type = event[1]
-                local event_value = event[2]
-                if event_type ~= symbol_completed_event then
-                    error("Unknown event #" .. event_type)
-                end
-                print("Symbol completed event, symbol = "
-                    .. lex_g.symbol_by_libmarpa_id[event_value].name)
-            end
+            last_events = lex_g.libmarpa_g:events()
+            last_events_cursor = cursor
         end
         klol_progress_report(r)
         if r:is_exhausted() == 1 then
-            print("parse exhausted at cursor ", cursor)
-            break
+            if not last_events then
+                print("Exhaustion at cursor", error_cursor)
+                return
+            end
+            return result_for_events(lexer, last_events, last_events_cursor)
+            -- NOT REACHED --
         end
     end
+    if not last_events then
+        print("EOS at cursor", error_cursor)
+        return
+    end
+    return result_for_events(lexer, last_events, last_events_cursor)
 end
 
 local default_lexer_mt = {
@@ -396,10 +417,10 @@ local default_lexer_mt = {
 local function default_lexer_new(lex_g, input)
     local input_string,start_cursor = input:fixed_string()
     local lexer= { input_object = input,
-       input_string = input_string,
-       cursor = start_cursor,
-       libmarpa_g = lex_g.libmarpa_g,
-       klol_g = lex_g
+        input_string = input_string,
+        cursor = start_cursor,
+        libmarpa_g = lex_g.libmarpa_g,
+        klol_g = lex_g
     }
     setmetatable(lexer, default_lexer_mt)
     return lexer
@@ -407,7 +428,8 @@ end
 
 local reader = kollos.location.new_from_string(json_example)
 local lexer = default_lexer_new(lex_g, reader)
-lexer:token_next()
+while lexer:token_next() do
+end
 
 return {}
 
