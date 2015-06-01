@@ -102,6 +102,24 @@ local json_kir = {
 
             -- we divide up the standards string token, because we
             -- need to do semantic processing on its pieces
+            { lhs='string', rhs = { 'char_quote', 'string_body', 'char_quote' } },
+            { lhs='string_body', rhs = { 'string_piece_seq' } },
+            { lhs='string_piece_seq', rhs = { 'string_piece_seq', 'string_piece' } },
+            { lhs='string_piece_seq', rhs = { } },
+            { lhs='string_piece', rhs = { 'unescaped_char_seq' } },
+
+            { lhs='string_piece', rhs = { 'quote' } },
+            { lhs='string_piece', rhs = { 'backslash' } },
+            { lhs='string_piece', rhs = { 'slash' } },
+            { lhs='string_piece', rhs = { 'backspace' } },
+            { lhs='string_piece', rhs = { 'formfeed' } },
+            { lhs='string_piece', rhs = { 'linefeed' } },
+            { lhs='string_piece', rhs = { 'carriage_return' } },
+            { lhs='string_piece', rhs = { 'tab' } },
+            { lhs='string_piece', rhs = { 'hex_char' } },
+
+            { lhs='unescaped_char_seq', rhs = { 'unescaped_char_seq', 'unescaped_char' } },
+            { lhs='unescaped_char_seq', rhs = { 'unescaped_char' } },
             { lhs='quote', rhs = { 'char_escape', 'char_quote' } },
             { lhs='backslash', rhs = { 'char_escape', 'char_backslash' } },
             { lhs='slash', rhs = { 'char_escape', 'char_slash' } },
@@ -111,9 +129,6 @@ local json_kir = {
             { lhs='carriage_return', rhs = { 'char_escape', 'char_r' } },
             { lhs='tab', rhs = { 'char_escape', 'char_t' } },
             { lhs='hex_char', rhs = { 'char_escape', 'char_u', 'hex_digit', 'hex_digit', 'hex_digit', 'hex_digit' } },
-            { lhs='simple_string', rhs = { 'char_escape', 'unescaped_char_seq' } },
-            { lhs='unescaped_char_seq', rhs = { 'unescaped_char_seq', 'unescaped_char' } },
-            { lhs='unescaped_char_seq', rhs = { 'unescaped_char' } }
         },
 
         isym = {
@@ -139,7 +154,10 @@ local json_kir = {
             ['carriage_return'] = { lexeme = true },
             ['tab'] = { lexeme = true },
             ['hex_char'] = { lexeme = true },
-            ['simple_string'] = { lexeme = true },
+            ['string'] = { lexeme = true },
+            string_body = {},
+            string_piece = {},
+            string_piece_seq = {},
             ['digit_seq'] = {},
             ['exp'] = {},
             ['frac'] = {},
@@ -153,12 +171,12 @@ local json_kir = {
             ['ws'] = {},
             ['ws_seq'] = {},
             ['char_slash'] = { charclass = "[\047]" },
-            ['char_backslash'] = { charclass = "[\092]" },
-            ['char_escape'] = { charclass = "[\092]" },
-            ['unescaped_char'] = { charclass = "[ !\035-\091\093-\255]" },
+            ['char_backslash'] = { charclass = "[%\092]" },
+            ['char_escape'] = { charclass = "[%\092]" },
+            ['unescaped_char'] = { charclass = '[^\008\009\010\012\013"%\091]' },
             ['ws_char'] = { charclass = "[\009\010\013\032]" },
-            ['lsquare'] = { charclass = "[\091]" },
-            ['lcurly'] = { charclass = "[{]" },
+            ['lsquare'] = { charclass = "[%\091]" },
+            ['lcurly'] = { charclass = "[%{]" },
             ['hex_digit'] = { charclass = "[%x]" },
             ['rsquare'] = { charclass = "[\093]" },
             ['rcurly'] = { charclass = "[}]" },
@@ -218,6 +236,7 @@ local json_example = [===[
 local err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
 print(inspect(kollos.event))
 local symbol_completed_event = kollos.event.code_by_name['LIBMARPA_EVENT_SYMBOL_COMPLETED']
+local symbol_exhausted_event = kollos.event.code_by_name['LIBMARPA_EVENT_EXHAUSTED']
 
 local function describe_character(byte)
     local printable_description = ''
@@ -256,24 +275,14 @@ local function klol_progress_report(klol_r, earley_set)
     libmarpa_r:progress_report_finish()
 end
 
-local function result_for_events(lexer, last_events, last_events_cursor)
-    print("Events!", #last_events)
-    local result_table = { lexer.cursor, last_events_cursor }
-    for event_ix = 0, #last_events-1, 2 do
-        local base_index = event_ix*2 + 1
-        local event_type = last_events[base_index]
-        local event_value = last_events[base_index+1]
-        if event_type ~= symbol_completed_event then
-            error("Unknown event #" .. event_type)
-        end
-        do
-            local lex_g = lexer.klol_g
-            print("Symbol completed event, symbol = "
-                .. lex_g.symbol_by_libmarpa_id[event_value].name)
-        end
+local function result_for_events(lexer, last_completions, last_completions_cursor)
+    -- print("Events!", #last_completions)
+    local result_table = { lexer.cursor, last_completions_cursor }
+    for event_ix = 1, #last_completions do
+        local event_value = last_completions[event_ix]
         result_table[#result_table + 1] = event_value
     end
-    lexer.cursor = last_events_cursor + 1
+    lexer.cursor = last_completions_cursor + 1
     return result_table
 end
 
@@ -286,8 +295,8 @@ end
 local function default_lexer_token_next(lexer)
     local lex_g = lexer.klol_g
     local klol_r = recce_new(lex_g)
-    local last_events
-    local last_events_cursor
+    local last_completions
+    local last_completions_cursor = -1
     klol_r.libmarpa_r:start_input()
     -- klol_progress_report(r)
     for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
@@ -295,10 +304,9 @@ local function default_lexer_token_next(lexer)
         local result = klol_r.libmarpa_r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
     end
     result = klol_r.libmarpa_r:earleme_complete() -- luacheck: ignore result
-    klol_progress_report(klol_r)
-    -- for id,props in ipairs(lex_g.symbol_by_libmarpa_id) do
-        -- print("Completion event? ", id, props.name, lex_g.libmarpa_g:symbol_is_completion_event(id))
-    -- end
+    -- klol_progress_report(klol_r)
+
+   -- print(inspect(lex_g.tokens_by_char))
 
     local input_string = lexer.input_string
     for cursor = lexer.cursor,#input_string do
@@ -316,38 +324,55 @@ local function default_lexer_token_next(lexer)
         for token_ix = 1,#tokens do
             if klol_r.libmarpa_r:alternative(tokens[token_ix]) then
                 tokens_accepted = tokens_accepted + 1
-            else
-                print("Character not accepted", describe_character(byte))
+                -- print("Character accepted", describe_character(byte),
+                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
+            -- else
+                -- klol_progress_report(klol_r)
+                -- print("Character not accepted", describe_character(byte),
+                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
             end
         end
         if tokens_accepted <= 0 then
-            if not last_events then
+            if not last_completions then
                 print("Rejection at cursor", cursor)
                 return
             end
-            return result_for_events(lexer, last_events, last_events_cursor)
+            return result_for_events(lexer, last_completions, last_completions_cursor)
             -- NOT REACHED --
         end
         local event_count = klol_r.libmarpa_r:earleme_complete() -- luacheck: ignore result
-        if event_count > 0 then
-            last_events = lex_g.libmarpa_g:events()
-            last_events_cursor = cursor
+        -- events are 0-based
+        local parse_is_exhausted = false
+        local current_completions = {}
+        for event_ix = 1, event_count do
+            local event_type, event_value = lex_g.libmarpa_g:event(event_ix)
+            if event_type == symbol_completed_event then
+                current_completions[#current_completions+1] = event_value
+            elseif event_type == symbol_exhausted_event then
+                parse_is_exhausted = true
+            else
+                error("Unknown event #" .. event_type .. kollos.event.name(event_type))
+            end
+        end
+        if last_completions_cursor < cursor then
+            last_completions_cursor = cursor
+            last_completions = current_completions
         end
         -- klol_progress_report(r)
-        if klol_r.libmarpa_r:is_exhausted() == 1 then
-            if not last_events then
+        if parse_is_exhausted then
+            if not last_completions then
                 print("Exhaustion at cursor", cursor)
                 return
             end
-            return result_for_events(lexer, last_events, last_events_cursor)
+            return result_for_events(lexer, last_completions, last_completions_cursor)
             -- NOT REACHED --
         end
     end
-    if not last_events then
+    if not last_completions then
         print("EOS at cursor", #input_string)
         return
     end
-    return result_for_events(lexer, last_events, last_events_cursor)
+    return result_for_events(lexer, last_completions, last_completions_cursor)
 end
 
 local default_lexer_mt = {
@@ -373,7 +398,9 @@ local lexer = default_lexer_new(json_lex_g, reader)
 while true do
    local token_data = lexer:token_next()
    if not token_data then break end
-   print(inspect(token_data))
+   -- print(inspect(token_data))
+   io.write( json_lex_g.symbol_by_libmarpa_id[token_data[3]].name,
+    ' "', json_example:sub(token_data[1], token_data[2]):gsub('[%s]', ' '), '"\n')
 end
 
 -- vim: expandtab shiftwidth=4:

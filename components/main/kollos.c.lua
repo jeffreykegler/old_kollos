@@ -1139,7 +1139,7 @@ static int wrap_grammar_error(lua_State *L)
 }
 
 /* The C wrapper for Libmarpa event reading.
-   It assumes we just want all of them -- we usually do.
+   It assumes we just want all of them.
  */
 static int wrap_grammar_events(lua_State *L)
 {
@@ -1193,6 +1193,34 @@ static int wrap_grammar_events(lua_State *L)
   return 1;
 }
 
+/* Another C wrapper for Libmarpa event reading.
+   It assumes we want them one by one.
+ */
+static int wrap_grammar_event(lua_State *L)
+{
+  /* [ grammar_object ] */
+  const int grammar_stack_ix = 1;
+  const int event_ix_stack_ix = 2;
+  Marpa_Grammar *p_g;
+  Marpa_Event_Type event_type;
+  Marpa_Event event;
+  const int event_ix = (Marpa_Symbol_ID)lua_tointeger(L, event_ix_stack_ix)-1;
+
+  lua_getfield (L, grammar_stack_ix, "_ud");
+  /* [ grammar_object, grammar_ud ] */
+  p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
+  /* [ grammar_object, grammar_ud ] */
+  event_type = marpa_g_event (*p_g, &event, event_ix);
+  if (event_type <= -2)
+    {
+      common_g_error_handler (L, p_g, grammar_stack_ix, "marpa_g_event()");
+      return 0;
+    }
+  lua_pushinteger (L, event_type);
+  lua_pushinteger (L, marpa_g_event_value (&event));
+  /* [ grammar_object, grammar_ud, event_type, event_value ] */
+  return 2;
+}
 /* Rule RHS limited to 7 symbols --
  * 7 because I can encode dot position in 3 bit
  */
@@ -1407,6 +1435,9 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_grammar_error);
     lua_setfield(L, kollos_table_stack_ix, "grammar_error");
+
+    lua_pushcfunction(L, wrap_grammar_event);
+    lua_setfield(L, kollos_table_stack_ix, "grammar_event");
 
     lua_pushcfunction(L, wrap_grammar_events);
     lua_setfield(L, kollos_table_stack_ix, "grammar_events");
