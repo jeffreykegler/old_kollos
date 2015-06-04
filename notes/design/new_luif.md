@@ -1,21 +1,17 @@
-[[
+# Suggested LUIF syntax, 3 June 2015
 
 This is for a seamless grammar -- a lexer with a single lexeme. Lexers
 allow semantics in Kollos, so this does everything.
 
-There is no exact equivalent in the SLIF, but this grammar is in sort of
-"in the same spirit":
 
-E ::= Number
-    || E '*' E action => do_multiply
-    || E '+' E action => do_add
-Number ~ [\d]+
+    seamless l0.E
+       (number) -> number
+       || (E ws? '*' ws? E) -> E:1*E:2
+       || (E ws? '+' ws? E) -> E:1+E:2
+    token ws ([\009\010\013\032]) -> nil
+    token l0.number ([%d]+)
 
-:discard ~ whitespace
-whitespace ~ [\s]+
-
-===================
-Guide to the syntax
+## Guide to the syntax
 
 'seamless' and 'token' are keywords.  'seamless' indicates the top
 of a seamless grammar -- one that is lexical, with only one lexeme.
@@ -47,11 +43,21 @@ that is, if there is more than one <E> on the RHS, each E in the semantics
 corresponds to the RHS instances of <E> in order, with the last reused
 if there are more instances of <E> in the semantics than on the RHS.
 
-]]
+Where the LHS is qualified -- for example 'l0.E', that indicates symbol
+<E> in the 'l0' grammar.  The LUIF will allow several grammar to be defined
+as once.  Qualifying the LHS with a grammar names affects the entire rule.
+If no grammar name is specified, the last one explicitly specified is used.
 
-seamless l0.E
-   (number) -> number
-   || (E ws? '*' ws? E) -> E:1*E:2
-   || (E ws? '+' ws? E) -> E:1+E:2
-token ws ([\009\010\013\032]) -> nil
-token l0.number ([%d]+)
+## Rough SLIF equivalent
+
+There is no exact equivalent in the SLIF, but this grammar is in sort of
+"in the same spirit":
+
+   E ::= Number
+       || E '*' E action => do_multiply
+       || E '+' E action => do_add
+   Number ~ [\d]+
+
+   :discard ~ whitespace
+   whitespace ~ [\s]+
+
