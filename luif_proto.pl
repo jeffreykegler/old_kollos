@@ -22,7 +22,6 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 1;
 use English qw( -no_match_vars );
 use Scalar::Util;
 use Data::Dumper;
@@ -170,7 +169,7 @@ READ: while (1) {
     EVENT:
     for my $event ( @{ $recce->events() } ) {
         my ($name) = @{$event};
-        say STDERR "Got $name";
+        # say STDERR "Got $name";
         if ( $name eq 'multiline string' ) {
             my ( $start, $length ) = $recce->pause_span();
             my $string_terminator = $recce->literal( $start, $length );
@@ -211,9 +210,27 @@ READ: while (1) {
 my $value_ref = $recce->value();
 die "No parse was found\n" if not defined $value_ref;
 
-# Result will be something like "86.33... 126 125 16"
-# depending on the floating point precision
-$Data::Dumper::Deepcopy = 1;
-say Data::Dumper::Dumper($value_ref);
+# $Data::Dumper::Deepcopy = 1;
+# say Data::Dumper::Dumper($value_ref);
+
+sub flatten {
+    my ( $result, $arg ) = @_;
+    if ( not ref $arg ) {
+        push @{$result}, $arg;
+        return;
+    }
+    if ( ref $arg eq 'ARRAY' ) {
+        flatten( $result, $_ ) for @{$arg};
+        return;
+    }
+    if ( ref $arg eq 'REF' ) {
+        flatten( $result, ${$arg} );
+        return;
+    }
+    die "arg is ", ref $arg;
+} ## end sub flatten
+my $flat = [];
+flatten($flat, $value_ref);
+print join q{}, @{$flat};
 
 # vim: expandtab shiftwidth=4:
