@@ -66,6 +66,16 @@ lexeme default = latm => 1
 <Lua token> ::= '..'
 <Lua token> ::= '...'
 
+<Lua token> ::= <multiline string>
+:lexeme ~ <multiline string> pause => before event => 'multiline string'
+<multiline string> ~ '[' opt_equal_signs '['
+
+<Lua token> ::= <multiline comment>
+:lexeme ~ <multiline comment> pause => before event => 'multiline comment'
+<multiline comment> ~ '--[' opt_equal_signs '['
+
+opt_equal_signs ~ [=]*
+
 # Lua whitespace is locale dependant and so
 # is Perl's, hopefully in the same way.
 # Anyway, it will be close enough for the moment.
@@ -98,8 +108,51 @@ END_OF_SOURCE
 
 my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
 
-my $input = '42*2+7/3, 42*(2+7)/3, 2**7-3, 2**(7-3)';
-$recce->read(\$input);
+my $input = do { $RS = undef; <STDIN>; };
+my $input_length = length $input;
+my $pos = $recce->read(\$input);
+
+READ: while (1) {
+
+    EVENT:
+    for my $event ( @{ $recce->events() } ) {
+        my ($name) = @{$event};
+        say STDERR "Got $name";
+        if ( $name eq 'multiline string' ) {
+            my ( $start, $length ) = $recce->pause_span();
+            my $string = $recce->literal( $start, $length );
+            $string =~ tr/\[/\]/;
+            my $terminator_pos = index( $input, $string, $start );
+            die "Died looking for $string"  if $terminator_pos < 0;
+
+            # the string terminator has same length as the start of
+            # string marker
+            my $string_length = $terminator_pos + $length - $start;
+            $recce->lexeme_read( 'multiline string', $start, $string_length );
+            $pos = $terminator_pos + $length;
+            next EVENT;
+        } ## end if ( $name eq 'multiline string' )
+        if ( $name eq 'multiline comment' ) {
+            my ( $start, $length ) = $recce->pause_span();
+            my $comment = $recce->literal( $start, $length );
+            $comment =~ tr/\[/\]/;
+            my $terminator_pos = index( $input, $comment, $start );
+            die "Died looking for $comment"  if $terminator_pos < 0;
+
+            # the comment terminator has same length as the start of
+            # comment marker
+            my $comment_length = $terminator_pos + $length - $start;
+            $recce->lexeme_read( 'multiline comment',
+                $start, $comment_length );
+            $pos = $terminator_pos + $length;
+            next EVENT;
+        } ## end if ( $name eq 'multiline comment' )
+        die("Unexpected event");
+    } ## end EVENT: for my $event ( @{ $recce->events() } )
+    last READ if $pos >= $input_length;
+    $pos = $recce->resume($pos);
+} ## end READ: while (1)
+
 my $value_ref = $recce->value();
 die "No parse was found\n" if not defined $value_ref;
 
