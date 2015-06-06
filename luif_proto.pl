@@ -79,26 +79,12 @@ lexeme default = latm => 1
 # \x5b (opening square bracket) is OK unless two of them
 # are in the first two positions
 # empty comment is single line
-<singleline comment> ~ '--' eol
-# single char comment is single line
-<singleline comment> ~ '--' <unsafe comment char> eol
-# in two or more char comment only one of the first
-# two may be a left square bracket
-<singleline comment start> ~ '--[' <safe comment char>
-<singleline comment start> ~ '--' <safe comment char> '['
-<singleline comment start> ~ '--' <safe comment char> <safe comment char> 
-<singleline comment> ~ <singleline comment start> <optional unsafe comment chars> eol
-<optional unsafe comment chars> ~ <unsafe comment char>*
-
-# safe comment chars are safe even in the
-# first two positions -- anything except vertical
-# whitespace and left square brackets
-<safe comment char> ~ [^\v\x5b]
-
-# unsafe comment chars are those which are only
-# safe after the first two positions -- that is,
-# they are the safe chars, plus 0x5b
-<unsafe comment char> ~ [^\v]
+<singleline comment> ::= <singleline comment start> <singleline comment trailer>
+<singleline comment start> ~ '--'
+<singleline comment trailer> ~ <optional comment body chars> <comment eol>
+<optional comment body chars> ~ <comment body char>*
+<comment body char> ~ [^\r\012]
+<comment eol> ~ [\r\012]
 
 <Lua token> ::= <single quoted string>
 <single quoted string> ~ ['] <optional single quoted chars> [']
@@ -127,7 +113,6 @@ opt_equal_signs ~ [=]*
 # Lua whitespace is locale dependant and so
 # is Perl's, hopefully in the same way.
 # Anyway, it will be close enough for the moment.
-<eol> ~ [\v]
 whitespace ~ [\s]+
 
 hex_number ~ '0x' hex_digit hex_digit
