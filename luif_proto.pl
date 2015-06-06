@@ -104,17 +104,15 @@ lexeme default = latm => 1
 <single quoted string> ~ ['] <optional single quoted chars> [']
 <optional single quoted chars> ~ <single quoted char>*
 # anything other than vertical space or a single quote
-<single quoted char> ~ [^\v']
-<single quoted char> ~ '\' [\n] # also an escaped newline
-<single quoted char> ~ '\' ['] # also an escaped single char
+<single quoted char> ~ [^\v'\x5c]
+<single quoted char> ~ '\' [\d\D] # also an escaped char
 
 <Lua token> ::= <double quoted string>
 <double quoted string> ~ ["] <optional double quoted chars> ["]
 <optional double quoted chars> ~ <double quoted char>*
 # anything other than vertical space or a double quote
-<double quoted char> ~ [^\v"]
-<double quoted char> ~ '\' [\n] # also an escaped newline
-<double quoted char> ~ '\' ["] # also an escaped double char
+<double quoted char> ~ [^\v"\x5c]
+<double quoted char> ~ '\' [\d\D] # also an escaped char
 
 <Lua token> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
