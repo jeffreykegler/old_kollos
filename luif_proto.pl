@@ -41,6 +41,7 @@ lexeme default = latm => 1
 <Lua token> ::= hex_number
 <Lua token> ::= <numerical constant>
 <Lua token> ::= '-'
+<Lua token> ::= '+'
 <Lua token> ::= '*'
 <Lua token> ::= '/'
 <Lua token> ::= '%'
@@ -66,6 +67,56 @@ lexeme default = latm => 1
 <Lua token> ::= '..'
 <Lua token> ::= '...'
 
+# Good practice is to *not* use locale extensions for identifiers,
+# and we enforce that,
+# so all letters must be a-z or A-Z
+<Lua token> ::= <identifier>
+<identifier> ~ <identifier start char> <optional identifier chars>
+<identifier start char> ~ [a-zA-Z_]
+<optional identifier chars> ~ <identifier char>*
+<identifier char> ~ [a-zA-Z0-9_]
+
+<Lua token> ::= <singleline comment>
+# \x5b (opening square bracket) is OK unless two of them
+# are in the first two positions
+# empty comment is single line
+<singleline comment> ~ '--' eol
+# single char comment is single line
+<singleline comment> ~ '--' <unsafe comment char> eol
+# in two or more char comment only one of the first
+# two may be a left square bracket
+<singleline comment start> ~ '--[' <safe comment char>
+<singleline comment start> ~ '--' <safe comment char> '['
+<singleline comment start> ~ '--' <safe comment char> <safe comment char> 
+<singleline comment> ~ <singleline comment start> <optional unsafe comment chars> eol
+<optional unsafe comment chars> ~ <unsafe comment char>*
+
+# safe comment chars are safe even in the
+# first two positions -- anything except vertical
+# whitespace and left square brackets
+<safe comment char> ~ [^\v\x5b]
+
+# unsafe comment chars are those which are only
+# safe after the first two positions -- that is,
+# they are the safe chars, plus 0x5b
+<unsafe comment char> ~ [^\v]
+
+<Lua token> ::= <single quoted string>
+<single quoted string> ~ ['] <optional single quoted chars> [']
+<optional single quoted chars> ~ <single quoted char>*
+# anything other than vertical space or a single quote
+<single quoted char> ~ [^\v']
+<single quoted char> ~ '\' [\n] # also an escaped newline
+<single quoted char> ~ '\' ['] # also an escaped single char
+
+<Lua token> ::= <double quoted string>
+<double quoted string> ~ ["] <optional double quoted chars> ["]
+<optional double quoted chars> ~ <double quoted char>*
+# anything other than vertical space or a double quote
+<double quoted char> ~ [^\v"]
+<double quoted char> ~ '\' [\n] # also an escaped newline
+<double quoted char> ~ '\' ["] # also an escaped double char
+
 <Lua token> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
 <multiline string> ~ '[' opt_equal_signs '['
@@ -79,7 +130,9 @@ opt_equal_signs ~ [=]*
 # Lua whitespace is locale dependant and so
 # is Perl's, hopefully in the same way.
 # Anyway, it will be close enough for the moment.
+<eol> ~ [\v]
 whitespace ~ [\s]+
+
 hex_number ~ '0x' hex_digit hex_digit
 hex_digit ~ [0-9a-fA-F]
 
@@ -120,10 +173,10 @@ READ: while (1) {
         say STDERR "Got $name";
         if ( $name eq 'multiline string' ) {
             my ( $start, $length ) = $recce->pause_span();
-            my $string = $recce->literal( $start, $length );
-            $string =~ tr/\[/\]/;
-            my $terminator_pos = index( $input, $string, $start );
-            die "Died looking for $string"  if $terminator_pos < 0;
+            my $string_terminator = $recce->literal( $start, $length );
+            $string_terminator =~ tr/\[/\]/;
+            my $terminator_pos = index( $input, $string_terminator, $start );
+            die "Died looking for $string_terminator"  if $terminator_pos < 0;
 
             # the string terminator has same length as the start of
             # string marker
@@ -134,14 +187,16 @@ READ: while (1) {
         } ## end if ( $name eq 'multiline string' )
         if ( $name eq 'multiline comment' ) {
             my ( $start, $length ) = $recce->pause_span();
-            my $comment = $recce->literal( $start, $length );
-            $comment =~ tr/\[/\]/;
-            my $terminator_pos = index( $input, $comment, $start );
-            die "Died looking for $comment"  if $terminator_pos < 0;
+            my $comment_terminator = $recce->literal( $start, $length );
+            $comment_terminator =~ tr/-//;
+            $comment_terminator =~ tr/\[/\]/;
+            my $terminator_length = length $comment_terminator;
+            my $terminator_pos = index( $input, $comment_terminator, $start );
+            die "Died looking for $comment_terminator"  if $terminator_pos < 0;
 
             # the comment terminator has same length as the start of
             # comment marker
-            my $comment_length = $terminator_pos + $length - $start;
+            my $comment_length = $terminator_pos + $terminator_length - $start;
             $recce->lexeme_read( 'multiline comment',
                 $start, $comment_length );
             $pos = $terminator_pos + $length;
