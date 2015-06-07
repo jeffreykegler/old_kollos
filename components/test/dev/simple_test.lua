@@ -1,5 +1,7 @@
+require 'Test.More'
 local kollos_external = require "kollos"
 local wrap = kollos_external.wrap
+plan(1)
 
 local luif_err_none -- luacheck: ignore luif_err_none
   = kollos_external.error.code_by_name['LUIF_ERR_NONE']
@@ -46,5 +48,5 @@ for _ = 1,max_pass do
 
 end
 
-print("completed " .. pass_count .. " passes")
+is(pass_count, 42, 'pass count')
 
