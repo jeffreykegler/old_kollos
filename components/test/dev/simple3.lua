@@ -23,20 +23,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --]]
 
---[[
-
-The primary aim of this parser is to test Kollos as a platform for
-arbitrary grammars. Speed is also an aim, but secondary.
-
-In keeping with these priorities, JSON is treated as if there were no
-existing code for it -- after all, if I wanted a fast JSON parser I could
-just grab a very fast C language recursive descent parser from somewhere.
-Everything is created "from scratch" using tools which generalize to
-other parsers. For example, I'm sure there is code out there in both
-Lua and C to crunch JSON strings, code which is both better and faster
-than what is here, but I do not use it.
-
---]]
+require 'Test.More'
+plan(1)
 
 -- luacheck: std lua51
 -- luacheck: globals bit
@@ -46,10 +34,6 @@ local function here() return -- luacheck: ignore here
 end
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
-
--- eventually most of this code becomes part of kollos
--- for now we bring the already written part in as a
--- module
 local kollos = require "kollos"
 
 local test_kir =
@@ -125,5 +109,7 @@ local test_kir =
 }
 
 kollos.lo_g.kir_compile(test_kir)
+
+ok(1, 'reached end')
 
 -- vim: expandtab shiftwidth=4:

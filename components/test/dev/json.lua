@@ -23,6 +23,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --]]
 
+require 'Test.More'
+plan(1)
+
 --[[
 
 The primary aim of this parser is to test Kollos as a platform for
@@ -234,7 +237,7 @@ local json_example = [===[
 
 -- local err_none = kollos.error.code_by_name['LUIF_ERR_NONE']
 local err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
-print(inspect(kollos.event))
+-- print(inspect(kollos.event))
 local symbol_completed_event = kollos.event.code_by_name['LIBMARPA_EVENT_SYMBOL_COMPLETED']
 local symbol_exhausted_event = kollos.event.code_by_name['LIBMARPA_EVENT_EXHAUSTED']
 
@@ -369,7 +372,7 @@ local function default_lexer_token_next(lexer)
         end
     end
     if not last_completions then
-        print("EOS at cursor", #input_string)
+        -- print("EOS at cursor", #input_string)
         return
     end
     return result_for_events(lexer, last_completions, last_completions_cursor)
@@ -395,12 +398,91 @@ end
 
 local reader = kollos.location.new_from_string(json_example)
 local lexer = default_lexer_new(json_lex_g, reader)
+local output_table = {}
 while true do
    local token_data = lexer:token_next()
    if not token_data then break end
    -- print(inspect(token_data))
-   io.write( json_lex_g.symbol_by_libmarpa_id[token_data[3]].name,
-    ' "', json_example:sub(token_data[1], token_data[2]):gsub('[%s]', ' '), '"\n')
+   output_table[#output_table + 1] = json_lex_g.symbol_by_libmarpa_id[token_data[3]].name;
+   output_table[#output_table + 1] = ' "'
+   output_table[#output_table + 1] = 
+    json_example:sub(token_data[1], token_data[2]):gsub('[%s]', ' ')
+   output_table[#output_table + 1] = '"\n'
 end
+local actual_output = table.concat(output_table)
+
+local expected_output = [=====[
+begin_array "[ "
+begin_object "{     "
+string ""precision""
+name_separator ": "
+string ""zip""
+value_separator ",     "
+string ""Latitude""
+name_separator ": "
+number "37.7668"
+value_separator ",     "
+string ""Longitude""
+name_separator ": "
+number "-122.3959"
+value_separator ",     "
+string ""Address""
+name_separator ": "
+string """"
+value_separator ",     "
+string ""City""
+name_separator ": "
+string ""SAN FRANCISCO""
+value_separator ",     "
+string ""State""
+name_separator ": "
+string ""CA""
+value_separator ",     "
+string ""Zip""
+name_separator ": "
+string ""94107""
+value_separator ",     "
+string ""Country""
+name_separator ": "
+string ""US""
+end_object " }"
+value_separator ", "
+begin_object "{     "
+string ""precision""
+name_separator ": "
+string ""zip""
+value_separator ",     "
+string ""Latitude""
+name_separator ": "
+number "37.371991"
+value_separator ",     "
+string ""Longitude""
+name_separator ": "
+number "-122.026020"
+value_separator ",     "
+string ""Address""
+name_separator ": "
+string """"
+value_separator ",     "
+string ""City""
+name_separator ": "
+string ""SUNNYVALE""
+value_separator ",     "
+string ""State""
+name_separator ": "
+string ""CA""
+value_separator ",     "
+string ""Zip""
+name_separator ": "
+string ""94085""
+value_separator ",     "
+string ""Country""
+name_separator ": "
+string ""US""
+end_object " } "
+end_array "] "
+]=====]
+
+is(expected_output, actual_output, 'output')
 
 -- vim: expandtab shiftwidth=4:
