@@ -6,6 +6,8 @@ ADD_EXECUTABLE(runtests runtests.c)
 
 ADD_LIBRARY(${PROJECT_NAME} basic.c float.c)
 
+INCLUDE_DIRECTORIES("../")
+
 set(LIBTAP ${PROJECT_BINARY_DIR}/libtap.a
     CACHE INTERNAL "${PROJECT_NAME}: Libtap library" FORCE)
 
