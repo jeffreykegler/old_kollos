@@ -1,5 +1,7 @@
-
 -- luacheck: std lua51
+
+require 'Test.More'
+plan(1)
 
 local kollos_external = require "kollos"
 local wrap = kollos_external.wrap
@@ -49,5 +51,5 @@ for _ = 1,max_pass do
 
 end
 
-print("completed " .. pass_count .. " passes")
+is(pass_count, 10000, 'pass count')
 

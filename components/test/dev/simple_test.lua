@@ -48,5 +48,5 @@ for _ = 1,max_pass do
 
 end
 
-is(pass_count, 42, 'pass count')
+is(pass_count, 10000, 'pass count')
 

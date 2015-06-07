@@ -29,21 +29,21 @@ libmarpa:
 	cd libmarpa && make test
 
 verbose_test:
-	cd build && \
-	LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
-	LUA_PATH=';;../../build/main/?.lua' \
-	  ctest --output-on-failure --verbose
+	# cd build && \
+	# LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
+	# LUA_PATH=';;../../build/main/?.lua' \
+	  # ctest --output-on-failure --verbose
 
 test:
-	cd build && \
-	LUA_CPATH=';;../../build/main/lib?.so;../../build/main/cyg?.dll' \
-	LUA_PATH=';;../../build/main/?.lua' \
-	  ctest --output-on-failure
 	rm -rf do_test
 	mkdir do_test
 	cd do_test && cmake ../components/test && make VERBOSE=1
-	cd do_test && ../build/tap/runtests -l ../components/test/TESTS
+	LUA_CPATH=';;build/main/lib?.so;build/main/cyg?.dll' \
+	 LUA_PATH=';;build/main/?.lua' \
+	  prove -v --exec 'build/lua/src/lua' do_test/dev/*.lua
 
 clean:
 	rm -rf build
 	mkdir build
+
+# vim: expandtab shiftwidth=4:
