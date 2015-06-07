@@ -2,7 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 project(luif_tests C CXX)
 
-set(Scripts "luif_proto.pl")
+set(Scripts "round1.pl")
 source_group("scripts" FILES ${Scripts})
 
 set(Outputs "")
