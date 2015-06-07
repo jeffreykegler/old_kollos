@@ -41,7 +41,7 @@ test:
 	LUA_CPATH=';;build/main/lib?.so;build/main/cyg?.dll' \
 	 LUA_PATH=';;build/main/?.lua' \
 	  prove -v --exec 'build/lua/src/lua' do_test/dev/*.lua
-	  prove -v do_test/luif/*.pl
+	  prove -v -Ibuild/pluif do_test/luif/*.pl
 
 clean:
 	rm -rf build
