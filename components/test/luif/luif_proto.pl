@@ -25,10 +25,44 @@ use warnings;
 use English qw( -no_match_vars );
 use Scalar::Util;
 use Data::Dumper;
+use Test::More tests => 32;
+use Fcntl;
 
 ## no critic (ErrorHandling::RequireCarping);
 
 use Marpa::R2 3.0;
+
+sub slurp_file {
+
+    my ($file_name) = @_;
+
+    my $buf = q{};
+    my $buf_ref = \$buf;
+
+    my $mode = O_RDONLY;
+
+    local (*FH);
+    sysopen( FH, $file_name, $mode )
+        or die "Can't open $file_name: $!";
+
+    my $size_left = -s FH;
+
+    while ( $size_left > 0 ) {
+
+        my $read_cnt =
+            sysread( FH, ${$buf_ref}, $size_left, length ${$buf_ref} );
+
+        unless ($read_cnt) {
+
+            die "read error in file $file_name: $!";
+            last;
+        }
+
+        $size_left -= $read_cnt;
+    } ## end while ( $size_left > 0 )
+
+    return $buf_ref;
+} ## end sub read_file
 
 my $grammar = Marpa::R2::Scanless::G->new(
     { source        => \(<<'END_OF_SOURCE'),
@@ -141,79 +175,131 @@ END_OF_SOURCE
     }
 );
 
-my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
+sub lua_round_trip {
+    my ($input_ref) = @_;
+    my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
 
-my $input = do { $RS = undef; <STDIN>; };
-my $input_length = length $input;
-my $pos = $recce->read(\$input);
+    my $input_length = length ${$input_ref};
+    my $pos          = $recce->read( $input_ref );
 
-READ: while (1) {
+    READ: while (1) {
 
-    EVENT:
-    for my $event ( @{ $recce->events() } ) {
-        my ($name) = @{$event};
-        # say STDERR "Got $name";
-        if ( $name eq 'multiline string' ) {
-            my ( $start, $length ) = $recce->pause_span();
-            my $string_terminator = $recce->literal( $start, $length );
-            $string_terminator =~ tr/\[/\]/;
-            my $terminator_pos = index( $input, $string_terminator, $start );
-            die "Died looking for $string_terminator"  if $terminator_pos < 0;
+        EVENT:
+        for my $event ( @{ $recce->events() } ) {
+            my ($name) = @{$event};
 
-            # the string terminator has same length as the start of
-            # string marker
-            my $string_length = $terminator_pos + $length - $start;
-            $recce->lexeme_read( 'multiline string', $start, $string_length );
-            $pos = $terminator_pos + $length;
-            next EVENT;
-        } ## end if ( $name eq 'multiline string' )
-        if ( $name eq 'multiline comment' ) {
-            my ( $start, $length ) = $recce->pause_span();
-            my $comment_terminator = $recce->literal( $start, $length );
-            $comment_terminator =~ tr/-//;
-            $comment_terminator =~ tr/\[/\]/;
-            my $terminator_length = length $comment_terminator;
-            my $terminator_pos = index( $input, $comment_terminator, $start );
-            die "Died looking for $comment_terminator"  if $terminator_pos < 0;
+            # say STDERR "Got $name";
+            if ( $name eq 'multiline string' ) {
+                my ( $start, $length ) = $recce->pause_span();
+                my $string_terminator = $recce->literal( $start, $length );
+                $string_terminator =~ tr/\[/\]/;
+                my $terminator_pos =
+                    index( ${$input_ref}, $string_terminator, $start );
+                die "Died looking for $string_terminator"
+                    if $terminator_pos < 0;
 
-            # the comment terminator has same length as the start of
-            # comment marker
-            my $comment_length = $terminator_pos + $terminator_length - $start;
-            $recce->lexeme_read( 'multiline comment',
-                $start, $comment_length );
-            $pos = $terminator_pos + $length;
-            next EVENT;
-        } ## end if ( $name eq 'multiline comment' )
-        die("Unexpected event");
-    } ## end EVENT: for my $event ( @{ $recce->events() } )
-    last READ if $pos >= $input_length;
-    $pos = $recce->resume($pos);
-} ## end READ: while (1)
+                # the string terminator has same length as the start of
+                # string marker
+                my $string_length = $terminator_pos + $length - $start;
+                $recce->lexeme_read( 'multiline string',
+                    $start, $string_length );
+                $pos = $terminator_pos + $length;
+                next EVENT;
+            } ## end if ( $name eq 'multiline string' )
+            if ( $name eq 'multiline comment' ) {
+                my ( $start, $length ) = $recce->pause_span();
+                my $comment_terminator = $recce->literal( $start, $length );
+                $comment_terminator =~ tr/-//;
+                $comment_terminator =~ tr/\[/\]/;
+                my $terminator_length = length $comment_terminator;
+                my $terminator_pos =
+                    index( ${$input_ref}, $comment_terminator, $start );
+                die "Died looking for $comment_terminator"
+                    if $terminator_pos < 0;
 
-my $value_ref = $recce->value();
-die "No parse was found\n" if not defined $value_ref;
+                # the comment terminator has same length as the start of
+                # comment marker
+                my $comment_length =
+                    $terminator_pos + $terminator_length - $start;
+                $recce->lexeme_read( 'multiline comment',
+                    $start, $comment_length );
+                $pos = $terminator_pos + $length;
+                next EVENT;
+            } ## end if ( $name eq 'multiline comment' )
+            die("Unexpected event");
+        } ## end EVENT: for my $event ( @{ $recce->events() } )
+        last READ if $pos >= $input_length;
+        $pos = $recce->resume($pos);
+    } ## end READ: while (1)
+
+    my $value_ref = $recce->value();
+    die "No parse was found\n" if not defined $value_ref;
 
 # $Data::Dumper::Deepcopy = 1;
 # say Data::Dumper::Dumper($value_ref);
 
-sub flatten {
-    my ( $result, $arg ) = @_;
-    if ( not ref $arg ) {
-        push @{$result}, $arg;
-        return;
-    }
-    if ( ref $arg eq 'ARRAY' ) {
-        flatten( $result, $_ ) for @{$arg};
-        return;
-    }
-    if ( ref $arg eq 'REF' ) {
-        flatten( $result, ${$arg} );
-        return;
-    }
-    die "arg is ", ref $arg;
-} ## end sub flatten
-my $flat = [];
-flatten($flat, $value_ref);
-print join q{}, @{$flat};
+    sub flatten {
+        my ( $result, $arg ) = @_;
+        if ( not ref $arg ) {
+            push @{$result}, $arg;
+            return;
+        }
+        if ( ref $arg eq 'ARRAY' ) {
+            flatten( $result, $_ ) for @{$arg};
+            return;
+        }
+        if ( ref $arg eq 'REF' ) {
+            flatten( $result, ${$arg} );
+            return;
+        }
+        die "arg is ", ref $arg;
+    } ## end sub flatten
+    my $flat = [];
+    flatten( $flat, $value_ref );
+    return join q{}, @{$flat};
+} ## end sub lua_round_trip
+
+my @test_files = qw(
+components/lua/etc/strict.lua
+components/lua/test/life.lua
+components/lua/test/xd.lua
+components/lua/test/printf.lua
+components/lua/test/env.lua
+components/lua/test/trace-calls.lua
+components/lua/test/fib.lua
+components/lua/test/echo.lua
+components/lua/test/luac.lua
+components/lua/test/sieve.lua
+components/lua/test/bisect.lua
+components/lua/test/fibfor.lua
+components/lua/test/sort.lua
+components/lua/test/table.lua
+components/lua/test/readonly.lua
+components/lua/test/cf.lua
+components/lua/test/hello.lua
+components/lua/test/trace-globals.lua
+components/lua/test/factorial.lua
+components/lua/test/globals.lua
+components/main/wrapper_gen.lua
+components/main/kollos/location.lua
+components/main/kollos/inspect.lua
+components/main/kollos/lo_g.lua
+components/main/kollos/unindent.lua
+components/main/kollos/main.lua
+components/main/kollos/util.lua
+components/main/kollos/wrap.lua
+components/main/kollos.lua
+components/main/kollos.c.lua
+components/test/dev/simple3.lua
+components/test/dev/simple_test.lua
+components/test/dev/json.lua
+components/test/dev/simple_test2.lua
+);
+
+for my $test_file (@test_files) {
+    my $input_ref = slurp_file($test_file);
+    my $output = lua_round_trip ($input_ref);
+    Test::More::is(${$input_ref}, $output, $test_file);
+}
 
 # vim: expandtab shiftwidth=4:
