@@ -2,3 +2,4 @@
 *.swp
 .gdb_history
 build/
+do_test/
