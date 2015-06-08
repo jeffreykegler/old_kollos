@@ -25,7 +25,6 @@ use warnings;
 use English qw( -no_match_vars );
 use Scalar::Util;
 use Data::Dumper;
-use Test::More tests => 34;
 use Fcntl;
 
 ## no critic (ErrorHandling::RequireCarping);

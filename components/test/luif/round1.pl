@@ -83,17 +83,6 @@ sub flatten {
     die "arg is ", ref $arg;
 } ## end sub flatten
 
-sub lua_round_trip {
-    my ($input_ref) = @_;
-
-# $Data::Dumper::Deepcopy = 1;
-# say Data::Dumper::Dumper($value_ref);
-
-    my $flat = [];
-    flatten( $flat, $value_ref );
-    return join q{}, @{$flat};
-} ## end sub lua_round_trip
-
 my @test_files = qw(
     components/lua/etc/strict.lua
     components/lua/test/life.lua
@@ -134,7 +123,9 @@ my @test_files = qw(
 for my $test_file (@test_files) {
     my $input_ref = slurp_file($test_file);
     my $ast = LUIF::ast($input_ref);
-    my $output    = lua_round_trip($input_ref);
+    my $flat = [];
+    flatten( $flat, $ast );
+    my $output = join q{}, @{$flat};
     Test::More::is( ${$input_ref}, $output, $test_file );
 }
 
