@@ -22,6 +22,7 @@ endif ()
 
 # NOTE: The order matters! The most independent ones should go first.
 add_subdirectory(tap) # static library
+add_subdirectory(pluif) # static library
 add_subdirectory(libmarpa) # static library
 add_subdirectory(lua) # interpreter
 # add_subdirectory(luabit) # Lua bit op library

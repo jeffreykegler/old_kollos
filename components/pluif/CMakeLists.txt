@@ -2,7 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 project(pluif C CXX)
 
-set(Scripts "luif.pm")
+set(Scripts "LUIF.pm")
 source_group("scripts" FILES ${Scripts})
 
 set(Outputs "")
@@ -18,7 +18,7 @@ foreach(Script_File ${Scripts})
 endforeach()
 
 add_custom_target(
-  copy_scripts ALL
+  copy_pluif_scripts ALL
   DEPENDS ${Outputs}
   COMMENT "Copying files"
   VERBATIM

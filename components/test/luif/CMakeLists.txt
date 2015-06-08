@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
-project(luif_tests C CXX)
+project(test_luif C CXX)
 
 set(Scripts "round1.pl")
 source_group("scripts" FILES ${Scripts})
@@ -18,7 +18,7 @@ foreach(Script_File ${Scripts})
 endforeach()
 
 add_custom_target(
-  copy_scripts ALL
+  copy_luif_test_scripts ALL
   DEPENDS ${Outputs}
   COMMENT "Copying files"
   VERBATIM

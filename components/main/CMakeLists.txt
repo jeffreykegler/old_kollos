@@ -73,7 +73,7 @@ foreach(LuaFile ${LUA_Sources})
 endforeach()
 
 add_custom_target(
-  copy_kollos_lua ALL
+  copy_main_lua ALL
   DEPENDS ${LUA_Outputs}
   COMMENT "Copying LUA files"
   VERBATIM
