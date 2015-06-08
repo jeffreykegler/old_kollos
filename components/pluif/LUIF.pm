@@ -38,7 +38,55 @@ $LUIF::grammar = Marpa::R2::Scanless::G->new(
 :default ::= action => [values]
 lexeme default = latm => 1
 
-<Lua token sequence> ::= <Lua token>+
+<LUIF piece sequence> ::= <LUIF piece>*
+<LUIF piece> ::= <marked LUIF rule> | <Lua token>
+<marked LUIF rule> ::= '(' <marked LUIF rule> ')'
+<marked LUIF rule> ::= <LUIF rule>
+<LUIF rule> ::= <LUIF rule beginning> <LUIF rule rhs>
+<LUIF rule beginning> ::= <start keyword> <marked lhs> <optional produces operator>
+<LUIF rule beginning> ::= <rule keyword> <marked lhs> <optional produces operator>
+<LUIF rule beginning> ::= <marked lhs> <optional produces operator>
+<LUIF rule beginning> ::= <seamless keyword> <marked lhs> <optional matches operator>
+<LUIF rule beginning> ::= <lexeme keyword> <marked lhs> <optional matches operator>
+<LUIF rule beginning> ::= <token keyword> <marked lhs> <optional matches operator>
+<LUIF rule beginning> ::= <marked lhs> <optional matches operator>
+
+:lexeme ~ <start keyword>
+<start keyword> ~ 'start'
+:lexeme ~ <rule keyword>
+<rule keyword> ~ 'rule'
+:lexeme ~ <seamless keyword>
+<seamless keyword> ~ 'seamless'
+:lexeme ~ <lexeme keyword>
+<lexeme keyword> ~ 'lexeme'
+:lexeme ~ <token keyword>
+<token keyword> ~ 'token'
+
+<marked lhs> ::= '(' <marked lhs>  ')'
+<marked lhs> ::= <lhs>
+<optional matches operator> ::= '~'
+<optional produces operator> ::= '::='
+
+<lhs> ::= <LUIF symbol identifier>
+<LUIF symbol identifier> ~ <LUIF identifier start char> <optional LUIF identifier chars>
+<LUIF identifier start char> ~ [a-zA-Z_]
+<optional LUIF identifier chars> ~ <LUIF identifier char>*
+<LUIF identifier char> ~ [a-zA-Z0-9_]
+
+<LUIF rule rhs> ::= <precedence levels>
+<precedence levels> ::= <precedence levels> '||' <alternatives>
+<precedence levels> ::= <alternatives>
+<alternatives> ::= <alternatives> '|' <alternative>
+<alternatives> ::= <alternative>
+<alternative> ::= <rhs items> <optional LUIF action> <marked LUIF adverbs>
+<rhs items> ::= <rhs item>*
+<rhs item> ::= '(' <rhs items> ')'
+<rhs item> ::= <LUIF symbol identifier>
+
+<optional LUIF action> ::= # always empty, for now
+<marked LUIF adverbs> ::= <marked LUIF adverb>*
+<marked LUIF adverb> ::= '(' ')' # empty adverb
+
 <Lua token> ::= whitespace
 <Lua token> ::= hex_number
 <Lua token> ::= <numerical constant>
