@@ -73,19 +73,37 @@ lexeme default = latm => 1
 <optional LUIF identifier chars> ~ <LUIF identifier char>*
 <LUIF identifier char> ~ [a-zA-Z0-9_]
 
+<LUIF rule rhs> ::= '(' <LUIF rule rhs> ')'
 <LUIF rule rhs> ::= <precedence levels>
 <precedence levels> ::= <precedence levels> '||' <alternatives>
 <precedence levels> ::= <alternatives>
 <alternatives> ::= <alternatives> '|' <alternative>
 <alternatives> ::= <alternative>
-<alternative> ::= <rhs items> <optional LUIF action> <marked LUIF adverbs>
-<rhs items> ::= <rhs item>*
-<rhs item> ::= '(' <rhs items> ')'
+<alternative> ::= <filled alternative> | <empty alternative>
+<filled alternative> ::= <rhs items> <optional LUIF action> <marked LUIF adverbs>
+<empty alternative> ::= <optional LUIF action> <marked LUIF adverbs>
+# eventually RHS items include charclasses and strings
+<rhs items> ::= <rhs item>+
+<rhs item> ::= <quantified rhs item>
 <rhs item> ::= <LUIF symbol identifier>
+<quantified rhs item> ::= <rhs item> <quantifier>
+<quantified rhs item> ::= '(' <rhs item> ')' <quantifier>
+<quantifier> ::= <quantifier proper> <optional punctuation specifier>
+<quantifier proper> ::= '?' | '*' | '+'
+<optional punctuation specifier> ::= <punctuation specifier>
+<punctuation specifier> ::= <punctuation operator> <punctuator specifier>
+<punctuation operator> ::= '%' | '%%' | '%-' | '%$'
+<punctuator specifier> ::= <punctuator item>
+<punctuator specifier> ::= '(' <punctuator item sequence> ')'
+<punctuator item sequence> ::= <punctuator item sequence> <punctuator item>
+<punctuator item sequence> ::= <punctuator item>
+# eventually punctuation items include charclasses and strings
+<punctuator item> ::= <LUIF symbol identifier>
 
 <optional LUIF action> ::= # always empty, for now
 <marked LUIF adverbs> ::= <marked LUIF adverb>*
-<marked LUIF adverb> ::= '(' ')' # empty adverb
+<marked LUIF adverb> ::= '(' 'empty' '=>' boolean ')' # empty adverb
+<boolean> ::= 'true' | 'false'
 
 <Lua token> ::= whitespace
 <Lua token> ::= hex_number
