@@ -39,8 +39,8 @@ kollos.if('alpha')
 
 seamless l0.E ::=
       number -> number
-   || E ws? '*' ws? E -> E:1*E:2
-   || E ws? '+' ws? E -> E:1+E:2
+   || E ws? '*' ws? E -> E*E
+   || E ws? '+' ws? E -> E+E
 token ws ([\009\010\013\032]) -> nil
 token l0.number ([%d]+)
 

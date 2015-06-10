@@ -43,13 +43,13 @@ lexeme default = latm => 1
 <marked LUIF rule> ::= '(' <marked LUIF rule> ')'
 <marked LUIF rule> ::= <LUIF rule>
 <LUIF rule> ::= <LUIF rule beginning> <LUIF rule rhs>
-<LUIF rule beginning> ::= <start keyword> <marked lhs> <optional produces operator>
-<LUIF rule beginning> ::= <rule keyword> <marked lhs> <optional produces operator>
-<LUIF rule beginning> ::= <marked lhs> <optional produces operator>
-<LUIF rule beginning> ::= <seamless keyword> <marked lhs> <optional matches operator>
-<LUIF rule beginning> ::= <lexeme keyword> <marked lhs> <optional matches operator>
-<LUIF rule beginning> ::= <token keyword> <marked lhs> <optional matches operator>
-<LUIF rule beginning> ::= <marked lhs> <optional matches operator>
+<LUIF rule beginning> ::= <start keyword> <marked lhs> '::='
+<LUIF rule beginning> ::= <rule keyword> <marked lhs> '::='
+<LUIF rule beginning> ::= <marked lhs> '::='
+<LUIF rule beginning> ::= <seamless keyword> <marked lhs> '~'
+<LUIF rule beginning> ::= <lexeme keyword> <marked lhs> '~'
+<LUIF rule beginning> ::= <token keyword> <marked lhs> '~'
+<LUIF rule beginning> ::= <marked lhs> '~'
 
 :lexeme ~ <start keyword>
 <start keyword> ~ 'start'
@@ -64,8 +64,6 @@ lexeme default = latm => 1
 
 <marked lhs> ::= '(' <marked lhs>  ')'
 <marked lhs> ::= <lhs>
-<optional matches operator> ::= '~'
-<optional produces operator> ::= '::='
 
 <lhs> ::= <LUIF Name>
 <LUIF Name> ~ <LUIF Name start char> <optional LUIF Name chars>
@@ -100,13 +98,20 @@ lexeme default = latm => 1
 # eventually punctuation items include charclasses and strings
 <punctuator item> ::= <LUIF symbol identifier>
 
-<optional LUIF action> ::= # always empty, for now
+# As of now, they are equivalent
+<LUIF symbol identifier> ::= <Lua Name>
+
+<optional LUIF action> ::= # empty
+<optional LUIF action> ::= '->' <Lua exp>
+<optional LUIF action> ::= '{' <Lua block> '}'
+
 <marked LUIF adverbs> ::= <marked LUIF adverb>*
 <marked LUIF adverb> ::= '(' 'empty' '=>' boolean ')' # empty adverb
 <boolean> ::= 'true' | 'false'
 
+<Lua token> ::= <singleline comment>
 <Lua token> ::= whitespace
-<Lua token> ::= hex_number
+<Lua token> ::= <Lua Name>
 <Lua token> ::= <Lua Number>
 <Lua token> ::= <Lua String>
 <Lua token> ::= '-'
@@ -139,13 +144,11 @@ lexeme default = latm => 1
 # Good practice is to *not* use locale extensions for identifiers,
 # and we enforce that,
 # so all letters must be a-z or A-Z
-<Lua token> ::= <identifier>
-<identifier> ~ <identifier start char> <optional identifier chars>
+<Lua Name> ~ <identifier start char> <optional identifier chars>
 <identifier start char> ~ [a-zA-Z_]
 <optional identifier chars> ~ <identifier char>*
 <identifier char> ~ [a-zA-Z0-9_]
 
-<Lua token> ::= <singleline comment>
 # \x5b (opening square bracket) is OK unless two of them
 # are in the first two positions
 # empty comment is single line
@@ -156,21 +159,21 @@ lexeme default = latm => 1
 <comment body char> ~ [^\r\012]
 <comment eol> ~ [\r\012]
 
-<Lua token> ::= <single quoted string>
+<Lua String> ::= <single quoted string>
 <single quoted string> ~ ['] <optional single quoted chars> [']
 <optional single quoted chars> ~ <single quoted char>*
 # anything other than vertical space or a single quote
 <single quoted char> ~ [^\v'\x5c]
 <single quoted char> ~ '\' [\d\D] # also an escaped char
 
-<Lua token> ::= <double quoted string>
+<Lua String> ::= <double quoted string>
 <double quoted string> ~ ["] <optional double quoted chars> ["]
 <optional double quoted chars> ~ <double quoted char>*
 # anything other than vertical space or a double quote
 <double quoted char> ~ [^\v"\x5c]
 <double quoted char> ~ '\' [\d\D] # also an escaped char
 
-<Lua token> ::= <multiline string>
+<Lua String> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
 <multiline string> ~ '[' <optional equal signs> '['
 
@@ -307,12 +310,16 @@ whitespace ~ [\s]+
 <Lua optional parlist> ::= <Lua namelist> ',' '...'
 <Lua optional parlist> ::= '...'
 
-<Lua tableconstructor> ::= '{' <Lua optional fieldlist> '}'
-
+# A lone comma is not allowed in an empty fieldlist,
+# apparently. This is why I use a dedicated rule
+# for an empty table and a '+' sequence,
+# instead of a '*' sequence.
+<Lua tableconstructor> ::= '{' '}'
+<Lua tableconstructor> ::= '{' <Lua fieldlist> '}'
 <Lua fieldlist> ::= <Lua field>+ separator => [,;]
 
 <Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
-<Lua field> ::= <Lua name> '=' <Lua exp>
+<Lua field> ::= <Lua Name> '=' <Lua exp>
 <Lua field> ::= <Lua exp>
 
 <Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
