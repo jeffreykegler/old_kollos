@@ -67,11 +67,11 @@ lexeme default = latm => 1
 <optional matches operator> ::= '~'
 <optional produces operator> ::= '::='
 
-<lhs> ::= <LUIF symbol identifier>
-<LUIF symbol identifier> ~ <LUIF identifier start char> <optional LUIF identifier chars>
-<LUIF identifier start char> ~ [a-zA-Z_]
-<optional LUIF identifier chars> ~ <LUIF identifier char>*
-<LUIF identifier char> ~ [a-zA-Z0-9_]
+<lhs> ::= <LUIF Name>
+<LUIF Name> ~ <LUIF Name start char> <optional LUIF Name chars>
+<LUIF Name start char> ~ [a-zA-Z_]
+<optional LUIF Name chars> ~ <LUIF Name char>*
+<LUIF Name char> ~ [a-zA-Z0-9_]
 
 <LUIF rule rhs> ::= '(' <LUIF rule rhs> ')'
 <LUIF rule rhs> ::= <precedence levels>
@@ -107,7 +107,8 @@ lexeme default = latm => 1
 
 <Lua token> ::= whitespace
 <Lua token> ::= hex_number
-<Lua token> ::= <numerical constant>
+<Lua token> ::= <Lua Number>
+<Lua token> ::= <Lua String>
 <Lua token> ::= '-'
 <Lua token> ::= '+'
 <Lua token> ::= '*'
@@ -171,40 +172,154 @@ lexeme default = latm => 1
 
 <Lua token> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
-<multiline string> ~ '[' opt_equal_signs '['
+<multiline string> ~ '[' <optional equal signs> '['
 
 <Lua token> ::= <multiline comment>
 :lexeme ~ <multiline comment> pause => before event => 'multiline comment'
-<multiline comment> ~ '--[' opt_equal_signs '['
+<multiline comment> ~ '--[' <optional equal signs> '['
 
-opt_equal_signs ~ [=]*
+<optional equal signs> ~ [=]*
 
 # Lua whitespace is locale dependant and so
 # is Perl's, hopefully in the same way.
 # Anyway, it will be close enough for the moment.
 whitespace ~ [\s]+
 
-hex_number ~ '0x' hex_digit hex_digit
-hex_digit ~ [0-9a-fA-F]
+<Lua Number> ~ <hex number>
+<Lua Number> ~ <C90 strtod decimal>
+<Lua Number> ~ <C90 strtol hex>
+
+<hex number> ~ '0x' <hex digit> <hex digit>
+<hex digit> ~ [0-9a-fA-F]
 
 # NuMeric representation in Lua is also not an
 # exact science -- it is farmed out to the
 # implementation's strtod() (for decimal)
 # or strtoul() (for hex, if strtod failed).
 # This is an attempt at the C90-conformant subset.
-<numerical constant> ~ <C90 strtod decimal>
-<numerical constant> ~ <C90 strtol hex>
-<C90 strtod decimal> ~ opt_sign decimal_digits opt_exp
-<C90 strtod decimal> ~ opt_sign decimal_digits '.' opt_exp
-<C90 strtod decimal> ~ opt_sign '.' decimal_digits opt_exp
-<C90 strtod decimal> ~ opt_sign decimal_digits '.' decimal_digits opt_exp
-opt_exp ~
-opt_exp ~ [eE] opt_sign decimal_digits
-opt_sign ~
-opt_sign ~ [-+]
-<C90 strtol hex> ~ [0] [xX] hex_digits
-decimal_digits ~ [0-9]+
-hex_digits ~ [a-fA-F0-9]+
+<C90 strtod decimal> ~ <optional sign> <decimal digits> <optional exponent>
+<C90 strtod decimal> ~ <optional sign> <decimal digits> '.' <optional exponent>
+<C90 strtod decimal> ~ <optional sign> '.' <decimal digits> <optional exponent>
+<C90 strtod decimal> ~
+    <optional sign> <decimal digits> '.' <decimal digits> <optional exponent>
+<optional exponent> ~
+<optional exponent> ~ [eE] <optional sign> <decimal digits>
+<optional sign> ~
+<optional sign> ~ [-+]
+<C90 strtol hex> ~ [0] [xX] <hex digits>
+<decimal digits> ~ [0-9]+
+<hex digits> ~ [a-fA-F0-9]+
+
+# The Lua grammar, adapted for LUIF actions and events
+# I attempt to follow the order of the Lua grammar in
+# section 8 of the Lua 5.1 reference manual.
+#
+# Names which begin with "Lua" are taken directly from
+# the Lua reference manual grammar.
+<Lua chunk> ::= <Lua stat list> <Lua optional laststat>
+<Lua stat list> ::= <Lua stat item>*
+<Lua stat item> ::= <Lua stat> ';'
+<Lua stat item> ::= <Lua stat>
+<Lua optional laststat> ::= <Lua laststat> ';'
+<Lua optional laststat> ::= <Lua laststat>
+<Lua optional laststat> ::=
+
+<Lua block> ::= <Lua chunk>
+
+<Lua stat> ::= <Lua varlist> '=' <Lua explist>
+
+<Lua stat> ::= <Lua functioncall>
+
+<Lua stat> ::= 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'while' <Lua exp> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'repeat' <Lua block> 'until' <Lua exp>
+
+<Lua stat> ::= 'if' <Lua exp> 'then' <Lua elseif sequence> <Lua optional else block> 'end'
+<Lua elseif sequence> ::= <Lua elseif sequence> <Lua elseif block>
+<Lua elseif sequence> ::=
+<Lua elseif block> ::= 'elseif' <Lua exp> 'then' <Lua block>
+<Lua optional else block> ::= 'else' <Lua block>
+<Lua optional else block> ::=
+
+<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
+    'do' <Lua block> 'end'
+<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'for' <Lua namelist> 'in' <Lua explist> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'function' <Lua funcname> <Lua funcbody>
+
+<Lua stat> ::= 'local' 'function' <Lua Name> <Lua funcbody>
+
+<Lua stat> ::= 'local' <Lua namelist> <Lua optional explist>
+
+<Lua optional explist> ::= 
+<Lua optional explist> ::= <Lua explist>
+
+<Lua laststat> ::= 'return' <Lua optional explist>
+<Lua laststat> ::= 'break'
+
+<Lua funcname> ::= <Lua dotted name> <Lua optional colon name element>
+<Lua dotted name> ::= <Lua Name>+ separator => [.] proper => 0
+<Lua optional colon name element> ::=
+<Lua optional colon name element> ::= ':' <Lua Name>
+
+<Lua varlist> ::= <Lua var>+ separator => [,] proper => 0
+
+<Lua var> ::= <Lua Name>
+<Lua var> ::= <Lua prefixexp> '[' <Lua exp> ']'
+<Lua var> ::= <Lua prefixexp> '.' <Lua Name>
+
+<Lua namelist> ::= <Lua Name>+ separator => [,] proper => 0
+
+<Lua explist> ::= <Lua exp>+ separator => [,] proper => 0
+
+<Lua exp> ::= 'nil'
+<Lua exp> ::= 'false'
+<Lua exp> ::= 'true'
+<Lua exp> ::= <Lua Number>
+<Lua exp> ::= <Lua String>
+<Lua exp> ::= '...'
+<Lua exp> ::= <Lua function>
+<Lua exp> ::= <Lua prefixexp>
+<Lua exp> ::= <Lua tableconstructor>
+<Lua exp> ::= <Lua exp> <Lua binop> <Lua exp>
+<Lua exp> ::= <Lua exp> <Lua unop> <Lua exp>
+
+<Lua prefixexp> ::= <Lua var>
+<Lua prefixexp> ::= <Lua functioncall>
+<Lua prefixexp> ::= '(' <Lua exp> ')'
+
+<Lua functioncall> ::= <Lua prefixexp> <Lua args>
+<Lua functioncall> ::= <Lua prefixexp> ':' <Lua Name> <Lua args>
+
+<Lua args> ::= '(' <Lua optional explist> ')'
+<Lua args> ::= <Lua tableconstructor>
+<Lua args> ::= <Lua String>
+
+<Lua function> ::= 'function' <Lua funcbody>
+
+<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> 'end'
+
+<Lua optional parlist> ::= <Lua namelist> 
+<Lua optional parlist> ::= <Lua namelist> ',' '...'
+<Lua optional parlist> ::= '...'
+
+<Lua tableconstructor> ::= '{' <Lua optional fieldlist> '}'
+
+<Lua fieldlist> ::= <Lua field>+ separator => [,;]
+
+<Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
+<Lua field> ::= <Lua name> '=' <Lua exp>
+<Lua field> ::= <Lua exp>
+
+<Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
+    '<' | '<=' | '>' | '>=' | '==' | '~=' |
+    'and' | 'or'
+
+<Lua unop> ::= '-' | 'not' | '#'
 
 END_OF_SOURCE
     }
