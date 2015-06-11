@@ -35,11 +35,137 @@ package LUIF;
 
 $LUIF::grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
-:default ::= action => [values]
+:default ::= action => [start,length,values]
 lexeme default = latm => 1
 
-<LUIF piece sequence> ::= <LUIF piece>*
-<LUIF piece> ::= <marked LUIF rule> | <Lua token>
+# I (Jeffrey) start off with the
+# Lua grammar, adapted for LUIF actions and events
+# I attempt to follow the order of the Lua grammar in
+# section 8 of the Lua 5.1 reference manual.
+#
+# Names which begin with "Lua" are taken directly from
+# the Lua reference manual grammar.
+<Lua chunk> ::= <Lua stat list> <Lua optional laststat>
+<Lua stat list> ::= <Lua stat item>*
+<Lua stat item> ::= <Lua stat> ';'
+<Lua stat item> ::= <Lua stat>
+<Lua optional laststat> ::= <Lua laststat> ';'
+<Lua optional laststat> ::= <Lua laststat>
+<Lua optional laststat> ::=
+
+<Lua block> ::= <Lua chunk>
+
+# The LUIF rules are also <stat>'s, but there's a
+# lot to them.  To keep the Lua 5.1 reference grammar
+# together, therefore, I defer LUIF rules until
+# after the original Lua rules
+
+<Lua stat> ::= <Lua varlist> '=' <Lua explist>
+
+<Lua stat> ::= <Lua functioncall>
+
+<Lua stat> ::= 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'while' <Lua exp> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'repeat' <Lua block> 'until' <Lua exp>
+
+<Lua stat> ::= 'if' <Lua exp> 'then' <Lua block>
+    <Lua elseif sequence> <Lua optional else block> 'end'
+<Lua elseif sequence> ::= <Lua elseif sequence> <Lua elseif block>
+<Lua elseif sequence> ::=
+<Lua elseif block> ::= 'elseif' <Lua exp> 'then' <Lua block>
+<Lua optional else block> ::= 'else' <Lua block>
+<Lua optional else block> ::=
+
+<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
+    'do' <Lua block> 'end'
+<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'for' <Lua namelist> 'in' <Lua explist> 'do' <Lua block> 'end'
+
+<Lua stat> ::= 'function' <Lua funcname> <Lua funcbody>
+
+<Lua stat> ::= 'local' 'function' <Lua Name> <Lua funcbody>
+
+<Lua stat> ::= 'local' <Lua namelist> <Lua optional namelist initialization>
+
+<Lua optional namelist initialization> ::= 
+<Lua optional namelist initialization> ::= '=' <Lua explist>
+
+<Lua laststat> ::= 'return' <Lua optional explist>
+<Lua laststat> ::= 'break'
+
+<Lua optional explist> ::= 
+<Lua optional explist> ::= <Lua explist>
+
+<Lua funcname> ::= <Lua dotted name> <Lua optional colon name element>
+<Lua dotted name> ::= <Lua Name>+ separator => [.] proper => 1
+<Lua optional colon name element> ::=
+<Lua optional colon name element> ::= ':' <Lua Name>
+
+<Lua varlist> ::= <Lua var>+ separator => [,] proper => 1
+
+<Lua var> ::= <Lua Name>
+<Lua var> ::= <Lua prefixexp> '[' <Lua exp> ']'
+<Lua var> ::= <Lua prefixexp> '.' <Lua Name>
+
+<Lua namelist> ::= <Lua Name>+ separator => [,] proper => 1
+
+<Lua explist> ::= <Lua exp>+ separator => [,] proper => 1
+
+<Lua exp> ::= 'nil'
+<Lua exp> ::= 'false'
+<Lua exp> ::= 'true'
+<Lua exp> ::= <Lua Number>
+<Lua exp> ::= <Lua String>
+<Lua exp> ::= '...'
+<Lua exp> ::= <Lua function>
+<Lua exp> ::= <Lua prefixexp>
+<Lua exp> ::= <Lua tableconstructor>
+<Lua exp> ::= <Lua exp> <Lua binop> <Lua exp>
+<Lua exp> ::= <Lua unop> <Lua exp>
+
+<Lua prefixexp> ::= <Lua var>
+<Lua prefixexp> ::= <Lua functioncall>
+<Lua prefixexp> ::= '(' <Lua exp> ')'
+
+<Lua functioncall> ::= <Lua prefixexp> <Lua args>
+<Lua functioncall> ::= <Lua prefixexp> ':' <Lua Name> <Lua args>
+
+<Lua args> ::= '(' <Lua optional explist> ')'
+<Lua args> ::= <Lua tableconstructor>
+<Lua args> ::= <Lua String>
+
+<Lua function> ::= 'function' <Lua funcbody>
+
+<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> 'end'
+
+<Lua optional parlist> ::= <Lua namelist> 
+<Lua optional parlist> ::= <Lua namelist> ',' '...'
+<Lua optional parlist> ::= '...'
+<Lua optional parlist> ::= 
+
+# A lone comma is not allowed in an empty fieldlist,
+# apparently. This is why I use a dedicated rule
+# for an empty table and a '+' sequence,
+# instead of a '*' sequence.
+<Lua tableconstructor> ::= '{' '}'
+<Lua tableconstructor> ::= '{' <Lua fieldlist> '}'
+<Lua fieldlist> ::= <Lua field>+ separator => [,;]
+
+<Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
+<Lua field> ::= <Lua Name> '=' <Lua exp>
+<Lua field> ::= <Lua exp>
+
+<Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
+    '<' | '<=' | '>' | '>=' | '==' | '~=' |
+    'and' | 'or'
+
+<Lua unop> ::= '-' | 'not' | '#'
+
+# OK, now the LUIF rules
+<Lua stat> ::= <marked LUIF rule>
 <marked LUIF rule> ::= '(' <marked LUIF rule> ')'
 <marked LUIF rule> ::= <LUIF rule>
 <LUIF rule> ::= <LUIF rule beginning> <LUIF rule rhs>
@@ -109,37 +235,31 @@ lexeme default = latm => 1
 <marked LUIF adverb> ::= '(' 'empty' '=>' boolean ')' # empty adverb
 <boolean> ::= 'true' | 'false'
 
-<Lua token> ::= <singleline comment>
-<Lua token> ::= whitespace
-<Lua token> ::= <Lua Name>
-<Lua token> ::= <Lua Number>
-<Lua token> ::= <Lua String>
-<Lua token> ::= '-'
-<Lua token> ::= '+'
-<Lua token> ::= '*'
-<Lua token> ::= '/'
-<Lua token> ::= '%'
-<Lua token> ::= '^'
-<Lua token> ::= '#'
-<Lua token> ::= '=='
-<Lua token> ::= '~='
-<Lua token> ::= '<='
-<Lua token> ::= '>='
-<Lua token> ::= '<'
-<Lua token> ::= '>'
-<Lua token> ::= '='
-<Lua token> ::= '('
-<Lua token> ::= ')'
-<Lua token> ::= '{'
-<Lua token> ::= '}'
-<Lua token> ::= '['
-<Lua token> ::= ']'
-<Lua token> ::= ';'
-<Lua token> ::= ':'
-<Lua token> ::= ','
-<Lua token> ::= '.'
-<Lua token> ::= '..'
-<Lua token> ::= '...'
+:discard ~ <singleline comment>
+# \x5b (opening square bracket) is OK unless two of them
+# are in the first two positions
+# empty comment is single line
+<singleline comment> ~ <singleline comment start> <singleline comment trailer>
+<singleline comment start> ~ '--'
+<singleline comment trailer> ~ <optional comment body chars> <comment eol>
+<optional comment body chars> ~ <comment body char>*
+<comment body char> ~ [^\r\012]
+<comment eol> ~ [\r\012]
+
+# multiline comments are actually discarded, but the easiest way
+# to do that is to treat them as "pause before" lexemes and,
+# instead of reading them into the grammar, just throw them
+# away.
+:discard ~ <multiline comment> event => 'multiline comment'
+<multiline comment> ~ '--[' <optional equal signs> '['
+
+<optional equal signs> ~ [=]*
+
+:discard ~ whitespace
+# Lua whitespace is locale dependant and so
+# is Perl's, hopefully in the same way.
+# Anyway, it will be close enough for the moment.
+whitespace ~ [\s]+
 
 # Good practice is to *not* use locale extensions for identifiers,
 # and we enforce that,
@@ -148,16 +268,6 @@ lexeme default = latm => 1
 <identifier start char> ~ [a-zA-Z_]
 <optional identifier chars> ~ <identifier char>*
 <identifier char> ~ [a-zA-Z0-9_]
-
-# \x5b (opening square bracket) is OK unless two of them
-# are in the first two positions
-# empty comment is single line
-<singleline comment> ::= <singleline comment start> <singleline comment trailer>
-<singleline comment start> ~ '--'
-<singleline comment trailer> ~ <optional comment body chars> <comment eol>
-<optional comment body chars> ~ <comment body char>*
-<comment body char> ~ [^\r\012]
-<comment eol> ~ [\r\012]
 
 <Lua String> ::= <single quoted string>
 <single quoted string> ~ ['] <optional single quoted chars> [']
@@ -176,17 +286,6 @@ lexeme default = latm => 1
 <Lua String> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
 <multiline string> ~ '[' <optional equal signs> '['
-
-<Lua token> ::= <multiline comment>
-:lexeme ~ <multiline comment> pause => before event => 'multiline comment'
-<multiline comment> ~ '--[' <optional equal signs> '['
-
-<optional equal signs> ~ [=]*
-
-# Lua whitespace is locale dependant and so
-# is Perl's, hopefully in the same way.
-# Anyway, it will be close enough for the moment.
-whitespace ~ [\s]+
 
 <Lua Number> ~ <hex number>
 <Lua Number> ~ <C90 strtod decimal>
@@ -212,121 +311,6 @@ whitespace ~ [\s]+
 <C90 strtol hex> ~ [0] [xX] <hex digits>
 <decimal digits> ~ [0-9]+
 <hex digits> ~ [a-fA-F0-9]+
-
-# The Lua grammar, adapted for LUIF actions and events
-# I attempt to follow the order of the Lua grammar in
-# section 8 of the Lua 5.1 reference manual.
-#
-# Names which begin with "Lua" are taken directly from
-# the Lua reference manual grammar.
-<Lua chunk> ::= <Lua stat list> <Lua optional laststat>
-<Lua stat list> ::= <Lua stat item>*
-<Lua stat item> ::= <Lua stat> ';'
-<Lua stat item> ::= <Lua stat>
-<Lua optional laststat> ::= <Lua laststat> ';'
-<Lua optional laststat> ::= <Lua laststat>
-<Lua optional laststat> ::=
-
-<Lua block> ::= <Lua chunk>
-
-<Lua stat> ::= <Lua varlist> '=' <Lua explist>
-
-<Lua stat> ::= <Lua functioncall>
-
-<Lua stat> ::= 'do' <Lua block> 'end'
-
-<Lua stat> ::= 'while' <Lua exp> 'do' <Lua block> 'end'
-
-<Lua stat> ::= 'repeat' <Lua block> 'until' <Lua exp>
-
-<Lua stat> ::= 'if' <Lua exp> 'then' <Lua elseif sequence> <Lua optional else block> 'end'
-<Lua elseif sequence> ::= <Lua elseif sequence> <Lua elseif block>
-<Lua elseif sequence> ::=
-<Lua elseif block> ::= 'elseif' <Lua exp> 'then' <Lua block>
-<Lua optional else block> ::= 'else' <Lua block>
-<Lua optional else block> ::=
-
-<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
-    'do' <Lua block> 'end'
-<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> 'do' <Lua block> 'end'
-
-<Lua stat> ::= 'for' <Lua namelist> 'in' <Lua explist> 'do' <Lua block> 'end'
-
-<Lua stat> ::= 'function' <Lua funcname> <Lua funcbody>
-
-<Lua stat> ::= 'local' 'function' <Lua Name> <Lua funcbody>
-
-<Lua stat> ::= 'local' <Lua namelist> <Lua optional explist>
-
-<Lua optional explist> ::= 
-<Lua optional explist> ::= <Lua explist>
-
-<Lua laststat> ::= 'return' <Lua optional explist>
-<Lua laststat> ::= 'break'
-
-<Lua funcname> ::= <Lua dotted name> <Lua optional colon name element>
-<Lua dotted name> ::= <Lua Name>+ separator => [.] proper => 0
-<Lua optional colon name element> ::=
-<Lua optional colon name element> ::= ':' <Lua Name>
-
-<Lua varlist> ::= <Lua var>+ separator => [,] proper => 0
-
-<Lua var> ::= <Lua Name>
-<Lua var> ::= <Lua prefixexp> '[' <Lua exp> ']'
-<Lua var> ::= <Lua prefixexp> '.' <Lua Name>
-
-<Lua namelist> ::= <Lua Name>+ separator => [,] proper => 0
-
-<Lua explist> ::= <Lua exp>+ separator => [,] proper => 0
-
-<Lua exp> ::= 'nil'
-<Lua exp> ::= 'false'
-<Lua exp> ::= 'true'
-<Lua exp> ::= <Lua Number>
-<Lua exp> ::= <Lua String>
-<Lua exp> ::= '...'
-<Lua exp> ::= <Lua function>
-<Lua exp> ::= <Lua prefixexp>
-<Lua exp> ::= <Lua tableconstructor>
-<Lua exp> ::= <Lua exp> <Lua binop> <Lua exp>
-<Lua exp> ::= <Lua exp> <Lua unop> <Lua exp>
-
-<Lua prefixexp> ::= <Lua var>
-<Lua prefixexp> ::= <Lua functioncall>
-<Lua prefixexp> ::= '(' <Lua exp> ')'
-
-<Lua functioncall> ::= <Lua prefixexp> <Lua args>
-<Lua functioncall> ::= <Lua prefixexp> ':' <Lua Name> <Lua args>
-
-<Lua args> ::= '(' <Lua optional explist> ')'
-<Lua args> ::= <Lua tableconstructor>
-<Lua args> ::= <Lua String>
-
-<Lua function> ::= 'function' <Lua funcbody>
-
-<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> 'end'
-
-<Lua optional parlist> ::= <Lua namelist> 
-<Lua optional parlist> ::= <Lua namelist> ',' '...'
-<Lua optional parlist> ::= '...'
-
-# A lone comma is not allowed in an empty fieldlist,
-# apparently. This is why I use a dedicated rule
-# for an empty table and a '+' sequence,
-# instead of a '*' sequence.
-<Lua tableconstructor> ::= '{' '}'
-<Lua tableconstructor> ::= '{' <Lua fieldlist> '}'
-<Lua fieldlist> ::= <Lua field>+ separator => [,;]
-
-<Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
-<Lua field> ::= <Lua Name> '=' <Lua exp>
-<Lua field> ::= <Lua exp>
-
-<Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
-    '<' | '<=' | '>' | '>=' | '==' | '~=' |
-    'and' | 'or'
-
-<Lua unop> ::= '-' | 'not' | '#'
 
 END_OF_SOURCE
     }
@@ -364,22 +348,19 @@ sub ast {
                 next EVENT;
             } ## end if ( $name eq 'multiline string' )
             if ( $name eq 'multiline comment' ) {
-                my ( $start, $length ) = $recce->pause_span();
+                # This is a discard event
+                my ( undef, $start, $end ) = ${$event};
+                my $length = $end-$start;
                 my $comment_terminator = $recce->literal( $start, $length );
                 $comment_terminator =~ tr/-//;
                 $comment_terminator =~ tr/\[/\]/;
-                my $terminator_length = length $comment_terminator;
                 my $terminator_pos =
                     index( ${$input_ref}, $comment_terminator, $start );
                 die "Died looking for $comment_terminator"
                     if $terminator_pos < 0;
 
-                # the comment terminator has same length as the start of
-                # comment marker
-                my $comment_length =
-                    $terminator_pos + $terminator_length - $start;
-                $recce->lexeme_read( 'multiline comment',
-                    $start, $comment_length );
+                # don't read anything into G1 -- just throw
+                # the comment away
                 $pos = $terminator_pos + $length;
                 next EVENT;
             } ## end if ( $name eq 'multiline comment' )
@@ -388,6 +369,11 @@ sub ast {
         last READ if $pos >= $input_length;
         $pos = $recce->resume($pos);
     } ## end READ: while (1)
+
+    if ( my $ambiguous_status = $recce->ambiguous() ) {
+        Marpa::R2::exception( "The LUIF source is ambiguous\n",
+            $ambiguous_status );
+    }
 
     return $recce->value();
 
