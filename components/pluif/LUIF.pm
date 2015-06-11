@@ -33,10 +33,12 @@ use Marpa::R2 3.0;
 
 package LUIF;
 
+use English qw( -no_match_vars );
+
 $LUIF::grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
-:default ::= action => [values]
-lexeme default = latm => 1
+:default ::= action => [name,values]
+lexeme default = latm => 1 action => [name,values]
 
 # I (Jeffrey) start off with the
 # Lua grammar, adapted for LUIF actions and events
@@ -115,33 +117,35 @@ lexeme default = latm => 1
 <Lua explist> ::= <Lua exp>+ separator => [,] proper => 1
 
 <Lua exp> ::=
-       <keyword nil>
+       <Lua var>
+     | '(' <Lua exp> ')' assoc => group
+    || <Lua exp> <Lua args> assoc => right
+    || <Lua exp> ':' <Lua Name> <Lua args> assoc => right
+     | <keyword nil>
      | <keyword false>
      | <keyword true>
      | <Lua Number>
      | <Lua String>
      | '...'
-     | <Lua function>
-     | <Lua prefixexp>
      | <Lua tableconstructor>
-    || <Lua exp> <keyword or> <Lua exp>
-    || <Lua exp> <keyword and> <Lua exp>
+    || <Lua exp> '^' <Lua exp> assoc => right
+    || <keyword not> <Lua exp>
+     | '#' <Lua exp>
+     | '-' <Lua exp>
+    || <Lua exp> '*' <Lua exp>
+     | <Lua exp> '/' <Lua exp>
+     | <Lua exp> '%' <Lua exp>
+    || <Lua exp> '+' <Lua exp>
+     | <Lua exp> '-' <Lua exp>
+    || <Lua exp> '..' <Lua exp> assoc => right
     || <Lua exp> '<' <Lua exp>
      | <Lua exp> '<=' <Lua exp>
      | <Lua exp> '>' <Lua exp>
      | <Lua exp> '>=' <Lua exp>
      | <Lua exp> '==' <Lua exp>
      | <Lua exp> '~=' <Lua exp>
-    || <Lua exp> '..' <Lua exp> assoc => right
-    || <Lua exp> '+' <Lua exp>
-     | <Lua exp> '-' <Lua exp>
-    || <Lua exp> '*' <Lua exp>
-     | <Lua exp> '/' <Lua exp>
-     | <Lua exp> '%' <Lua exp>
-    || <keyword not> <Lua exp>
-     | '#' <Lua exp>
-     | '-' <Lua exp>
-    || <Lua exp> '^' <Lua exp> assoc => right
+    || <Lua exp> <keyword and> <Lua exp>
+    || <Lua exp> <keyword or> <Lua exp>
 
 <Lua prefixexp> ::= <Lua var>
 <Lua prefixexp> ::= <Lua functioncall>
