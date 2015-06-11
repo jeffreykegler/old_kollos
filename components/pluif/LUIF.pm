@@ -114,17 +114,34 @@ lexeme default = latm => 1
 
 <Lua explist> ::= <Lua exp>+ separator => [,] proper => 1
 
-<Lua exp> ::= <keyword nil>
-<Lua exp> ::= <keyword false>
-<Lua exp> ::= <keyword true>
-<Lua exp> ::= <Lua Number>
-<Lua exp> ::= <Lua String>
-<Lua exp> ::= '...'
-<Lua exp> ::= <Lua function>
-<Lua exp> ::= <Lua prefixexp>
-<Lua exp> ::= <Lua tableconstructor>
-<Lua exp> ::= <Lua exp> <Lua binop> <Lua exp>
-<Lua exp> ::= <Lua unop> <Lua exp>
+<Lua exp> ::=
+       <keyword nil>
+     | <keyword false>
+     | <keyword true>
+     | <Lua Number>
+     | <Lua String>
+     | '...'
+     | <Lua function>
+     | <Lua prefixexp>
+     | <Lua tableconstructor>
+    || <Lua exp> <keyword or> <Lua exp>
+    || <Lua exp> <keyword and> <Lua exp>
+    || <Lua exp> '<' <Lua exp>
+     | <Lua exp> '<=' <Lua exp>
+     | <Lua exp> '>' <Lua exp>
+     | <Lua exp> '>=' <Lua exp>
+     | <Lua exp> '==' <Lua exp>
+     | <Lua exp> '~=' <Lua exp>
+    || <Lua exp> '..' <Lua exp> assoc => right
+    || <Lua exp> '+' <Lua exp>
+     | <Lua exp> '-' <Lua exp>
+    || <Lua exp> '*' <Lua exp>
+     | <Lua exp> '/' <Lua exp>
+     | <Lua exp> '%' <Lua exp>
+    || <keyword not> <Lua exp>
+     | '#' <Lua exp>
+     | '-' <Lua exp>
+    || <Lua exp> '^' <Lua exp> assoc => right
 
 <Lua prefixexp> ::= <Lua var>
 <Lua prefixexp> ::= <Lua functioncall>
@@ -157,12 +174,6 @@ lexeme default = latm => 1
 <Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
 <Lua field> ::= <Lua Name> '=' <Lua exp>
 <Lua field> ::= <Lua exp>
-
-<Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
-    '<' | '<=' | '>' | '>=' | '==' | '~=' |
-    <keyword and> | <keyword or>
-
-<Lua unop> ::= '-' | <keyword not> | '#'
 
 :lexeme ~ <keyword and> priority => 1
 <keyword and> ~ 'and'
