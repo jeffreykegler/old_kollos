@@ -104,6 +104,7 @@ my @test_files = qw(
 );
 
 for my $test_file (@test_files) {
+    say STDERR "FILE ", $test_file;
     my $input_ref = slurp_file($test_file);
     my $ast = LUIF::ast($input_ref);
     Test::More::ok( $test_file );

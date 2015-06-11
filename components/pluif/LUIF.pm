@@ -368,7 +368,9 @@ END_OF_SOURCE
 
 sub ast {
     my ($input_ref) = @_;
-    my $recce = Marpa::R2::Scanless::R->new( { grammar => $LUIF::grammar } );
+    my $recce = Marpa::R2::Scanless::R->new( { grammar => $LUIF::grammar },
+    { trace_terminals => 99 }
+    );
 
     my $input_length = length ${$input_ref};
     my $pos          = $recce->read($input_ref);
@@ -426,12 +428,17 @@ sub ast {
                 die "Died looking for singleline comment terminator"
                     if not defined $new_pos;
                 $pos = $new_pos;
+                say STDERR "new pos is at ", substr(${$input_ref}, $new_pos, 20);
                 next EVENT;
             } ## end if ( $name eq 'singleline comment' )
             die("Unexpected event");
         } ## end EVENT: for my $event ( @{ $recce->events() } )
         last READ if $pos >= $input_length;
-        $pos = $recce->resume($pos);
+        my $eval_ok = eval { $pos = $recce->resume($pos); 1 };
+        if (not $eval_ok) {
+            say STDERR "===\n", $recce->show_progress(0, -1);
+            die $EVAL_ERROR;
+        }
     } ## end READ: while (1)
 
     if ( my $ambiguous_status = $recce->ambiguous() ) {
