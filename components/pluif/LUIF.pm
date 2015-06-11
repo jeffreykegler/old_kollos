@@ -64,37 +64,37 @@ lexeme default = latm => 1
 
 <Lua stat> ::= <Lua functioncall>
 
-<Lua stat> ::= 'do' <Lua block> 'end'
+<Lua stat> ::= <keyword do> <Lua block> <keyword end>
 
-<Lua stat> ::= 'while' <Lua exp> 'do' <Lua block> 'end'
+<Lua stat> ::= <keyword while> <Lua exp> <keyword do> <Lua block> <keyword end>
 
-<Lua stat> ::= 'repeat' <Lua block> 'until' <Lua exp>
+<Lua stat> ::= <keyword repeat> <Lua block> <keyword until> <Lua exp>
 
-<Lua stat> ::= 'if' <Lua exp> 'then' <Lua block>
-    <Lua elseif sequence> <Lua optional else block> 'end'
+<Lua stat> ::= <keyword if> <Lua exp> <keyword then> <Lua block>
+    <Lua elseif sequence> <Lua optional else block> <keyword end>
 <Lua elseif sequence> ::= <Lua elseif sequence> <Lua elseif block>
 <Lua elseif sequence> ::=
-<Lua elseif block> ::= 'elseif' <Lua exp> 'then' <Lua block>
-<Lua optional else block> ::= 'else' <Lua block>
+<Lua elseif block> ::= <keyword elseif> <Lua exp> <keyword then> <Lua block>
+<Lua optional else block> ::= <keyword else> <Lua block>
 <Lua optional else block> ::=
 
-<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
-    'do' <Lua block> 'end'
-<Lua stat> ::= 'for' <Lua Name> '=' <Lua exp> ',' <Lua exp> 'do' <Lua block> 'end'
+<Lua stat> ::= <keyword for> <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
+    <keyword do> <Lua block> <keyword end>
+<Lua stat> ::= <keyword for> <Lua Name> '=' <Lua exp> ',' <Lua exp> <keyword do> <Lua block> <keyword end>
 
-<Lua stat> ::= 'for' <Lua namelist> 'in' <Lua explist> 'do' <Lua block> 'end'
+<Lua stat> ::= <keyword for> <Lua namelist> <keyword in> <Lua explist> <keyword do> <Lua block> <keyword end>
 
-<Lua stat> ::= 'function' <Lua funcname> <Lua funcbody>
+<Lua stat> ::= <keyword function> <Lua funcname> <Lua funcbody>
 
-<Lua stat> ::= 'local' 'function' <Lua Name> <Lua funcbody>
+<Lua stat> ::= <keyword local> <keyword function> <Lua Name> <Lua funcbody>
 
-<Lua stat> ::= 'local' <Lua namelist> <Lua optional namelist initialization>
+<Lua stat> ::= <keyword local> <Lua namelist> <Lua optional namelist initialization>
 
 <Lua optional namelist initialization> ::= 
 <Lua optional namelist initialization> ::= '=' <Lua explist>
 
-<Lua laststat> ::= 'return' <Lua optional explist>
-<Lua laststat> ::= 'break'
+<Lua laststat> ::= <keyword return> <Lua optional explist>
+<Lua laststat> ::= <keyword break>
 
 <Lua optional explist> ::= 
 <Lua optional explist> ::= <Lua explist>
@@ -114,9 +114,9 @@ lexeme default = latm => 1
 
 <Lua explist> ::= <Lua exp>+ separator => [,] proper => 1
 
-<Lua exp> ::= 'nil'
-<Lua exp> ::= 'false'
-<Lua exp> ::= 'true'
+<Lua exp> ::= <keyword nil>
+<Lua exp> ::= <keyword false>
+<Lua exp> ::= <keyword true>
 <Lua exp> ::= <Lua Number>
 <Lua exp> ::= <Lua String>
 <Lua exp> ::= '...'
@@ -137,9 +137,9 @@ lexeme default = latm => 1
 <Lua args> ::= <Lua tableconstructor>
 <Lua args> ::= <Lua String>
 
-<Lua function> ::= 'function' <Lua funcbody>
+<Lua function> ::= <keyword function> <Lua funcbody>
 
-<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> 'end'
+<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> <keyword end>
 
 <Lua optional parlist> ::= <Lua namelist> 
 <Lua optional parlist> ::= <Lua namelist> ',' '...'
@@ -160,33 +160,76 @@ lexeme default = latm => 1
 
 <Lua binop> ::= '+' | '-' | '*' | '/' | '^' | '%' | '..' |
     '<' | '<=' | '>' | '>=' | '==' | '~=' |
-    'and' | 'or'
+    <keyword and> | <keyword or>
 
-<Lua unop> ::= '-' | 'not' | '#'
+<Lua unop> ::= '-' | <keyword not> | '#'
+
+:lexeme ~ <keyword and> priority => 1
+<keyword and> ~ 'and'
+:lexeme ~ <keyword break> priority => 1
+<keyword break> ~ 'break'
+:lexeme ~ <keyword do> priority => 1
+<keyword do> ~ 'do'
+:lexeme ~ <keyword else> priority => 1
+<keyword else> ~ 'else'
+:lexeme ~ <keyword elseif> priority => 1
+<keyword elseif> ~ 'elseif'
+:lexeme ~ <keyword end> priority => 1
+<keyword end> ~ 'end'
+:lexeme ~ <keyword false> priority => 1
+<keyword false> ~ 'false'
+:lexeme ~ <keyword for> priority => 1
+<keyword for> ~ 'for'
+:lexeme ~ <keyword function> priority => 1
+<keyword function> ~ 'function'
+:lexeme ~ <keyword if> priority => 1
+<keyword if> ~ 'if'
+:lexeme ~ <keyword in> priority => 1
+<keyword in> ~ 'in'
+:lexeme ~ <keyword local> priority => 1
+<keyword local> ~ 'local'
+:lexeme ~ <keyword nil> priority => 1
+<keyword nil> ~ 'nil'
+:lexeme ~ <keyword not> priority => 1
+<keyword not> ~ 'not'
+:lexeme ~ <keyword or> priority => 1
+<keyword or> ~ 'or'
+:lexeme ~ <keyword repeat> priority => 1
+<keyword repeat> ~ 'repeat'
+:lexeme ~ <keyword return> priority => 1
+<keyword return> ~ 'return'
+:lexeme ~ <keyword then> priority => 1
+<keyword then> ~ 'then'
+:lexeme ~ <keyword true> priority => 1
+<keyword true> ~ 'true'
+:lexeme ~ <keyword until> priority => 1
+<keyword until> ~ 'until'
+:lexeme ~ <keyword while> priority => 1
+<keyword while> ~ 'while'
 
 # OK, now the LUIF rules
 <Lua stat> ::= <marked LUIF rule>
 <marked LUIF rule> ::= '(' <marked LUIF rule> ')'
 <marked LUIF rule> ::= <LUIF rule>
 <LUIF rule> ::= <LUIF rule beginning> <LUIF rule rhs>
-<LUIF rule beginning> ::= <start keyword> <marked lhs> '::='
-<LUIF rule beginning> ::= <rule keyword> <marked lhs> '::='
+<LUIF rule beginning> ::= <keyword start> <marked lhs> '::='
+<LUIF rule beginning> ::= <keyword rule> <marked lhs> '::='
 <LUIF rule beginning> ::= <marked lhs> '::='
-<LUIF rule beginning> ::= <seamless keyword> <marked lhs> '~'
-<LUIF rule beginning> ::= <lexeme keyword> <marked lhs> '~'
-<LUIF rule beginning> ::= <token keyword> <marked lhs> '~'
+<LUIF rule beginning> ::= <keyword seamless> <marked lhs> '~'
+<LUIF rule beginning> ::= <keyword lexeme> <marked lhs> '~'
+<LUIF rule beginning> ::= <keyword token> <marked lhs> '~'
 <LUIF rule beginning> ::= <marked lhs> '~'
 
-:lexeme ~ <start keyword>
-<start keyword> ~ 'start'
-:lexeme ~ <rule keyword>
-<rule keyword> ~ 'rule'
-:lexeme ~ <seamless keyword>
-<seamless keyword> ~ 'seamless'
-:lexeme ~ <lexeme keyword>
-<lexeme keyword> ~ 'lexeme'
-:lexeme ~ <token keyword>
-<token keyword> ~ 'token'
+:lexeme ~ <keyword start>
+<keyword start> ~ 'start'
+:lexeme ~ <keyword rule>
+<keyword rule> ~ 'rule'
+:lexeme ~ <keyword seamless>
+<keyword seamless> ~ 'seamless'
+:lexeme ~ <keyword lexeme>
+<keyword lexeme> ~ 'lexeme'
+:lexeme ~ <keyword token>
+<keyword token> ~ 'token'
 
 <marked lhs> ::= '(' <marked lhs>  ')'
 <marked lhs> ::= <lhs>
