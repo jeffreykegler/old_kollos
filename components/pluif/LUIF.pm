@@ -35,7 +35,7 @@ package LUIF;
 
 $LUIF::grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
-:default ::= action => [start,length,values]
+:default ::= action => [values]
 lexeme default = latm => 1
 
 # I (Jeffrey) start off with the
@@ -221,7 +221,7 @@ lexeme default = latm => 1
 # OK, now the LUIF rules
 <Lua stat> ::= <marked LUIF rule>
 <marked LUIF rule> ::= '(' <marked LUIF rule> ')'
-<marked LUIF rule> ::= <LUIF rule>
+<marked LUIF rule> ::= <LUIF rule> action => [name,start,length,values]
 <LUIF rule> ::= <LUIF rule beginning> <LUIF rule rhs>
 <LUIF rule beginning> ::= <keyword start> <marked lhs> '::='
 <LUIF rule beginning> ::= <keyword rule> <marked lhs> '::='
@@ -289,21 +289,13 @@ lexeme default = latm => 1
 <marked LUIF adverb> ::= '(' 'empty' '=>' boolean ')' # empty adverb
 <boolean> ::= 'true' | 'false'
 
-:discard ~ <singleline comment>
-# \x5b (opening square bracket) is OK unless two of them
-# are in the first two positions
-# empty comment is single line
-<singleline comment> ~ <singleline comment start> <singleline comment trailer>
+# multiline comments are discarded.  The lexer only looks for
+# their beginning, and uses an event to throw away the rest
+# of the comment
+:discard ~ <singleline comment> event => 'singleline comment'
+<singleline comment> ~ <singleline comment start>
 <singleline comment start> ~ '--'
-<singleline comment trailer> ~ <optional comment body chars> <comment eol>
-<optional comment body chars> ~ <comment body char>*
-<comment body char> ~ [^\r\012]
-<comment eol> ~ [\r\012]
 
-# multiline comments are actually discarded, but the easiest way
-# to do that is to treat them as "pause before" lexemes and,
-# instead of reading them into the grammar, just throw them
-# away.
 :discard ~ <multiline comment> event => 'multiline comment'
 <multiline comment> ~ '--[' <optional equal signs> '['
 
@@ -383,7 +375,7 @@ sub ast {
         for my $event ( @{ $recce->events() } ) {
             my ($name) = @{$event};
 
-            # say STDERR "Got $name";
+            say STDERR "Got $name";
             if ( $name eq 'multiline string' ) {
                 my ( $start, $length ) = $recce->pause_span();
                 my $string_terminator = $recce->literal( $start, $length );
@@ -403,7 +395,8 @@ sub ast {
             } ## end if ( $name eq 'multiline string' )
             if ( $name eq 'multiline comment' ) {
                 # This is a discard event
-                my ( undef, $start, $end ) = ${$event};
+                say STDERR "multiline comment", join " ", @{$event};
+                my ( undef, $start, $end ) = @{$event};
                 my $length = $end-$start;
                 my $comment_terminator = $recce->literal( $start, $length );
                 $comment_terminator =~ tr/-//;
@@ -418,6 +411,19 @@ sub ast {
                 $pos = $terminator_pos + $length;
                 next EVENT;
             } ## end if ( $name eq 'multiline comment' )
+            if ( $name eq 'singleline comment' ) {
+                # This is a discard event
+                say STDERR "singleline comment", join " ", @{$event};
+                my ( undef, $start, $end ) = @{$event};
+                my $length = $end-$start;
+                pos ${$input_ref} = $end-1;
+                ${$input_ref} =~ /[\r\n]/gxms;
+                my $new_pos = pos ${$input_ref};
+                die "Died looking for singleline comment terminator"
+                    if not defined $new_pos;
+                $pos = $new_pos;
+                next EVENT;
+            } ## end if ( $name eq 'singleline comment' )
             die("Unexpected event");
         } ## end EVENT: for my $event ( @{ $recce->events() } )
         last READ if $pos >= $input_length;
