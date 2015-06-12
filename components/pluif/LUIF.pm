@@ -128,6 +128,7 @@ lexeme default = latm => 1 action => [name,values]
      | <Lua String>
      | '...'
      | <Lua tableconstructor>
+     | <Lua function>
     || <Lua exp> '^' <Lua exp> assoc => right
     || <keyword not> <Lua exp>
      | '#' <Lua exp>
@@ -369,7 +370,7 @@ END_OF_SOURCE
 sub ast {
     my ($input_ref) = @_;
     my $recce = Marpa::R2::Scanless::R->new( { grammar => $LUIF::grammar },
-    { trace_terminals => 99 }
+    # { trace_terminals => 99 }
     );
 
     my $input_length = length ${$input_ref};
@@ -381,7 +382,7 @@ sub ast {
         for my $event ( @{ $recce->events() } ) {
             my ($name) = @{$event};
 
-            say STDERR "Got $name";
+            # say STDERR "Got $name";
             if ( $name eq 'multiline string' ) {
                 my ( $start, $length ) = $recce->pause_span();
                 my $string_terminator = $recce->literal( $start, $length );
@@ -401,7 +402,7 @@ sub ast {
             } ## end if ( $name eq 'multiline string' )
             if ( $name eq 'multiline comment' ) {
                 # This is a discard event
-                say STDERR "multiline comment", join " ", @{$event};
+                # say STDERR "multiline comment", join " ", @{$event};
                 my ( undef, $start, $end ) = @{$event};
                 my $length = $end-$start;
                 my $comment_terminator = $recce->literal( $start, $length );
@@ -419,7 +420,7 @@ sub ast {
             } ## end if ( $name eq 'multiline comment' )
             if ( $name eq 'singleline comment' ) {
                 # This is a discard event
-                say STDERR "singleline comment", join " ", @{$event};
+                # say STDERR "singleline comment", join " ", @{$event};
                 my ( undef, $start, $end ) = @{$event};
                 my $length = $end-$start;
                 pos ${$input_ref} = $end-1;
@@ -428,17 +429,18 @@ sub ast {
                 die "Died looking for singleline comment terminator"
                     if not defined $new_pos;
                 $pos = $new_pos;
-                say STDERR "new pos is at ", substr(${$input_ref}, $new_pos, 20);
+                # say STDERR "new pos is at ", substr(${$input_ref}, $new_pos, 20);
                 next EVENT;
             } ## end if ( $name eq 'singleline comment' )
             die("Unexpected event");
         } ## end EVENT: for my $event ( @{ $recce->events() } )
         last READ if $pos >= $input_length;
-        my $eval_ok = eval { $pos = $recce->resume($pos); 1 };
-        if (not $eval_ok) {
-            say STDERR "===\n", $recce->show_progress(0, -1);
-            die $EVAL_ERROR;
-        }
+        $pos = $recce->resume($pos);
+        # my $eval_ok = eval { $pos = $recce->resume($pos); 1 };
+        # if (not $eval_ok) {
+            # say STDERR "===\n", $recce->show_progress(0, -1);
+            # die $EVAL_ERROR;
+        # }
     } ## end READ: while (1)
 
     if ( my $ambiguous_status = $recce->ambiguous() ) {
