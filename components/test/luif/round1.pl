@@ -32,7 +32,7 @@ use Fcntl;
 
 use Marpa::R2 3.0;
 
-use LUIF;
+use Lua;
 
 sub slurp_file {
 
@@ -105,7 +105,7 @@ my @test_files = qw(
 
 for my $test_file (@test_files) {
     my $input_ref = slurp_file($test_file);
-    my $ast = LUIF::ast($input_ref);
+    my $ast = Lua::ast($input_ref);
     Test::More::pass( $test_file );
 }
 
