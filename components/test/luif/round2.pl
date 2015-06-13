@@ -19,57 +19,30 @@
 
 # Prototype the LUIF parser
 
-use 5.010;
-use strict;
-use warnings;
-use English qw( -no_match_vars );
-use Scalar::Util;
-use Data::Dumper;
-use Test::More tests => 34;
-use Fcntl;
-
-## no critic (ErrorHandling::RequireCarping);
-use Marpa::R2 3.0;
-
-use LUIF;
-
-my $luif_script = <<'EO_LUIF';
+K = require 'kollos'
 
 kollos.if('alpha')
 
-seamless l0.E ::=
-      number -> number
-   || E ws? '*' ws? E -> E*E
-   || E ws? '+' ws? E -> E+E
-token ws ([\009\010\013\032]) -> nil
-token l0.number ([%d]+)
+l0 = K:grammar_new()
 
-EO_LUIF
+l0:alternative{'E', 'number', exp = 'number'}
+l0:precedence{}
+l0:alternative{'E',
+   'E',
+   l0:seq{'ws', min = 0, max = 1 },
+   l0:string'*'
+   l0:seq{'ws', min = 0, max = 1 },
+   'E',
+   exp = 'E*E'}
+l0:precedence{}
+l0:alternative{'E',
+   'E',
+   l0:seq{'ws', min = 0, max = 1 },
+   l0:string'+'
+   l0:seq{'ws', min = 0, max = 1 },
+   'E',
+   exp = 'E+E'}
+l0:token{'ws', '[\009\010\013\032]', exp = 'nil' }
+l0:token{'number', l0:seq{l0:token'[%d]', min = 1}}
 
-sub flatten {
-    my ( $result, $arg ) = @_;
-    if ( not ref $arg ) {
-        push @{$result}, $arg;
-        return;
-    }
-    if ( ref $arg eq 'ARRAY' ) {
-        flatten( $result, $_ ) for @{$arg};
-        return;
-    }
-    if ( ref $arg eq 'REF' ) {
-        flatten( $result, ${$arg} );
-        return;
-    }
-    die "arg is ", ref $arg;
-} ## end sub flatten
-
-for my $test_data ([\$luif_script, 'test 1']) {
-    my ($test_script_ref, $test_name) = @{$test_data};
-    my $ast = LUIF::ast($test_script_ref);
-    my $flat = [];
-    flatten( $flat, $ast );
-    my $output = join q{}, @{$flat};
-    Test::More::is( ${$test_script_ref}, $output, $test_name );
-}
-
-# vim: expandtab shiftwidth=4:
+-- vim: expandtab shiftwidth=4:
