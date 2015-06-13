@@ -45,133 +45,133 @@ lexeme default = latm => 1 action => [name,values]
 #
 # Names which begin with "Lua" are taken directly from
 # the Lua reference manual grammar.
-<Lua chunk> ::= <Lua stat list> <Lua optional laststat>
-<Lua stat list> ::= <Lua stat item>*
-<Lua stat item> ::= <Lua stat> ';'
-<Lua stat item> ::= <Lua stat>
-<Lua optional laststat> ::= <Lua laststat> ';'
-<Lua optional laststat> ::= <Lua laststat>
-<Lua optional laststat> ::=
+<chunk> ::= <stat list> <optional laststat>
+<stat list> ::= <stat item>*
+<stat item> ::= <stat> ';'
+<stat item> ::= <stat>
+<optional laststat> ::= <laststat> ';'
+<optional laststat> ::= <laststat>
+<optional laststat> ::=
 
-<Lua block> ::= <Lua chunk>
+<block> ::= <chunk>
 
-<Lua stat> ::= <Lua varlist> '=' <Lua explist>
+<stat> ::= <varlist> '=' <explist>
 
-<Lua stat> ::= <Lua functioncall>
+<stat> ::= <functioncall>
 
-<Lua stat> ::= <keyword do> <Lua block> <keyword end>
+<stat> ::= <keyword do> <block> <keyword end>
 
-<Lua stat> ::= <keyword while> <Lua exp> <keyword do> <Lua block> <keyword end>
+<stat> ::= <keyword while> <exp> <keyword do> <block> <keyword end>
 
-<Lua stat> ::= <keyword repeat> <Lua block> <keyword until> <Lua exp>
+<stat> ::= <keyword repeat> <block> <keyword until> <exp>
 
-<Lua stat> ::= <keyword if> <Lua exp> <keyword then> <Lua block>
-    <Lua elseif sequence> <Lua optional else block> <keyword end>
-<Lua elseif sequence> ::= <Lua elseif sequence> <Lua elseif block>
-<Lua elseif sequence> ::=
-<Lua elseif block> ::= <keyword elseif> <Lua exp> <keyword then> <Lua block>
-<Lua optional else block> ::= <keyword else> <Lua block>
-<Lua optional else block> ::=
+<stat> ::= <keyword if> <exp> <keyword then> <block>
+    <elseif sequence> <optional else block> <keyword end>
+<elseif sequence> ::= <elseif sequence> <elseif block>
+<elseif sequence> ::=
+<elseif block> ::= <keyword elseif> <exp> <keyword then> <block>
+<optional else block> ::= <keyword else> <block>
+<optional else block> ::=
 
-<Lua stat> ::= <keyword for> <Lua Name> '=' <Lua exp> ',' <Lua exp> ',' <Lua exp>
-    <keyword do> <Lua block> <keyword end>
-<Lua stat> ::= <keyword for> <Lua Name> '=' <Lua exp> ',' <Lua exp> <keyword do> <Lua block> <keyword end>
+<stat> ::= <keyword for> <Name> '=' <exp> ',' <exp> ',' <exp>
+    <keyword do> <block> <keyword end>
+<stat> ::= <keyword for> <Name> '=' <exp> ',' <exp> <keyword do> <block> <keyword end>
 
-<Lua stat> ::= <keyword for> <Lua namelist> <keyword in> <Lua explist> <keyword do> <Lua block> <keyword end>
+<stat> ::= <keyword for> <namelist> <keyword in> <explist> <keyword do> <block> <keyword end>
 
-<Lua stat> ::= <keyword function> <Lua funcname> <Lua funcbody>
+<stat> ::= <keyword function> <funcname> <funcbody>
 
-<Lua stat> ::= <keyword local> <keyword function> <Lua Name> <Lua funcbody>
+<stat> ::= <keyword local> <keyword function> <Name> <funcbody>
 
-<Lua stat> ::= <keyword local> <Lua namelist> <Lua optional namelist initialization>
+<stat> ::= <keyword local> <namelist> <optional namelist initialization>
 
-<Lua optional namelist initialization> ::= 
-<Lua optional namelist initialization> ::= '=' <Lua explist>
+<optional namelist initialization> ::= 
+<optional namelist initialization> ::= '=' <explist>
 
-<Lua laststat> ::= <keyword return> <Lua optional explist>
-<Lua laststat> ::= <keyword break>
+<laststat> ::= <keyword return> <optional explist>
+<laststat> ::= <keyword break>
 
-<Lua optional explist> ::= 
-<Lua optional explist> ::= <Lua explist>
+<optional explist> ::= 
+<optional explist> ::= <explist>
 
-<Lua funcname> ::= <Lua dotted name> <Lua optional colon name element>
-<Lua dotted name> ::= <Lua Name>+ separator => [.] proper => 1
-<Lua optional colon name element> ::=
-<Lua optional colon name element> ::= ':' <Lua Name>
+<funcname> ::= <dotted name> <optional colon name element>
+<dotted name> ::= <Name>+ separator => [.] proper => 1
+<optional colon name element> ::=
+<optional colon name element> ::= ':' <Name>
 
-<Lua varlist> ::= <Lua var>+ separator => [,] proper => 1
+<varlist> ::= <var>+ separator => [,] proper => 1
 
-<Lua var> ::= <Lua Name>
-<Lua var> ::= <Lua prefixexp> '[' <Lua exp> ']'
-<Lua var> ::= <Lua prefixexp> '.' <Lua Name>
+<var> ::= <Name>
+<var> ::= <prefixexp> '[' <exp> ']'
+<var> ::= <prefixexp> '.' <Name>
 
-<Lua namelist> ::= <Lua Name>+ separator => [,] proper => 1
+<namelist> ::= <Name>+ separator => [,] proper => 1
 
-<Lua explist> ::= <Lua exp>+ separator => [,] proper => 1
+<explist> ::= <exp>+ separator => [,] proper => 1
 
-<Lua exp> ::=
-       <Lua var>
-     | '(' <Lua exp> ')' assoc => group
-    || <Lua exp> <Lua args> assoc => right
-    || <Lua exp> ':' <Lua Name> <Lua args> assoc => right
+<exp> ::=
+       <var>
+     | '(' <exp> ')' assoc => group
+    || <exp> <args> assoc => right
+    || <exp> ':' <Name> <args> assoc => right
      | <keyword nil>
      | <keyword false>
      | <keyword true>
-     | <Lua Number>
-     | <Lua String>
+     | <Number>
+     | <String>
      | '...'
-     | <Lua tableconstructor>
-     | <Lua function>
-    || <Lua exp> '^' <Lua exp> assoc => right
-    || <keyword not> <Lua exp>
-     | '#' <Lua exp>
-     | '-' <Lua exp>
-    || <Lua exp> '*' <Lua exp>
-     | <Lua exp> '/' <Lua exp>
-     | <Lua exp> '%' <Lua exp>
-    || <Lua exp> '+' <Lua exp>
-     | <Lua exp> '-' <Lua exp>
-    || <Lua exp> '..' <Lua exp> assoc => right
-    || <Lua exp> '<' <Lua exp>
-     | <Lua exp> '<=' <Lua exp>
-     | <Lua exp> '>' <Lua exp>
-     | <Lua exp> '>=' <Lua exp>
-     | <Lua exp> '==' <Lua exp>
-     | <Lua exp> '~=' <Lua exp>
-    || <Lua exp> <keyword and> <Lua exp>
-    || <Lua exp> <keyword or> <Lua exp>
+     | <tableconstructor>
+     | <function>
+    || <exp> '^' <exp> assoc => right
+    || <keyword not> <exp>
+     | '#' <exp>
+     | '-' <exp>
+    || <exp> '*' <exp>
+     | <exp> '/' <exp>
+     | <exp> '%' <exp>
+    || <exp> '+' <exp>
+     | <exp> '-' <exp>
+    || <exp> '..' <exp> assoc => right
+    || <exp> '<' <exp>
+     | <exp> '<=' <exp>
+     | <exp> '>' <exp>
+     | <exp> '>=' <exp>
+     | <exp> '==' <exp>
+     | <exp> '~=' <exp>
+    || <exp> <keyword and> <exp>
+    || <exp> <keyword or> <exp>
 
-<Lua prefixexp> ::= <Lua var>
-<Lua prefixexp> ::= <Lua functioncall>
-<Lua prefixexp> ::= '(' <Lua exp> ')'
+<prefixexp> ::= <var>
+<prefixexp> ::= <functioncall>
+<prefixexp> ::= '(' <exp> ')'
 
-<Lua functioncall> ::= <Lua prefixexp> <Lua args>
-<Lua functioncall> ::= <Lua prefixexp> ':' <Lua Name> <Lua args>
+<functioncall> ::= <prefixexp> <args>
+<functioncall> ::= <prefixexp> ':' <Name> <args>
 
-<Lua args> ::= '(' <Lua optional explist> ')'
-<Lua args> ::= <Lua tableconstructor>
-<Lua args> ::= <Lua String>
+<args> ::= '(' <optional explist> ')'
+<args> ::= <tableconstructor>
+<args> ::= <String>
 
-<Lua function> ::= <keyword function> <Lua funcbody>
+<function> ::= <keyword function> <funcbody>
 
-<Lua funcbody> ::= '(' <Lua optional parlist> ')' <Lua block> <keyword end>
+<funcbody> ::= '(' <optional parlist> ')' <block> <keyword end>
 
-<Lua optional parlist> ::= <Lua namelist> 
-<Lua optional parlist> ::= <Lua namelist> ',' '...'
-<Lua optional parlist> ::= '...'
-<Lua optional parlist> ::= 
+<optional parlist> ::= <namelist> 
+<optional parlist> ::= <namelist> ',' '...'
+<optional parlist> ::= '...'
+<optional parlist> ::= 
 
 # A lone comma is not allowed in an empty fieldlist,
 # apparently. This is why I use a dedicated rule
 # for an empty table and a '+' sequence,
 # instead of a '*' sequence.
-<Lua tableconstructor> ::= '{' '}'
-<Lua tableconstructor> ::= '{' <Lua fieldlist> '}'
-<Lua fieldlist> ::= <Lua field>+ separator => [,;]
+<tableconstructor> ::= '{' '}'
+<tableconstructor> ::= '{' <fieldlist> '}'
+<fieldlist> ::= <field>+ separator => [,;]
 
-<Lua field> ::= '[' <Lua exp> ']' '=' <Lua exp>
-<Lua field> ::= <Lua Name> '=' <Lua exp>
-<Lua field> ::= <Lua exp>
+<field> ::= '[' <exp> ']' '=' <exp>
+<field> ::= <Name> '=' <exp>
+<field> ::= <exp>
 
 :lexeme ~ <keyword and> priority => 1
 <keyword and> ~ 'and'
@@ -237,32 +237,32 @@ whitespace ~ [\s]+
 # Good practice is to *not* use locale extensions for identifiers,
 # and we enforce that,
 # so all letters must be a-z or A-Z
-<Lua Name> ~ <identifier start char> <optional identifier chars>
+<Name> ~ <identifier start char> <optional identifier chars>
 <identifier start char> ~ [a-zA-Z_]
 <optional identifier chars> ~ <identifier char>*
 <identifier char> ~ [a-zA-Z0-9_]
 
-<Lua String> ::= <single quoted string>
+<String> ::= <single quoted string>
 <single quoted string> ~ ['] <optional single quoted chars> [']
 <optional single quoted chars> ~ <single quoted char>*
 # anything other than vertical space or a single quote
 <single quoted char> ~ [^\v'\x5c]
 <single quoted char> ~ '\' [\d\D] # also an escaped char
 
-<Lua String> ::= <double quoted string>
+<String> ::= <double quoted string>
 <double quoted string> ~ ["] <optional double quoted chars> ["]
 <optional double quoted chars> ~ <double quoted char>*
 # anything other than vertical space or a double quote
 <double quoted char> ~ [^\v"\x5c]
 <double quoted char> ~ '\' [\d\D] # also an escaped char
 
-<Lua String> ::= <multiline string>
+<String> ::= <multiline string>
 :lexeme ~ <multiline string> pause => before event => 'multiline string'
 <multiline string> ~ '[' <optional equal signs> '['
 
-<Lua Number> ~ <hex number>
-<Lua Number> ~ <C90 strtod decimal>
-<Lua Number> ~ <C90 strtol hex>
+<Number> ~ <hex number>
+<Number> ~ <C90 strtod decimal>
+<Number> ~ <C90 strtol hex>
 
 <hex number> ~ '0x' <hex digit> <hex digit>
 <hex digit> ~ [0-9a-fA-F]
