@@ -4,7 +4,7 @@ project(test_luif C CXX)
 
 set(Scripts
     "lua_to_ast.pl"
-    "round2.pl"
+    "round2.lua"
 )
 source_group("scripts" FILES ${Scripts})
 
