@@ -23,28 +23,29 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 K = require 'kollos'
 
-kollos.if('alpha')
+K.if('alpha')
 
 l0 = K:grammar_new()
 
-l0:alternative{'E', 'number', exp = 'number'}
-l0:precedence{}
-l0:alternative{'E',
+l0:rule_new{'E'}
+l0:alternative_new{'number', exp = 'number'}
+l0:precedence_new{}
+l0:alternative_new{
    'E',
    l0:seq{'ws', min = 0, max = 1 },
    l0:string'*',
    l0:seq{'ws', min = 0, max = 1 },
    'E',
    exp = 'E*E'}
-l0:precedence{}
-l0:alternative{'E',
+l0:precedence_new{}
+l0:alternative_new{
    'E',
    l0:seq{'ws', min = 0, max = 1 },
    l0:string'+',
    l0:seq{'ws', min = 0, max = 1 },
    'E',
    exp = 'E+E'}
-l0:token{'ws', '[\009\010\013\032]', exp = 'nil' }
-l0:token{'number', l0:seq{l0:token'[%d]', min = 1}}
+l0:token_new{'ws', '[\009\010\013\032]', exp = 'nil' }
+l0:token_new{'number', l0:seq{l0:token'[%d]', min = 1}}
 
 -- vim: expandtab shiftwidth=4:

@@ -26,6 +26,7 @@ set(LUA_Sources
     "location.lua"
     "lo_g.lua"
     "main.lua"
+    "top.lua"
     "util.lua"
     "wrap.lua"
     )
