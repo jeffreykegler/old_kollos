@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 project(test_luif C CXX)
 
 set(Scripts
-    "round1.pl"
+    "lua_to_ast.pl"
     "round2.pl"
 )
 source_group("scripts" FILES ${Scripts})
