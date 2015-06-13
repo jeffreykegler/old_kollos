@@ -2,7 +2,10 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 
 project(pluif C CXX)
 
-set(Scripts "LUIF.pm")
+set(Scripts
+    "LUIF.pm"
+    "Lua.pm"
+)
 source_group("scripts" FILES ${Scripts})
 
 set(Outputs "")

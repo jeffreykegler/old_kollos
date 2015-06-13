@@ -17,7 +17,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Prototype the LUIF parser
+# A Lua parser
 
 use 5.010;
 use strict;
@@ -31,17 +31,15 @@ use Fcntl;
 
 use Marpa::R2 3.0;
 
-package LUIF;
+package Lua;
 
 use English qw( -no_match_vars );
 
-$LUIF::grammar = Marpa::R2::Scanless::G->new(
+$Lua::grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => [name,values]
 lexeme default = latm => 1 action => [name,values]
 
-# I (Jeffrey) start off with the
-# Lua grammar, adapted for LUIF actions and events
 # I attempt to follow the order of the Lua grammar in
 # section 8 of the Lua 5.1 reference manual.
 #
@@ -56,11 +54,6 @@ lexeme default = latm => 1 action => [name,values]
 <Lua optional laststat> ::=
 
 <Lua block> ::= <Lua chunk>
-
-# The LUIF rules are also <stat>'s, but there's a
-# lot to them.  To keep the Lua 5.1 reference grammar
-# together, therefore, I defer LUIF rules until
-# after the original Lua rules
 
 <Lua stat> ::= <Lua varlist> '=' <Lua explist>
 
@@ -298,7 +291,7 @@ END_OF_SOURCE
 
 sub ast {
     my ($input_ref) = @_;
-    my $recce = Marpa::R2::Scanless::R->new( { grammar => $LUIF::grammar },
+    my $recce = Marpa::R2::Scanless::R->new( { grammar => $Lua::grammar },
     # { trace_terminals => 99 }
     );
 
@@ -373,7 +366,7 @@ sub ast {
     } ## end READ: while (1)
 
     if ( my $ambiguous_status = $recce->ambiguous() ) {
-        Marpa::R2::exception( "The LUIF source is ambiguous\n",
+        Marpa::R2::exception( "The Lua source is ambiguous\n",
             $ambiguous_status );
     }
 
