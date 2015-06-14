@@ -24,6 +24,7 @@ local location = require 'kollos.location'
 local kollos_util = require 'kollos.util'
 local wrap = require 'kollos.wrap'
 local lo_g = require 'kollos.lo_g'
+local config = require 'kollos.config'
 
 local kollos_error = {
   name = kollos_c.error_name,
@@ -44,6 +45,7 @@ return { location = location,
   util = kollos_util,
   lo_g = lo_g,
   wrap = wrap,
+  new = config.new,
 }
 
 -- vim: expandtab shiftwidth=4:

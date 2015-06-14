@@ -34,18 +34,19 @@ end
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
 
-local function if(kollos, interface)
-    -- Once false, always false
-    if  kollos._interface_ok == false then return false end
+local function config_new(kollos, args)
     -- 'alpha' means anything is OK
-    if interface == 'alpha' then
-        kollos._interface_ok = true
-        return true
+    -- it is the only acceptable if, at this point
+    if args.if ~= 'alpha' then
+        kollos:error.throw()
     end
+    return {
     -- at this point, nothing else is acceptable
     kollos._interface_ok = false
     return false
 end
+
+--[[ COMMENT OUT
 
 local function grammar_new(kollos, interface)
     return {
@@ -59,6 +60,8 @@ end
 
 local function alternative(grammar, args)
 end
+
+--]]
 
 return {
     if = if,
