@@ -41,7 +41,7 @@ local config_class = {
     grammar_new = grammar._config_grammar_new
 }
 
-local function config_new(kollos, args)
+local function config_new(args)
     local config_object = { _type = "config" }
     -- 'alpha' means anything is OK
     -- it is the only acceptable if, at this point
@@ -52,16 +52,15 @@ local function config_new(kollos, args)
 
     local throw = args.throw or true
     -- config_object.throw = throw
-    -- 'if' is also a keyword, so it must be used in quoted form
-    if type(args['if']) ~= 'string' then
+    if type(args.interface) ~= 'string' then
         if throw then
-            error_throw(MARPA_ERR_DEVELOPMENT, [["if" named argument is required and must be string]])
+            error_throw(MARPA_ERR_DEVELOPMENT, [["interface" named argument is required and must be string]])
         end
         return
     end
-    if args['if'] ~= 'alpha' then
+    if args.interface ~= 'alpha' then
         if throw then
-            error_throw(MARPA_ERR_DEVELOPMENT, [["if = 'alpha'" is required]])
+            error_throw(MARPA_ERR_DEVELOPMENT, [["interface = 'alpha'" is required]])
         end
         return
     end

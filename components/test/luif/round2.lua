@@ -21,9 +21,16 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 -- Prototype the LUIF parser
 
+require 'Test.More'
+plan(1)
+
 K = require 'kollos'
 
-K.if('alpha')
+kollos = K.config_new{interface = 'alpha'}
+
+ok(kollos, 'config_new() returned')
+
+--[[ COMMENTED OUT
 
 l0 = K:grammar_new()
 
@@ -47,5 +54,7 @@ l0:alternative_new{
    exp = 'E+E'}
 l0:token_new{'ws', '[\009\010\013\032]', exp = 'nil' }
 l0:token_new{'number', l0:seq{l0:token'[%d]', min = 1}}
+
+--]]
 
 -- vim: expandtab shiftwidth=4:
