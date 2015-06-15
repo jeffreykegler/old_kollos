@@ -24,8 +24,10 @@
 local kollos_c = require "kollos_c"
 local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
-local function development_error(string)
-    kollos_c.error_throw(luif_err_development, string)
+local function development_error(string, throw_flag)
+    error_object = kollos_c.error_new{ code = luif_err_development, string = string }
+    if throw_flag then error(tostring(error_object)) end
+    return error_object
 end
 
 return {

@@ -34,6 +34,7 @@ end
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local grammar = require "kollos.grammar"
+local development = require "kollos.development"
 local kollos_c = require "kollos_c"
 local error_throw = kollos_c.error_throw
 
@@ -46,23 +47,16 @@ local function config_new(args)
     -- 'alpha' means anything is OK
     -- it is the only acceptable if, at this point
     if type(args) ~= 'table' then
-        -- error_throw(MARPA_ERR_DEVELOPMENT, [[argument of config_new() must be a table of named arguments]])
-        error_throw(9, [[argument of config_new() must be a table of named arguments]])
+        development.error([[argument of config_new() must be a table of named arguments]], true)
     end
 
     local throw = args.throw or true
     -- config_object.throw = throw
     if type(args.interface) ~= 'string' then
-        if throw then
-            error_throw(MARPA_ERR_DEVELOPMENT, [["interface" named argument is required and must be string]])
-        end
-        return
+        return nil, development.error([["interface" named argument is required and must be string]], throw)
     end
     if args.interface ~= 'alpha' then
-        if throw then
-            error_throw(MARPA_ERR_DEVELOPMENT, [["interface = 'alpha'" is required]])
-        end
-        return
+        return nil, development.error([["interface = 'alpha'" is required]], throw)
     end
     setmetatable(config_object, {
             __index = config_class,
