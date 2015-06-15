@@ -21,12 +21,13 @@ ELSE ()
 ENDIF (LUA_INCLUDE_DIR)
 
 set(LUA_Sources
+    "config.lua"
     "inspect.lua"
-    "unindent.lua"
+    "grammar.lua"
     "location.lua"
     "lo_g.lua"
     "main.lua"
-    "config.lua"
+    "unindent.lua"
     "util.lua"
     "wrap.lua"
     )
