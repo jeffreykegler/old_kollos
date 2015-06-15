@@ -524,6 +524,44 @@ static inline void kollos_error(lua_State* L,
    /* [ ..., error_object ] */
 }
 
+static int l_error_new(lua_State* L)
+{
+  if (lua_istable (L, 1))
+    {
+      const int table_ix = 1;
+      lua_getfield (L, table_ix, "code");
+      /* [ error_table,  code ] */
+      if (!lua_isnumber (L, -1))
+	{
+	  /* Want a special code for this, eventually */
+	  const Marpa_Error_Code code = MARPA_ERR_DEVELOPMENT;
+	  lua_pushinteger (L, (lua_Integer) code);
+	  lua_setfield (L, table_ix, "code");
+	}
+      lua_pop (L, 1);
+      lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
+      /* [ error_table, error_metatable ] */
+      lua_setmetatable (L, table_ix);
+      /* [ error_table ] */
+      return 1;
+    }
+  if (lua_isnumber (L, 1))
+    {
+      const Marpa_Error_Code code = lua_tointeger (L, 1);
+      const char *details = lua_tostring (L, 2);
+      lua_pop (L, 2);
+      kollos_error (L, code, details);
+      return 1;
+    }
+  {
+    /* Want a special code for this, eventually */
+    const Marpa_Error_Code code = MARPA_ERR_DEVELOPMENT;
+    const char *details = "Error code is not a number";
+    kollos_error (L, code, details);
+    return 1;
+  }
+}
+
 /* Replace an error object, on top of the stack,
    with its string equivalent
  */
@@ -1430,10 +1468,27 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
     /* [ kollos ] */
 
-    lua_pushcfunction(L, wrap_grammar_new);
-    /* [ kollos, grammar_new_function ] */
-    lua_setfield(L, kollos_table_stack_ix, "grammar_new");
+    /* In alphabetical order by field name */
+
+    lua_pushcfunction(L, l_error_description_by_code);
+    /* [ kollos, function ] */
+    lua_setfield(L, kollos_table_stack_ix, "error_description");
     /* [ kollos ] */
+
+    lua_pushcfunction(L, l_error_name_by_code);
+    lua_setfield(L, kollos_table_stack_ix, "error_name");
+
+    lua_pushcfunction(L, l_error_new);
+    lua_setfield(L, kollos_table_stack_ix, "error_new");
+
+    lua_pushcfunction(L, wrap_kollos_throw);
+    lua_setfield(L, kollos_table_stack_ix, "error_throw");
+
+    lua_pushcfunction(L, l_event_name_by_code);
+    lua_setfield(L, kollos_table_stack_ix, "event_name");
+
+    lua_pushcfunction(L, l_event_description_by_code);
+    lua_setfield(L, kollos_table_stack_ix, "event_description");
 
     lua_pushcfunction(L, wrap_grammar_error);
     lua_setfield(L, kollos_table_stack_ix, "grammar_error");
@@ -1444,43 +1499,17 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     lua_pushcfunction(L, wrap_grammar_events);
     lua_setfield(L, kollos_table_stack_ix, "grammar_events");
 
+    lua_pushcfunction(L, wrap_grammar_new);
+    lua_setfield(L, kollos_table_stack_ix, "grammar_new");
+
     lua_pushcfunction(L, wrap_grammar_rule_new);
     lua_setfield(L, kollos_table_stack_ix, "grammar_rule_new");
 
     lua_pushcfunction(L, wrap_recce_new);
-    /* [ kollos, recce_new_function ] */
     lua_setfield(L, kollos_table_stack_ix, "recce_new");
-    /* [ kollos ] */
 
     lua_pushcfunction(L, wrap_progress_item);
-    /* [ kollos, recce_new_function ] */
     lua_setfield(L, kollos_table_stack_ix, "recce_progress_item");
-    /* [ kollos ] */
-
-    lua_pushcfunction(L, l_error_name_by_code);
-    /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "error_name");
-    /* [ kollos ] */
-
-    lua_pushcfunction(L, l_error_description_by_code);
-    /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "error_description");
-    /* [ kollos ] */
-
-    lua_pushcfunction(L, l_event_name_by_code);
-    /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "event_name");
-    /* [ kollos ] */
-
-    lua_pushcfunction(L, l_event_description_by_code);
-    /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "event_description");
-    /* [ kollos ] */
-
-    lua_pushcfunction(L, wrap_kollos_throw);
-    /* [ kollos, function ] */
-    lua_setfield(L, kollos_table_stack_ix, "error_throw");
-    /* [ kollos ] */
 
     lua_newtable (L);
     /* [ kollos, error_code_table ] */
