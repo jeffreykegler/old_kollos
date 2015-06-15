@@ -620,6 +620,8 @@ static inline int wrap_kollos_throw(lua_State* L)
 {
    const Marpa_Error_Code code = lua_tointeger(L, 1);
    const char* details = lua_tostring(L, 2);
+  if (0) printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  if (0) printf ("%s code = %d\n", __PRETTY_FUNCTION__, code);
    return kollos_throw(L, code, details);
    /* NOTREACHED */
 }

@@ -45,12 +45,17 @@ local function config_new(kollos, args)
     local config_object = { _type = "config" }
     -- 'alpha' means anything is OK
     -- it is the only acceptable if, at this point
+    if type(args) ~= 'table' then
+        -- error_throw(MARPA_ERR_DEVELOPMENT, [[argument of config_new() must be a table of named arguments]])
+        error_throw(9, [[argument of config_new() must be a table of named arguments]])
+    end
+
     local throw = args.throw or true
     -- config_object.throw = throw
     -- 'if' is also a keyword, so it must be used in quoted form
     if type(args['if']) ~= 'string' then
         if throw then
-            error_throw(MARPA_ERR_DEVELOPMENT, [["if" argument is required and must be string]])
+            error_throw(MARPA_ERR_DEVELOPMENT, [["if" named argument is required and must be string]])
         end
         return
     end

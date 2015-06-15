@@ -43,6 +43,11 @@ test:
 	  prove -v --exec 'build/lua/src/lua' do_test/dev/*.lua
 	  prove -v -Ibuild/pluif do_test/luif/lua_to_ast.pl
 
+new_test:
+	LUA_CPATH=';;build/main/lib?.so;build/main/cyg?.dll' \
+	 LUA_PATH=';;build/main/?.lua' \
+	  prove -v --exec 'build/lua/src/lua' do_test/luif/*.lua
+
 clean:
 	rm -rf build
 	mkdir build

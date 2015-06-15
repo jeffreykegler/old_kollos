@@ -21,6 +21,7 @@
 
 local kollos_c = require 'kollos_c'
 local location = require 'kollos.location'
+local development = require 'kollos.development'
 local kollos_util = require 'kollos.util'
 local wrap = require 'kollos.wrap'
 local lo_g = require 'kollos.lo_g'
@@ -45,7 +46,8 @@ return { location = location,
   util = kollos_util,
   lo_g = lo_g,
   wrap = wrap,
-  new = config.new,
+  config_new = config.new,
+  development_error = development.error
 }
 
 -- vim: expandtab shiftwidth=4:

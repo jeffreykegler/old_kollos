@@ -12,16 +12,9 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
 ENABLE_TESTING()
 
-FIND_PACKAGE(Lua51)
-IF (LUA_INCLUDE_DIR)
-  MESSAGE(STATUS "Lua include path: ${LUA_INCLUDE_DIR}")
-  include_directories("${LUA_INCLUDE_DIR}")
-ELSE ()
-  message( FATAL_ERROR "Lua 5.1 not available.  Kollos cannot be built" )
-ENDIF (LUA_INCLUDE_DIR)
-
-set(LUA_Sources
+file(COPY
     "config.lua"
+    "development.lua"
     "inspect.lua"
     "grammar.lua"
     "location.lua"
@@ -30,26 +23,8 @@ set(LUA_Sources
     "unindent.lua"
     "util.lua"
     "wrap.lua"
+    DESTINATION
+      ${CMAKE_CURRENT_BINARY_DIR}
     )
-source_group("lua" FILES ${LUA_Sources})
-
-set(LUA_Outputs "")
-foreach(LuaFile ${LUA_Sources})
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${LuaFile}
-    COMMAND ${CMAKE_COMMAND}
-    ARGS -E copy_if_different
-      ${CMAKE_CURRENT_SOURCE_DIR}/${LuaFile}
-      ${CMAKE_CURRENT_BINARY_DIR}/${LuaFile}
-  )
-  list(APPEND LUA_Outputs ${CMAKE_CURRENT_BINARY_DIR}/${LuaFile})
-endforeach()
-
-add_custom_target(
-  copy_main_kollos_lua ALL
-  DEPENDS ${LUA_Outputs}
-  COMMENT "Copying LUA files"
-  VERBATIM
-)
 
 # vim: expandtab shiftwidth=4:
