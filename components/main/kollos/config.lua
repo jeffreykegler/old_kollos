@@ -42,9 +42,14 @@ local function file_set(config, file_name)
     config.file = file_name or debug.getinfo(2,'S').source 
 end
 
+local function line_set(config, line_number)
+    config.line = line_number or debug.getinfo(2, 'l').currentline
+end
+
 local config_class = {
     grammar_new = grammar._config_grammar_new,
     file_set = file_set,
+    line_set = line_set,
 }
 
 function config_new(args)

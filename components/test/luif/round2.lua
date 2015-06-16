@@ -30,7 +30,7 @@ kollos = K.config_new{interface = 'alpha'}
 
 ok(kollos, 'config_new() returned')
 
-kollos:file(__FILE__)
+kollos:file_set(__FILE__)
 
 --[[ COMMENTED OUT
 
