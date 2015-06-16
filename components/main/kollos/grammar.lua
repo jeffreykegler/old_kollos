@@ -33,15 +33,68 @@ local function here() return -- luacheck: ignore here
 end
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
+local development = require "kollos.development"
 
 -- this will actually become a method of the config object
-local function _config_grammar_new(config, interface)
+local function _config_grammar_new(config, args)
+    local file = config.file
+    local line
+    local name
+    local throw = config.throw
+    if type(args) == 'table' then
+        if args.throw ~= nil then throw = args.throw end
+        for field_name,value in pairs(args) do
+            if field_name == 'file' then
+                if type(value) ~= 'string' then
+                    development.error([[grammar 'file' named argument must be a string]], throw)
+                end
+                file = value
+            elseif field_name == 'line' then
+                local arg_line = tonumber(value)
+                if arg_line == nil then
+                    development.error([[grammar 'line' named argument must be a number]], throw)
+                end
+                line = arg_line
+            elseif field_name == 'name' then
+                -- We check if value is OK below, not here
+                name = value
+            elseif field_name == 'throw' then -- anything is OK
+            else
+                development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
+            end
+        end
+    else
+        name = args
+        args = {}
+    end
+    if not file then
+        development.error([[grammar must a 'file' set]], throw)
+    end
+    if not name then
+        development.error([[grammar must have a name]], throw)
+    end
+    if type(name) ~= 'string' then
+        development.error([[grammar 'name' must be a string]], throw)
+    end
+    if name:find('[^a-zA-Z0-9_]') then
+        development.error([[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']], throw)
+    end
+    if name:byte(1) == '_' then
+        development.error([[grammar 'name' first character may not be '_']], throw)
+    end
+    if not line then
+        line = config.line + 1
+        config.line = line
+    end
     return {
-       xrule = {},
-       xsym = {},
-       xalt = {},
-       wsym = {},
-       wrule = {},
+        line = line,
+        file = file,
+        config = config,
+        xrule = {},
+        xsym = {},
+        xalt = {},
+        wsym = {},
+        wrule = {},
     }
 end
 
