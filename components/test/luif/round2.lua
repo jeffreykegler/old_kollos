@@ -30,6 +30,8 @@ kollos = K.config_new{interface = 'alpha'}
 
 ok(kollos, 'config_new() returned')
 
+kollos:file(__FILE__)
+
 --[[ COMMENTED OUT
 
 l0 = K:grammar_new()

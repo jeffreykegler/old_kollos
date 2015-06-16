@@ -38,11 +38,16 @@ local development = require "kollos.development"
 local kollos_c = require "kollos_c"
 local error_throw = kollos_c.error_throw
 
+local function file_set(config, file_name)
+    config.file = file_name or debug.getinfo(2,'S').source 
+end
+
 local config_class = {
-    grammar_new = grammar._config_grammar_new
+    grammar_new = grammar._config_grammar_new,
+    file_set = file_set,
 }
 
-local function config_new(args)
+function config_new(args)
     local config_object = { _type = "config" }
     -- 'alpha' means anything is OK
     -- it is the only acceptable if, at this point
@@ -64,8 +69,6 @@ local function config_new(args)
     return config_object
 end
 
-return {
-    new = config_new,
-}
+return { new = config_new }
 
 -- vim: expandtab shiftwidth=4:
