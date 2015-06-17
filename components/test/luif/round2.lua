@@ -32,9 +32,10 @@ ok(kollos, 'config_new() returned')
 
 kollos:file_set(__FILE__)
 
---[[ COMMENTED OUT
+kollos:line_set(__LINE__)
+l0 = kollos:grammar_new{ name = 'l0' }
 
-l0 = K:grammar_new()
+--[[ COMMENTED OUT
 
 l0:rule_new{'E'}
 l0:alternative_new{'number', exp = 'number'}

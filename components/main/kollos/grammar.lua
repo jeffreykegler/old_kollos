@@ -35,41 +35,50 @@ end
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local development = require "kollos.development"
 
+-- process the named arguments common to most grammar methods
+-- these are line, file and throw
+
+-- process the named arguments common to most grammar methods
+-- these are line, file and throw
+local function common_args_process(who, config, throw, args)
+    if type(args) ~= 'table' then
+        return nil, development.error(who .. [[ must be called with a table of named arguments]], throw)
+    end
+    if args.throw ~= nil then throw = args.throw end
+    args.throw = nil
+
+    local file = args.file
+    if file == nil then
+        file = config.file
+    end
+    if type(file) ~= 'string' then
+        return nil, development.error(who .. [[ 'file' named argument must be a string]], throw)
+    end
+    config.file = file
+    args.file = nil
+
+    local line = args.line
+    if line == nil then
+        line = config.line + 1
+    else
+        line = tonumber(line)
+        if line == nil then
+            return nil, development.error(who .. [['line' named argument must be a number]], throw)
+        end
+    end
+    config.line = line
+    args.line = nil
+
+    return line, file, throw
+end
+
 -- this will actually become a method of the config object
 local function _config_grammar_new(config, args)
-    local file = config.file
-    local line
-    local name
-    local throw = config.throw
-    if type(args) == 'table' then
-        if args.throw ~= nil then throw = args.throw end
-        for field_name,value in pairs(args) do
-            if field_name == 'file' then
-                if type(value) ~= 'string' then
-                    development.error([[grammar 'file' named argument must be a string]], throw)
-                end
-                file = value
-            elseif field_name == 'line' then
-                local arg_line = tonumber(value)
-                if arg_line == nil then
-                    development.error([[grammar 'line' named argument must be a number]], throw)
-                end
-                line = arg_line
-            elseif field_name == 'name' then
-                -- We check if value is OK below, not here
-                name = value
-            elseif field_name == 'throw' then -- anything is OK
-            else
-                development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
-            end
-        end
-    else
-        name = args
-        args = {}
-    end
-    if not file then
-        development.error([[grammar must a 'file' set]], throw)
-    end
+    local line, file, throw = common_args_process('grammar_new()', config, config.throw, args)
+    -- if line is nil, the "file" is actually an error object
+    if line == nil then return line, file end
+
+    local name = args.name
     if not name then
         development.error([[grammar must have a name]], throw)
     end
@@ -82,27 +91,35 @@ local function _config_grammar_new(config, args)
     if name:byte(1) == '_' then
         development.error([[grammar 'name' first character may not be '_']], throw)
     end
-    if not line then
-        line = config.line + 1
-        config.line = line
+    args.name = nil
+
+    for field_name,value in pairs(args) do
+        development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
     end
+
     return {
         line = line,
         file = file,
         config = config,
         xrule = {},
-        xsym = {},
+        xprec = {},
         xalt = {},
-        wsym = {},
-        wrule = {},
+        xsym = {},
     }
 end
 
-local function alternative(grammar, args)
+local function rule_new(grammar, args)
+    if type(args) ~= 'table' then
+        development.error([[rule_new must be called with a table of named arguments]], grammar.throw)
+    end
+    local line, file, throw = common_args_process(grammar.config, args)
+    -- if line is nil, the file is an error object
+    if line == nil then return line, file end
 end
 
 return {
     alternative = alternative,
+    _config_grammar_new = _config_grammar_new,
 }
 
 -- vim: expandtab shiftwidth=4:
