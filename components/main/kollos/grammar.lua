@@ -28,98 +28,171 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -- luacheck: std lua51
 -- luacheck: globals bit
 
+local inspect = require "kollos.inspect" -- luacheck: ignore
+local development = require "kollos.development"
+
 local function here() return -- luacheck: ignore here
     debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
-local inspect = require "kollos.inspect" -- luacheck: ignore
-local development = require "kollos.development"
+local grammar_class = { }
+
+function grammar_class.file_set(config, file_name)
+    config.file = file_name or debug.getinfo(2,'S').source
+end
+
+function grammar_class.line_set(config, line_number)
+    config.line = line_number or debug.getinfo(2, 'l').currentline
+end
 
 -- process the named arguments common to most grammar methods
 -- these are line, file and throw
-
--- process the named arguments common to most grammar methods
--- these are line, file and throw
-local function common_args_process(who, config, throw, args)
+local function common_args_process(who, grammar, args)
     if type(args) ~= 'table' then
-        return nil, development.error(who .. [[ must be called with a table of named arguments]], throw)
+        return nil, development.error(who .. [[ must be called with a table of named arguments]], grammar.throw)
     end
-    if args.throw ~= nil then throw = args.throw end
-    args.throw = nil
+    if args.throw == nil then
+        throw = grammar.throw
+    else
+        throw = args.throw
+        args.throw = nil
+    end
 
     local file = args.file
     if file == nil then
-        file = config.file
+        file = grammar.file
     end
     if type(file) ~= 'string' then
-        return nil, development.error(who .. [[ 'file' named argument must be a string]], throw)
+        return nil,
+            development.error(
+                who .. [[ 'file' named argument is ']]
+                    .. type(file) .. [['; it should be 'string']],
+                throw)
     end
-    config.file = file
+    grammar.file = file
     args.file = nil
 
     local line = args.line
     if line == nil then
-        line = config.line + 1
-    else
-        line = tonumber(line)
-        if line == nil then
-            return nil, development.error(who .. [['line' named argument must be a number]], throw)
+        if type(grammar.line) ~= 'number' then
+            return nil,
+                development.error(
+                    who .. [[ line is not numeric for grammar ']]
+                        .. grammar.name
+                        .. [['; a numeric line number is required]],
+                    throw)
         end
+        line = grammar.line + 1
     end
-    config.line = line
+    grammar.line = line
     args.line = nil
 
     return line, file, throw
 end
 
--- this will actually become a method of the config object
-local function _config_grammar_new(config, args)
-    local line, file, throw = common_args_process('grammar_new()', config, config.throw, args)
+-- the *internal* version of the method for
+-- creating *external* symbols.
+local function _symbol_new(args)
+    local name = args.name
+    if not name then
+        return nil, [[symbol must have a name]]
+    end
+    if type(name) ~= 'string' then
+        return nil, [[symbol 'name' must be a string]]
+    end
+    -- decimal 055 is hyphen (or minus sign)
+    -- strip initial angle bracket and whitespace
+    name = name:gsub('^[<]%s*', '')
+    -- strip find angle bracket and whitespace
+    name = name:gsub('%s*[>]$', '')
+
+    local charclass = '[^a-zA-Z0-9_%s\055]'
+    if name:find(charclass) then
+        return nil, [[symbol 'name' characters must be in ]] .. charclass
+    end
+
+    -- normalize internal whitespace
+    name = name:gsub('%s+', ' ')
+    if name:sub(1, 1):find('[_\055]') then
+        return nil, [[symbol 'name' first character may not be '-' or '_']]
+    end
+    return { name = name }
+end
+
+function grammar_class.rule_new(grammar, args)
+    local line, file, throw = common_args_process('rule_new()', grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    local name = args.name
-    if not name then
-        development.error([[grammar must have a name]], throw)
+    print(inspect(args))
+    local lhs = args.lhs
+    if not lhs then
+        return nil, development.error([[rule must have a lhs]], throw)
     end
-    if type(name) ~= 'string' then
-        development.error([[grammar 'name' must be a string]], throw)
-    end
-    if name:find('[^a-zA-Z0-9_]') then
-        development.error([[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']], throw)
-    end
-    if name:byte(1) == '_' then
-        development.error([[grammar 'name' first character may not be '_']], throw)
-    end
-    args.name = nil
+    args.lhs = nil
 
     for field_name,value in pairs(args) do
-        development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
+        return nil, development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
     end
 
-    return {
-        line = line,
-        file = file,
-        config = config,
+    local symbol_props, error = _symbol_new{ name = lhs }
+    if not symbol_props then
+        return nil, development.error(error, throw)
+    end
+
+    local xsym = grammar.xsym
+    local xrule = grammar.xrule
+    local xprec = grammar.xprec
+    xsym[#xsym+1] = symbol_props
+    symbol_props.id = #xsym
+    current_xprec = { level = 0 }
+    xprec[#xprec+1] = current_xprec
+    xrule[#xrule+1] = { lhs = symbol_props, current_xprec = current_xprec }
+    xrule.id = #xrule
+end
+
+-- this will actually become a method of the config object
+local function grammar_new(config, args)
+    local grammar_object = {
+        throw = true,
+        name = '[NEW]',
         xrule = {},
         xprec = {},
         xalt = {},
         xsym = {},
     }
-end
-
-local function rule_new(grammar, args)
-    if type(args) ~= 'table' then
-        development.error([[rule_new must be called with a table of named arguments]], grammar.throw)
-    end
-    local line, file, throw = common_args_process(grammar.config, args)
-    -- if line is nil, the file is an error object
+    local line, file, throw
+        = common_args_process('grammar_new()', grammar_object, args)
+    -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
+
+    local name = args.name
+    if not name then
+        return nil, development.error([[grammar must have a name]], throw)
+    end
+    if type(name) ~= 'string' then
+        return nil, development.error([[grammar 'name' must be a string]], throw)
+    end
+    if name:find('[^a-zA-Z0-9_]') then
+        return nil, development.error([[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']], throw)
+    end
+    if name:byte(1) == '_' then
+        return nil, development.error([[grammar 'name' first character may not be '_']], throw)
+    end
+    args.name = nil
+
+    for field_name,value in pairs(args) do
+        return nil, development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
+    end
+
+    setmetatable(grammar_object, {
+            __index = grammar_class,
+        })
+    return grammar_object
 end
 
 return {
-    alternative = alternative,
-    _config_grammar_new = _config_grammar_new,
+    new = grammar_new,
 }
 
 -- vim: expandtab shiftwidth=4:

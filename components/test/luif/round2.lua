@@ -21,6 +21,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 -- Prototype the LUIF parser
 
+local inspect = require 'kollos.inspect'
 require 'Test.More'
 plan(1)
 
@@ -30,14 +31,12 @@ kollos = K.config_new{interface = 'alpha'}
 
 ok(kollos, 'config_new() returned')
 
-kollos:file_set(__FILE__)
-
-kollos:line_set(__LINE__)
-l0 = kollos:grammar_new{ name = 'l0' }
+l0 = kollos:grammar_new{ line = __LINE__, file = __FILE__,  name = 'l0', }
+print(inspect(l0))
+l0:rule_new{lhs = 'E'}
 
 --[[ COMMENTED OUT
 
-l0:rule_new{'E'}
 l0:alternative_new{'number', exp = 'number'}
 l0:precedence_new{}
 l0:alternative_new{
