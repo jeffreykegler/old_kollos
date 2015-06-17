@@ -35,14 +35,12 @@ end
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local grammar = require "kollos.grammar"
 local development = require "kollos.development"
-local kollos_c = require "kollos_c"
-local error_throw = kollos_c.error_throw
 
 local config_class = {
     grammar_new = grammar.new
 }
 
-function config_new(args)
+local function config_new(args)
     local config_object = { _type = "config" }
     -- 'alpha' means anything is OK
     -- it is the only acceptable if, at this point

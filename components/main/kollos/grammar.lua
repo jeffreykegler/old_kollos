@@ -51,12 +51,11 @@ local function common_args_process(who, grammar, args)
     if type(args) ~= 'table' then
         return nil, development.error(who .. [[ must be called with a table of named arguments]], grammar.throw)
     end
-    if args.throw == nil then
+    local throw = args.throw
+    if throw == nil then
         throw = grammar.throw
-    else
-        throw = args.throw
-        args.throw = nil
     end
+    args.throw = nil
 
     local file = args.file
     if file == nil then
@@ -66,7 +65,8 @@ local function common_args_process(who, grammar, args)
         return nil,
             development.error(
                 who .. [[ 'file' named argument is ']]
-                    .. type(file) .. [['; it should be 'string']],
+                    .. type(file)
+                    .. [['; it should be 'string']],
                 throw)
     end
     grammar.file = file
@@ -120,7 +120,8 @@ local function _symbol_new(args)
 end
 
 function grammar_class.rule_new(grammar, args)
-    local line, file, throw = common_args_process('rule_new()', grammar, args)
+    local my_name = 'rule_new()'
+    local line, file, throw = common_args_process(my_name, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
@@ -131,8 +132,9 @@ function grammar_class.rule_new(grammar, args)
     end
     args.lhs = nil
 
-    for field_name,value in pairs(args) do
-        return nil, development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
+    local field_name = next(args)
+    if field_name ~= nil then
+        return nil, development.error(my_name .. [[: unacceptable named argument ]] .. field_name, throw)
     end
 
     local symbol_props, error = _symbol_new{ name = lhs }
@@ -145,14 +147,14 @@ function grammar_class.rule_new(grammar, args)
     local xprec = grammar.xprec
     xsym[#xsym+1] = symbol_props
     symbol_props.id = #xsym
-    current_xprec = { level = 0 }
+    local current_xprec = { level = 0 }
     xprec[#xprec+1] = current_xprec
     xrule[#xrule+1] = { lhs = symbol_props, current_xprec = current_xprec }
     xrule.id = #xrule
 end
 
 -- this will actually become a method of the config object
-local function grammar_new(config, args)
+local function grammar_new(config, args) -- luacheck: ignore config
     local grammar_object = {
         throw = true,
         name = '[NEW]',
@@ -181,7 +183,8 @@ local function grammar_new(config, args)
     end
     args.name = nil
 
-    for field_name,value in pairs(args) do
+    local field_name = next(args)
+    if field_name ~= nil then
         return nil, development.error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
     end
 
