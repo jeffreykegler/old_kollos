@@ -152,10 +152,12 @@ function grammar_class.rule_new(grammar, args)
     local xprec = grammar.xprec
     xsym[#xsym+1] = symbol_props
     symbol_props.id = #xsym
-    local current_xprec = { level = 0 }
+    local new_xrule = { lhs = symbol_props }
+    xrule[#xrule+1] = new_xrule
+    new_xrule.id = #xrule
+    local current_xprec = { level = 0, xrule = new_xrule }
     xprec[#xprec+1] = current_xprec
-    xrule[#xrule+1] = { lhs = symbol_props, current_xprec = current_xprec }
-    xrule.id = #xrule
+    grammar.current_xprec = current_xprec
 end
 
 function grammar_class.alternative_new(grammar, args)
@@ -188,7 +190,7 @@ function grammar_class.alternative_new(grammar, args)
 
     xalt[#xalt+1] = new_alt
     if args.exp then
-       xalt.exp = args.exp
+       new_alt.exp = args.exp
        args.exp = nil
     end
 
