@@ -30,7 +30,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local kollos_c = require "kollos_c"
-local development = require "kollos.development"
 local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
 local function here() return -- luacheck: ignore here
@@ -50,7 +49,7 @@ end
 -- note that a throw_flag of nil sets throw to *true*
 function grammar_class.throw_set(grammar, throw_flag)
     local throw = true -- default is true
-    if boolean == false then throw = false end
+    if throw_flag == false then throw = false end
     grammar.throw = throw
     return throw
 end
@@ -166,14 +165,12 @@ function grammar_class.alternative_new(grammar, args)
     if line == nil then return line, file end
 
     local xsym = grammar.xsym
-    local xrule = grammar.xrule
-    local xprec = grammar.xprec
     local xalt = grammar.xalt
     local new_alt = {
         prec = grammar.current_xprec,
         rhs = {}
     }
-    new_rhs = new_alt.rhs
+    local new_rhs = new_alt.rhs
 
     for rhs_ix = 1, table.maxn(args) do
         local symbol_props, error = _symbol_new{ name = args[rhs_ix] }
@@ -187,6 +184,12 @@ function grammar_class.alternative_new(grammar, args)
         symbol_props.id = #xsym
         new_rhs[#new_rhs+1] = symbol_props
         args[rhs_ix] = nil
+    end
+
+    xalt[#xalt+1] = new_alt
+    if args.exp then
+       xalt.exp = args.exp
+       args.exp = nil
     end
 
     local field_name = next(args)
