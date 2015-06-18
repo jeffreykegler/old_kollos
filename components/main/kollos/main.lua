@@ -27,11 +27,33 @@ local wrap = require 'kollos.wrap'
 local lo_g = require 'kollos.lo_g'
 local config = require 'kollos.config'
 
+-- local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
+local error_object = kollos_c.error_new();
+local error_metatable = getmetatable(error_object)
+print(__FILE__, __LINE__)
+error_metatable.__tostring = function (object)
+    if type(object.stringize) == 'function' then
+        print(__FILE__, __LINE__)
+        return object.stringize(object)
+    end
+    if type(object.string) == 'string' then
+        print(__FILE__, __LINE__)
+        return object.string
+    end
+    if type(code) ~= 'number' then
+      local description = kollos_c.error_description(code)
+      local name = kollos_c.error_code_by_name(code)
+      return name .. '(' .. code .. '): ' .. description
+    end
+    return "Error code ('" .. code .. "')is not a number"
+end
+
 local kollos_error = {
   name = kollos_c.error_name,
   description = kollos_c.error_description,
   code_by_name = kollos_c.error_code_by_name,
-  throw = kollos_c.error_throw
+  throw = kollos_c.error_throw,
+  new = kollos_c.error_new,
 }
 
 local kollos_event = {

@@ -54,6 +54,32 @@ function grammar_class.throw_set(grammar, throw_flag)
     return throw
 end
 
+local function development_error_stringize(error_object)
+    return
+    "Grammar error at line "
+    .. error_object.line
+    .. " of "
+    .. error_object.file
+    .. ":\n "
+    .. error_object.string
+end
+
+function grammar_class.development_error(grammar, string, file, line)
+    print(__FILE__, __LINE__)
+    print(__FILE__, __LINE__, grammar, string, file, line)
+    local error_object
+    = kollos_c.error_new{
+        stringize = development_error_stringize,
+        code = luif_err_development,
+        string = string,
+        file = file or grammar.file,
+        line = line or grammar.line,
+    }
+    print(__FILE__, __LINE__)
+    if grammar.throw then error(tostring(error_object)) end
+    return error_object
+end
+
 -- process the named arguments common to most grammar methods
 -- these are line, file and throw
 local function common_args_process(who, grammar, args)
@@ -70,8 +96,8 @@ local function common_args_process(who, grammar, args)
         grammar:development_error(
             who .. [[ 'file' named argument is ']]
             .. type(file)
-            .. [['; it should be 'string']],
-            grammar.throw)
+            .. [['; it should be 'string']]
+            )
     end
     grammar.file = file
     args.file = nil
@@ -83,8 +109,8 @@ local function common_args_process(who, grammar, args)
             grammar:development_error(
                 who .. [[ line is not numeric for grammar ']]
                 .. grammar.name
-                .. [['; a numeric line number is required]],
-                grammar.throw)
+                .. [['; a numeric line number is required]]
+            )
         end
         line = grammar.line + 1
     end
@@ -203,8 +229,8 @@ local function subalternative_new(grammar, subalternative)
             if not new_rhs_instance then
                 return nil,
                 grammar:development_error(
-                    [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string,
-                    grammar.throw)
+                    [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string
+                    )
             end
             xsym[#xsym+1] = new_rhs_instance
             new_rhs_instance.id = #xsym
@@ -246,26 +272,9 @@ function grammar_class.alternative_new(grammar, args)
 
 end
 
-function grammar_class.development_error(grammar, string)
-    local error_object
-    = kollos_c.error_new{
-        code = luif_err_development,
-        string =
-        "Grammar error at line "
-        .. grammar.line
-        ..  " of "
-        .. grammar.file
-        .. ":\n    "
-        .. string,
-        file = grammar.file,
-        line = grammar.line
-    }
-    if grammar.throw then error(tostring(error_object)) end
-    return error_object
-end
-
 -- this will actually become a method of the config object
 local function grammar_new(config, args) -- luacheck: ignore config
+    local who = 'grammar_new()'
     local grammar_object = {
         throw = true,
         name = '[NEW]',
@@ -274,7 +283,21 @@ local function grammar_new(config, args) -- luacheck: ignore config
         xalt = {},
         xsym = {},
     }
-    local line, file, throw
+    setmetatable(grammar_object, {
+            __index = grammar_class,
+        })
+
+    if not args.file then
+        return nil, grammar_object:development_error(who .. [[ requires 'file' named argument]],
+     debug.getinfo(2,'S').source,
+     debug.getinfo(2, 'l').currentline) end
+
+    if not args.line then
+        return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
+     debug.getinfo(2,'S').source,
+     debug.getinfo(2, 'l').currentline) end
+
+    local line, file
     = common_args_process('grammar_new()', grammar_object, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
@@ -284,32 +307,28 @@ local function grammar_new(config, args) -- luacheck: ignore config
         return nil, grammar_object:development_error([[grammar must have a name]])
     end
     if type(name) ~= 'string' then
-        return nil, grammar_object:development_error([[grammar 'name' must be a string]], throw)
+        return nil, grammar_object:development_error([[grammar 'name' must be a string]])
     end
     if name:find('[^a-zA-Z0-9_]') then
         return nil, grammar_object:development_error(
-            [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']],
-            throw)
+            [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
+        )
     end
     if name:byte(1) == '_' then
-        return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']], throw)
+        return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
     end
     args.name = nil
     grammar_object.name = name
 
     local field_name = next(args)
     if field_name ~= nil then
-        return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name, throw)
+        return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
     end
 
-    setmetatable(grammar_object, {
-            __index = grammar_class,
-        })
     return grammar_object
 end
 
-return {
-    new = grammar_new,
-}
+grammar_class.new = grammar_new
+return grammar_class
 
 -- vim: expandtab shiftwidth=4:

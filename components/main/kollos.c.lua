@@ -664,14 +664,6 @@ static inline int wrap_kollos_throw(lua_State* L)
    /* NOTREACHED */
 }
 
-static int l_error_tostring(lua_State* L)
-{
-   /* [ error_object ] */
-   error_tostring(L);
-   /* [ error_string ] */
-  return 1;
-}
-  
 ]=]
 
 -- functions
@@ -1436,12 +1428,10 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     const int kollos_table_stack_ix = lua_gettop(L) + 1;
     lua_newtable(L);
 
-    /* Set up Kollos error handling metatable */
+    /* Set up Kollos error handling metatable.
+       The metatable starts out empty.
+    */
     lua_newtable(L);
-    /* [ kollos, error_mt ] */
-    lua_pushcclosure(L, l_error_tostring, 0);
-    /* [ kollos, error_mt, tostring_fn ] */
-    lua_setfield(L, -2, "__tostring");
     /* [ kollos, error_mt ] */
     lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_error_mt_key);
     /* [ kollos ] */
