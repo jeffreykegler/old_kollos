@@ -248,6 +248,7 @@ local function grammar_new(config, args) -- luacheck: ignore config
         return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']], throw)
     end
     args.name = nil
+    grammar_object.name = name
 
     local field_name = next(args)
     if field_name ~= nil then
