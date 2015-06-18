@@ -32,12 +32,14 @@ kollos = K.config_new{interface = 'alpha'}
 ok(kollos, 'config_new() returned')
 
 l0 = kollos:grammar_new{ line = __LINE__, file = __FILE__,  name = 'l0', }
+l0:line_set(__LINE__)
+l0:rule_new{'E'}
+l0:alternative_new{'number', exp = 'number'}
+
 print(inspect(l0))
-l0:rule_new{lhs = 'E'}
 
 --[[ COMMENTED OUT
 
-l0:alternative_new{'number', exp = 'number'}
 l0:precedence_new{}
 l0:alternative_new{
    'E',
