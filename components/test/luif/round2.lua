@@ -35,27 +35,26 @@ l0 = kollos:grammar_new{ line = __LINE__, file = __FILE__,  name = 'l0', }
 l0:line_set(__LINE__)
 l0:rule_new{'E'}
 l0:alternative_new{'number', exp = 'number'}
-
-print(inspect(l0))
-
---[[ COMMENTED OUT
-
 l0:precedence_new{}
 l0:alternative_new{
    'E',
-   l0:seq{'ws', min = 0, max = 1 },
+   {'ws', min = 0, max = 1 },
    l0:string'*',
-   l0:seq{'ws', min = 0, max = 1 },
+   {'ws', min = 0, max = 1 },
    'E',
    exp = 'E*E'}
 l0:precedence_new{}
 l0:alternative_new{
    'E',
-   l0:seq{'ws', min = 0, max = 1 },
+   {'ws', min = 0, max = 1 },
    l0:string'+',
-   l0:seq{'ws', min = 0, max = 1 },
+   {'ws', min = 0, max = 1 },
    'E',
    exp = 'E+E'}
+print(inspect(l0))
+
+--[[ COMMENTED OUT
+
 l0:token_new{'ws', '[\009\010\013\032]', exp = 'nil' }
 l0:token_new{'number', l0:seq{l0:token'[%d]', min = 1}}
 

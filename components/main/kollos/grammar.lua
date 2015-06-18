@@ -160,44 +160,89 @@ function grammar_class.rule_new(grammar, args)
     grammar.current_xprec = current_xprec
 end
 
+function grammar_class.precedence_new(grammar, args)
+    local my_name = 'precedence_new()'
+    local line, file = common_args_process(my_name, grammar, args)
+    -- if line is nil, the "file" is actually an error object
+    if line == nil then return line, file end
+
+    local field_name = next(args)
+    if field_name ~= nil then
+        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+    end
+
+    local xrule = grammar.xrule
+    if #xrule < 1 then
+        return nil, grammar:development_error(my_name .. [[ called, but no current rule]])
+    end
+
+    local current_xrule = xrule[#xrule]
+    local last_xprec = grammar.current_xprec
+    local new_level = last_xprec.level + 1
+    local new_xprec = { level = new_level, xrule = current_xrule }
+    local xprec = grammar.xprec
+    xprec[#xprec+1] = new_xprec
+end
+
+local function subalternative_new(grammar, subalternative)
+
+    -- use name of caller
+    local my_name = 'alternative_new()'
+
+    local xsym = grammar.xsym
+    local new_rhs = {}
+
+    for rhs_ix = 1, table.maxn(subalternative) do
+        local rhs_instance = subalternative[rhs_ix]
+        local new_rhs_instance
+        if type(rhs_instance) == 'table' then
+            new_rhs_instance = subalternative(grammar, rhs_instance)
+        else
+            local error_string
+            new_rhs_instance, error_string = _symbol_new{ name = rhs_instance }
+            if not new_rhs_instance then
+                return nil,
+                grammar:development_error(
+                    [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string,
+                    grammar.throw)
+            end
+            xsym[#xsym+1] = new_rhs_instance
+            new_rhs_instance.id = #xsym
+        end
+        new_rhs[#new_rhs+1] = new_rhs_instance
+    end
+
+    local new_subalternative = { rhs = new_rhs }
+    if subalternative.exp then
+        new_subalternative.exp = subalternative.exp
+        subalternative.exp = nil
+    end
+
+    for field_name,_ in pairs(subalternative) do
+        if type(field_name) ~= 'number' then
+        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+        end
+    end
+
+    return new_subalternative
+
+end
+
 function grammar_class.alternative_new(grammar, args)
     local my_name = 'alternative_new()'
     local line, file = common_args_process(my_name, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    local xsym = grammar.xsym
+    local new_alternative, error_object = subalternative_new(grammar, args)
+    if not new_alternative then
+        -- subroutine did not throw error, so we do not
+        return nil, error_object
+    end
+    new_alternative.prec = grammar.current_xprec
+
     local xalt = grammar.xalt
-    local new_alt = {
-        prec = grammar.current_xprec,
-        rhs = {}
-    }
-    local new_rhs = new_alt.rhs
-
-    for rhs_ix = 1, table.maxn(args) do
-        local symbol_props, error = _symbol_new{ name = args[rhs_ix] }
-        if not symbol_props then
-            return nil,
-            grammar:development_error(
-                [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error,
-                grammar.throw)
-        end
-        xsym[#xsym+1] = symbol_props
-        symbol_props.id = #xsym
-        new_rhs[#new_rhs+1] = symbol_props
-        args[rhs_ix] = nil
-    end
-
-    xalt[#xalt+1] = new_alt
-    if args.exp then
-       new_alt.exp = args.exp
-       args.exp = nil
-    end
-
-    local field_name = next(args)
-    if field_name ~= nil then
-        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
-    end
+    xalt[#xalt+1] = new_alternative
 
 end
 
