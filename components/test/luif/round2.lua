@@ -34,29 +34,33 @@ ok(kollos, 'config_new() returned')
 l0 = kollos:grammar_new{ line = __LINE__, file = __FILE__,  name = 'l0' }
 l0:line_set(__LINE__)
 l0:rule_new{'E'}
-l0:alternative_new{'number', exp = 'number'}
-l0:precedence_new{}
+l0:alternative_new{'number', action = function () return number end}
+l0:precedence_new{ line = __LINE }
 l0:alternative_new{
    'E',
    {'ws', min = 0, max = 1 },
    l0:string'*',
    {'ws', min = 0, max = 1 },
    'E',
-   exp = 'E*E'}
-l0:precedence_new{}
+   action = function () return E*E end}
+l0:precedence_new{ line = __LINE }
 l0:alternative_new{
    'E',
    {'ws', min = 0, max = 1 },
    l0:string'+',
    {'ws', min = 0, max = 1 },
    'E',
-   exp = 'E+E'}
+   action = function () return E+E end}
 print(inspect(l0))
 
---[[ COMMENTED OUT
+l0:line_set(__LINE__)
+l0:rule_new'ws'
+l0:alternative_new{l0:cc'[\009\010\013\032]',
+    action = function () return nil end }
 
-l0:token_new{'ws', '[\009\010\013\032]', exp = 'nil' }
-l0:token_new{'number', l0:seq{l0:token'[%d]', min = 1}}
+l0:line_set(__LINE__)
+l0:rule_new'number'
+l0:alternative_new{l0:cc'[%d]', min = 1}
 
 --]]
 

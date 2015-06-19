@@ -30,16 +30,14 @@ local config = require 'kollos.config'
 -- local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
 local error_object = kollos_c.error_new();
 local error_metatable = getmetatable(error_object)
-print(__FILE__, __LINE__)
 error_metatable.__tostring = function (object)
     if type(object.stringize) == 'function' then
-        print(__FILE__, __LINE__)
         return object.stringize(object)
     end
     if type(object.string) == 'string' then
-        print(__FILE__, __LINE__)
         return object.string
     end
+    local code = object.code
     if type(code) ~= 'number' then
       local description = kollos_c.error_description(code)
       local name = kollos_c.error_code_by_name(code)

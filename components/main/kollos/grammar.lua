@@ -47,11 +47,13 @@ function grammar_class.line_set(grammar, line_number)
 end
 
 -- note that a throw_flag of nil sets throw to *true*
+-- returns the previous throw value
 function grammar_class.throw_set(grammar, throw_flag)
     local throw = true -- default is true
+    local old_throw_value = grammar.throw
     if throw_flag == false then throw = false end
     grammar.throw = throw
-    return throw
+    return old_throw_value
 end
 
 local function development_error_stringize(error_object)
@@ -65,8 +67,6 @@ local function development_error_stringize(error_object)
 end
 
 function grammar_class.development_error(grammar, string, file, line)
-    print(__FILE__, __LINE__)
-    print(__FILE__, __LINE__, grammar, string, file, line)
     local error_object
     = kollos_c.error_new{
         stringize = development_error_stringize,
@@ -75,7 +75,6 @@ function grammar_class.development_error(grammar, string, file, line)
         file = file or grammar.file,
         line = line or grammar.line,
     }
-    print(__FILE__, __LINE__)
     if grammar.throw then error(tostring(error_object)) end
     return error_object
 end
@@ -148,7 +147,32 @@ local function _symbol_new(args)
     if name:sub(1, 1):find('[_\055]') then
         return nil, [[symbol 'name' first character may not be '-' or '_']]
     end
-    return { name = name }
+    return { name = name, type = 'xsym' }
+end
+
+-- create a RHS instance of type 'xstring'
+function grammar_class.string(string)
+    if type(string) ~= 'string' then
+        return nil, [[string in alternate is type ']]
+        .. type(string)
+        .. [['; it must be a string]]
+    end
+
+    return { string = string, type = 'xstring'}
+end
+
+-- create a RHS instance of type 'xstring'
+function grammar_class.cc(cc)
+    if type(cc) ~= 'string' then
+        return nil, [[charclass in alternate is type ']]
+        .. type(cc)
+        .. [['; it must be a string]]
+    end
+    if not cc:match('^%[.+%]$') then
+        return nil, [[charclass in alternate must be in square brackets]]
+    end
+
+    return { cc = cc, type = 'xcc' }
 end
 
 function grammar_class.rule_new(grammar, args)
@@ -222,9 +246,16 @@ local function subalternative_new(grammar, subalternative)
         local rhs_instance = subalternative[rhs_ix]
         local new_rhs_instance
         if type(rhs_instance) == 'table' then
-            new_rhs_instance = subalternative(grammar, rhs_instance)
+            if rhs_instance.type == 'string' then
+                new_rhs_instance = rhs_instance
+            elseif rhs_instance.type == 'cc' then
+                new_rhs_instance = rhs_instance
+            else
+                new_rhs_instance = subalternative_new(grammar, rhs_instance)
+            end
         else
             local error_string
+            print(inspect(rhs_instance))
             new_rhs_instance, error_string = _symbol_new{ name = rhs_instance }
             if not new_rhs_instance then
                 return nil,
@@ -238,11 +269,46 @@ local function subalternative_new(grammar, subalternative)
         new_rhs[#new_rhs+1] = new_rhs_instance
     end
 
-    local new_subalternative = { rhs = new_rhs }
-    if subalternative.exp then
-        new_subalternative.exp = subalternative.exp
-        subalternative.exp = nil
+    local new_subalternative = { rhs = new_rhs, type = 'xalt' }
+    local action = subalternative.action
+    if action then
+        if type(action) ~= 'function' then
+        return nil, grammar:development_error(
+                my_name
+                .. [[: action must be of type function; actual type is ']]
+                .. type(action)
+                .. [[']]
+            )
+        end
+        new_subalternative.action = action
+        subalternative.action = nil
     end
+
+    local min = subalternative.min
+    local max = subalternative.max
+    if min ~= nil and type(min) ~= 'number' then
+        return nil, grammar:development_error(
+                my_name
+                .. [[: min must be of type 'number'; actual type is ']]
+                .. type(min)
+                .. [[']]
+            )
+    end
+    if max ~= nil and type(max) ~= 'number' then
+        return nil, grammar:development_error(
+                my_name
+                .. [[: max must be of type 'number'; actual type is ']]
+                .. type(min)
+                .. [[']]
+            )
+    end
+    if min == nil then
+        min = 1
+        if max == nil then max = 1 end
+    elseif max == nil then max = -1 end
+
+    new_subalternative.min = min subalternative.min = nil
+    new_subalternative.max = max subalternative.max = nil
 
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
