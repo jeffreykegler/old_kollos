@@ -151,25 +151,31 @@ local function _symbol_new(args)
 end
 
 -- create a RHS instance of type 'xstring'
-function grammar_class.string(string)
+-- throw is always set by the caller, which catches
+-- any error
+function grammar_class.string(grammar, string)
     if type(string) ~= 'string' then
-        return nil, [[string in alternate is type ']]
+        grammar:development_error(
+         [[string in alternate is type ']]
         .. type(string)
-        .. [['; it must be a string]]
+        .. [['; it must be a string]])
     end
-
     return { string = string, type = 'xstring'}
 end
 
 -- create a RHS instance of type 'xstring'
-function grammar_class.cc(cc)
+-- throw is always set by the caller, which catches
+-- any error
+function grammar_class.cc(grammar, cc)
     if type(cc) ~= 'string' then
-        return nil, [[charclass in alternate is type ']]
+        grammar:development_error(
+        [[charclass in alternate is type ']]
         .. type(cc)
-        .. [['; it must be a string]]
+        .. [['; it must be a string]])
     end
     if not cc:match('^%[.+%]$') then
-        return nil, [[charclass in alternate must be in square brackets]]
+        grammar:development_error(
+         [[charclass in alternate must be in square brackets]])
     end
 
     return { cc = cc, type = 'xcc' }
@@ -234,6 +240,9 @@ function grammar_class.precedence_new(grammar, args)
     xprec[#xprec+1] = new_xprec
 end
 
+-- throw is always set for this method
+-- the error is caught by the caller and re-thrown or not,
+-- as needed
 local function subalternative_new(grammar, subalternative)
 
     -- use name of caller
@@ -246,22 +255,30 @@ local function subalternative_new(grammar, subalternative)
         local rhs_instance = subalternative[rhs_ix]
         local new_rhs_instance
         if type(rhs_instance) == 'table' then
-            if rhs_instance.type == 'string' then
+            local instance_type = rhs_instance.type
+            if not instance_type then
+                new_rhs_instance = subalternative_new(grammar, rhs_instance)
+            elseif instance_type == 'xstring' then
                 new_rhs_instance = rhs_instance
-            elseif rhs_instance.type == 'cc' then
+            elseif instance_type == 'xcc' then
                 new_rhs_instance = rhs_instance
             else
-                new_rhs_instance = subalternative_new(grammar, rhs_instance)
+                grammar:development_error(
+                    [[Problem with rule rhs item #]] .. rhs_ix
+                    .. ' unexpected type: ' .. instance_type
+                )
             end
         else
             local error_string
             print(inspect(rhs_instance))
             new_rhs_instance, error_string = _symbol_new{ name = rhs_instance }
             if not new_rhs_instance then
-                return nil,
+                -- using return statements even for thrown errors is the
+                -- standard idiom, but in this case, I think it is clearer
+                -- without the return
                 grammar:development_error(
                     [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string
-                    )
+                )
             end
             xsym[#xsym+1] = new_rhs_instance
             new_rhs_instance.id = #xsym
@@ -273,7 +290,7 @@ local function subalternative_new(grammar, subalternative)
     local action = subalternative.action
     if action then
         if type(action) ~= 'function' then
-        return nil, grammar:development_error(
+            grammar:development_error(
                 my_name
                 .. [[: action must be of type function; actual type is ']]
                 .. type(action)
@@ -287,20 +304,20 @@ local function subalternative_new(grammar, subalternative)
     local min = subalternative.min
     local max = subalternative.max
     if min ~= nil and type(min) ~= 'number' then
-        return nil, grammar:development_error(
-                my_name
-                .. [[: min must be of type 'number'; actual type is ']]
-                .. type(min)
-                .. [[']]
-            )
+        grammar:development_error(
+            my_name
+            .. [[: min must be of type 'number'; actual type is ']]
+            .. type(min)
+            .. [[']]
+        )
     end
     if max ~= nil and type(max) ~= 'number' then
-        return nil, grammar:development_error(
-                my_name
-                .. [[: max must be of type 'number'; actual type is ']]
-                .. type(min)
-                .. [[']]
-            )
+        grammar:development_error(
+            my_name
+            .. [[: max must be of type 'number'; actual type is ']]
+            .. type(min)
+            .. [[']]
+        )
     end
     if min == nil then
         min = 1
@@ -312,7 +329,7 @@ local function subalternative_new(grammar, subalternative)
 
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
-        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+            grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
         end
     end
 
@@ -326,11 +343,14 @@ function grammar_class.alternative_new(grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    local new_alternative, error_object = subalternative_new(grammar, args)
-    if not new_alternative then
-        -- subroutine did not throw error, so we do not
-        return nil, error_object
+    local old_throw_value = grammar:throw_set(true)
+    ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
+    -- if ok is false, then new_alterative is actually an error object
+    if not ok then
+        if old_throw_value then error(new_alternative)
+        else return nil, new_alternative end
     end
+    grammar:throw_set(old_throw_value)
     new_alternative.prec = grammar.current_xprec
 
     local xalt = grammar.xalt

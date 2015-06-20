@@ -51,17 +51,16 @@ l0:alternative_new{
    {'ws', min = 0, max = 1 },
    'E',
    action = function () return E+E end}
-print(inspect(l0))
 
 l0:line_set(__LINE__)
-l0:rule_new'ws'
+l0:rule_new{'ws'}
 l0:alternative_new{l0:cc'[\009\010\013\032]',
     action = function () return nil end }
 
 l0:line_set(__LINE__)
-l0:rule_new'number'
+l0:rule_new{'number'}
 l0:alternative_new{l0:cc'[%d]', min = 1}
 
---]]
+print(inspect(l0))
 
 -- vim: expandtab shiftwidth=4:
