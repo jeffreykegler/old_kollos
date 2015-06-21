@@ -121,7 +121,7 @@ end
 
 -- the *internal* version of the method for
 -- creating *external* symbols.
-local function _symbol_new(args)
+local function _symbol_new(grammar, args)
     local name = args.name
     if not name then
         return nil, [[symbol must have a name]]
@@ -147,7 +147,19 @@ local function _symbol_new(args)
     if name:sub(1, 1):find('[_\055]') then
         return nil, [[symbol 'name' first character may not be '-' or '_']]
     end
-    return { name = name, type = 'xsym' }
+
+    local xsym_by_name = grammar.xsym_by_name
+    local props = xsym_by_name[name]
+    if props then return props end
+
+    props = { name = name, type = 'xsym' }
+    xsym_by_name[name] = props
+
+    local xsym = grammar.xsym
+    xsym[#xsym+1] = props
+    props.id = #xsym
+
+    return props
 end
 
 -- create a RHS instance of type 'xstring'
@@ -182,8 +194,8 @@ function grammar_class.cc(grammar, cc)
 end
 
 function grammar_class.rule_new(grammar, args)
-    local my_name = 'rule_new()'
-    local line, file = common_args_process(my_name, grammar, args)
+    local who = 'rule_new()'
+    local line, file = common_args_process(who, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
@@ -195,19 +207,16 @@ function grammar_class.rule_new(grammar, args)
 
     local field_name = next(args)
     if field_name ~= nil then
-        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+        return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
-    local symbol_props, symbol_error = _symbol_new{ name = lhs }
+    local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
     if not symbol_props then
         return nil, grammar:development_error(symbol_error)
     end
 
-    local xsym = grammar.xsym
     local xrule = grammar.xrule
     local xprec = grammar.xprec
-    xsym[#xsym+1] = symbol_props
-    symbol_props.id = #xsym
     local new_xrule = { lhs = symbol_props }
     xrule[#xrule+1] = new_xrule
     new_xrule.id = #xrule
@@ -217,19 +226,19 @@ function grammar_class.rule_new(grammar, args)
 end
 
 function grammar_class.precedence_new(grammar, args)
-    local my_name = 'precedence_new()'
-    local line, file = common_args_process(my_name, grammar, args)
+    local who = 'precedence_new()'
+    local line, file = common_args_process(who, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
     local field_name = next(args)
     if field_name ~= nil then
-        return nil, grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+        return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
     local xrule = grammar.xrule
     if #xrule < 1 then
-        return nil, grammar:development_error(my_name .. [[ called, but no current rule]])
+        return nil, grammar:development_error(who .. [[ called, but no current rule]])
     end
 
     local current_xrule = xrule[#xrule]
@@ -246,9 +255,8 @@ end
 local function subalternative_new(grammar, subalternative)
 
     -- use name of caller
-    local my_name = 'alternative_new()'
+    local who = 'alternative_new()'
 
-    local xsym = grammar.xsym
     local new_rhs = {}
 
     for rhs_ix = 1, table.maxn(subalternative) do
@@ -271,7 +279,7 @@ local function subalternative_new(grammar, subalternative)
         else
             local error_string
             print(inspect(rhs_instance))
-            new_rhs_instance, error_string = _symbol_new{ name = rhs_instance }
+            new_rhs_instance, error_string = _symbol_new(grammar, { name = rhs_instance })
             if not new_rhs_instance then
                 -- using return statements even for thrown errors is the
                 -- standard idiom, but in this case, I think it is clearer
@@ -280,8 +288,6 @@ local function subalternative_new(grammar, subalternative)
                     [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string
                 )
             end
-            xsym[#xsym+1] = new_rhs_instance
-            new_rhs_instance.id = #xsym
         end
         new_rhs[#new_rhs+1] = new_rhs_instance
     end
@@ -291,7 +297,7 @@ local function subalternative_new(grammar, subalternative)
     if action then
         if type(action) ~= 'function' then
             grammar:development_error(
-                my_name
+                who
                 .. [[: action must be of type function; actual type is ']]
                 .. type(action)
                 .. [[']]
@@ -305,7 +311,7 @@ local function subalternative_new(grammar, subalternative)
     local max = subalternative.max
     if min ~= nil and type(min) ~= 'number' then
         grammar:development_error(
-            my_name
+            who
             .. [[: min must be of type 'number'; actual type is ']]
             .. type(min)
             .. [[']]
@@ -313,7 +319,7 @@ local function subalternative_new(grammar, subalternative)
     end
     if max ~= nil and type(max) ~= 'number' then
         grammar:development_error(
-            my_name
+            who
             .. [[: max must be of type 'number'; actual type is ']]
             .. type(min)
             .. [[']]
@@ -329,7 +335,7 @@ local function subalternative_new(grammar, subalternative)
 
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
-            grammar:development_error(my_name .. [[: unacceptable named argument ]] .. field_name)
+            grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
         end
     end
 
@@ -338,13 +344,13 @@ local function subalternative_new(grammar, subalternative)
 end
 
 function grammar_class.alternative_new(grammar, args)
-    local my_name = 'alternative_new()'
-    local line, file = common_args_process(my_name, grammar, args)
+    local who = 'alternative_new()'
+    local line, file = common_args_process(who, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
     local old_throw_value = grammar:throw_set(true)
-    ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
+    local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
     -- if ok is false, then new_alterative is actually an error object
     if not ok then
         if old_throw_value then error(new_alternative)
@@ -358,6 +364,59 @@ function grammar_class.alternative_new(grammar, args)
 
 end
 
+function grammar_class.compile(grammar, args)
+    local who = 'grammar.compile()'
+    common_args_process(who, grammar, args)
+    local at_top = false
+    local at_bottom = false
+    local start_symbol = nil
+    if args.seamless then
+         at_top = true
+         at_bottom = true
+         local start_symbol_name = args.seamless
+         args.seamless = nil
+         start_symbol
+             = grammar.xsym_by_name[start_symbol_name]
+         if not start_symbol then
+            return nil, grammar:development_error(
+                who
+                .. [[ value of 'seamless' named argument must be the start symbol]]
+                )
+         end
+    elseif args.start then
+        at_top = true
+        local start_symbol_name = args.start
+        args.start = nil
+        return nil, grammar:development_error(
+            who
+            .. [[ 'start' named argument not yet implemented]]
+            )
+    elseif args.lexer then
+        at_bottom = true
+        args.lexer = nil
+        return nil, grammar:development_error(
+            who
+            .. [[ 'lexer' named argument not yet implemented]]
+            )
+    else
+        return nil, grammar:development_error(
+            who
+            .. [[ must have 'seamless', 'start' or 'lexer' named argument]]
+            )
+    end
+
+    local field_name = next(args)
+    if field_name ~= nil then
+        return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+    end
+
+    -- Hygene, to do at some point
+    -- Start symbol is productive and a LHS
+    -- All symbols are accessible from start symbol
+    --    Later, make it so some symbols can be set to be "inaccessilbe ok"
+
+end
+
 -- this will actually become a method of the config object
 local function grammar_new(config, args) -- luacheck: ignore config
     local who = 'grammar_new()'
@@ -368,6 +427,7 @@ local function grammar_new(config, args) -- luacheck: ignore config
         xprec = {},
         xalt = {},
         xsym = {},
+        xsym_by_name = {},
     }
     setmetatable(grammar_object, {
             __index = grammar_class,
