@@ -153,7 +153,7 @@ local function _symbol_new(grammar, args)
     local props = xsym_by_name[name]
     if props then return props end
 
-    props = { name = name, type = 'xsym' }
+    props = { name = name, type = 'xsym', lhs_xrules = {} }
     xsym_by_name[name] = props
 
     local xsym = grammar.xsym
@@ -173,7 +173,12 @@ function grammar_class.string(grammar, string)
         .. type(string)
         .. [['; it must be a string]])
     end
-    return { string = string, type = 'xstring'}
+    return {
+        string = string,
+        type = 'xstring',
+        productive = true,
+        nullable = false
+        }
 end
 
 -- create a RHS instance of type 'xstring'
@@ -191,7 +196,12 @@ function grammar_class.cc(grammar, cc)
          [[charclass in alternate must be in square brackets]])
     end
 
-    return { cc = cc, type = 'xcc' }
+    return {
+        cc = cc,
+        type = 'xcc',
+        productive = true,
+        nullable = false
+    }
 end
 
 function grammar_class.rule_new(grammar, args)
@@ -221,6 +231,10 @@ function grammar_class.rule_new(grammar, args)
     local new_xrule = { lhs = symbol_props }
     xrule[#xrule+1] = new_xrule
     new_xrule.id = #xrule
+
+    local xrules_of_lhs = symbol_props.lhs_xrules
+    xrules_of_lhs[#xrules_of_lhs+1] = new_xrule
+
     local current_xprec = { level = 0, xrule = new_xrule }
     xprec[#xprec+1] = current_xprec
     grammar.current_xprec = current_xprec
@@ -339,6 +353,11 @@ local function subalternative_new(grammar, subalternative)
     new_subalternative.min = min subalternative.min = nil
     new_subalternative.max = max subalternative.max = nil
 
+    if min == 0 then
+        new_subalternative.productive = true
+        new_subalternative.nullable = true
+    end
+
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
             grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
@@ -368,6 +387,85 @@ function grammar_class.alternative_new(grammar, args)
     local xalt = grammar.xalt
     xalt[#xalt+1] = new_alternative
 
+end
+
+--[[
+
+The RHS transitive closure is Jeffrey's coinage, to describe
+a kind of property useful in Marpa.
+
+Let `P` be a symbol property.
+We will write `P(sym)` if symbol `sym`
+has property P.
+
+We say that the symbol property holds of a rule `r`,
+or `P(r)`,
+if `r` is of the form
+`LHS ::= RHS`,
+where `RHS` is is a series
+of zero or more RHS symbols,
+and `P(Rsym)` for every `Rsym` in `RHS`.
+
+A property `P` is *RHS transitive* if and only if
+when `r = LHS ::= RHS` and `P(r)`,
+then `P(LHS)`.
+
+Note that the definition of a RHS transitive property implies that
+every LHS of an empty rule hss that property.
+This is because, in the case of an empty rule, it is vacuously
+true that all the RHS symbols have the RHS transitive property.
+
+Also note the definition only describes the transitivity of the
+property, not which symbols have it.
+That is, while `P` is a RHS transitive property,
+a symbol must have property `P`
+if it appears on the LHS
+of a rule with property `P`.
+the converse is not necessarily true:
+A symbol may have property `P`
+even if it never appears on the LHS
+of a rule with property `P`.
+
+In Marpa, "being productive" and
+"being nullable" are RHS transitive properties
+--]]
+
+local function rhs_transitive_closure(grammar, property)
+    local worklist = {}
+    for _, symbol_props in pairs(grammar.xsym) do
+        if symbol_props[property] == true then
+            table.insert(worklist, symbol_props)
+        end
+    end
+
+    while true do
+        local symbol_props = table.remove(worklist)
+        if not symbol_props then break end
+        for _,xrule_props in pairs(symbol_props.lhs_xrules) do
+            -- print("Start of testing rule for property ", property);
+            local lh_sym_props = xrule_props.lhs
+            if lh_sym_props[property] ~= true then
+                -- print("Rule LHS: ", lh_sym_props.name)
+                local rule_has_property = true -- default to true
+                for _,rhs_instance in pairs(xrule_props.rhs) do
+                    if not rhs_instance[property] then
+                        rule_has_property = false
+                        break
+                    end
+                end
+                -- print("End of testing rule, result = ", rule_has_property);
+                if rule_has_property then
+                    -- we don't get here if the LHS symbol already
+                    -- has the property, so no symbol is ever
+                    -- put on worklist twice
+                    lh_sym_props[property] = true
+                    -- print("Setting property ", property, " true for symbol ", lh_sym_props.name, " from ", symbol_props.name)
+                    table.insert(worklist, lh_sym_props)
+                end
+            end
+
+        end
+    end
 end
 
 function grammar_class.compile(grammar, args)
@@ -438,9 +536,9 @@ function grammar_class.compile(grammar, args)
             matrix.bit_set(reach_matrix, lhs_id, symbol_id)
         end
 
-        -- do I need this?
-        if symbol_props.terminal then
+        if #symbol_props.lhs_xrules <= 0 then
             matrix.bit_set(reach_matrix, symbol_id, terminal_sink_id)
+            symbol_props.productive = true
         end
 
         if symbol_props.lexeme then
@@ -449,6 +547,9 @@ function grammar_class.compile(grammar, args)
     end
 
     matrix.transitive_closure(reach_matrix)
+
+    rhs_transitive_closure(grammar, 'nullable')
+    rhs_transitive_closure(grammar, 'productive')
 
     -- Hygene, to do next
     -- LHS of sequence rule is unique
