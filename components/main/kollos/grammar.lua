@@ -31,6 +31,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local kollos_c = require "kollos_c"
 local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
+local matrix = require "kollos.matrix"
 
 local function here() return -- luacheck: ignore here
     debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
@@ -259,6 +260,10 @@ local function subalternative_new(grammar, subalternative)
 
     local new_rhs = {}
 
+    local current_xprec = grammar.current_xprec
+    local current_xrule = current_xprec.xrule
+    local xlhs_by_rhs = grammar.xlhs_by_rhs
+
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
         local new_rhs_instance
@@ -288,6 +293,7 @@ local function subalternative_new(grammar, subalternative)
                     [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string
                 )
             end
+            xlhs_by_rhs[new_rhs_instance.id] = current_xrule.lhs.id
         end
         new_rhs[#new_rhs+1] = new_rhs_instance
     end
@@ -410,10 +416,49 @@ function grammar_class.compile(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
+    local xsym = grammar.xsym
+    local matrix_size = #xsym+2
+
+    -- Not the real augment symbol, but a temporary that
+    -- "fakes" it
+    local augment_symbol_id = #xsym + 1
+
+    local terminal_sink_id = #xsym + 2
+    local reach_matrix = matrix.init(matrix_size)
+    if at_top then
+        matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
+    end
+
+    local xlhs_by_rhs = grammar.xlhs_by_rhs
+    for symbol_id = 1,#xsym do
+        local symbol_props = xsym[symbol_id]
+        -- every symbol reaches itself
+        matrix.bit_set(reach_matrix, symbol_id, symbol_id)
+        for _,lhs_id in pairs(xlhs_by_rhs) do
+            matrix.bit_set(reach_matrix, lhs_id, symbol_id)
+        end
+
+        -- do I need this?
+        if symbol_props.terminal then
+            matrix.bit_set(reach_matrix, symbol_id, terminal_sink_id)
+        end
+
+        if symbol_props.lexeme then
+            matrix.bit_set(reach_matrix, augment_symbol_id, symbol_id)
+        end
+    end
+
+    matrix.transitive_closure(reach_matrix)
+
+    -- Hygene, to do next
+    -- LHS of sequence rule is unique
+    -- LHS of precedenced rule is unique
+
     -- Hygene, to do at some point
     -- Start symbol is productive and a LHS
     -- All symbols are accessible from start symbol
     --    Later, make it so some symbols can be set to be "inaccessilbe ok"
+    -- Lowest precedence must have no precedenced symbol
 
 end
 
@@ -426,8 +471,12 @@ local function grammar_new(config, args) -- luacheck: ignore config
         xrule = {},
         xprec = {},
         xalt = {},
+
         xsym = {},
         xsym_by_name = {},
+
+        -- maps LHS id to RHS id
+        xlhs_by_rhs = {},
     }
     setmetatable(grammar_object, {
             __index = grammar_class,

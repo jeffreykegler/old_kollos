@@ -43,6 +43,7 @@ local inspect = require "kollos.inspect" -- luacheck: ignore
 -- module
 local wrap = require "kollos.wrap"
 local kollos_c = require "kollos_c"
+local matrix = require "kollos.matrix"
 
 local luif_err_none -- luacheck: ignore
 = kollos_c.error_code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
@@ -60,79 +61,6 @@ do
         temp_table[byte_value+1] = string.char(byte_value)
     end
     all_255_chars = table.concat(temp_table)
-end
-
---[[
-
-This next function uses Warshall's algorithm. This is slower in theory
-but uses bitops, memory and pipelining well. Grune & Jacob claim that
-arc-by-arc method is better but it needs a work list, and that means
-recursion or memory management of a stack, which can easily slow things
-down by a factor of 10 or more.
-
-Of course, this is always the possibility of porting my C code, which is
-Warshall's in optimized pure C, but I suspect the LuaJIT is just as good.
-
-Function summary: Given a transition matrix, which is a table of tables
-such that matrix[a][b] is true if there is a transition from a to b,
-change it into its closure
-
---]]
-
-local function transitive_closure(matrix)
-    -- as an efficiency hack, we store the
-    -- from, to duples as two entries, so
-    -- that we don't have to create a table
-    -- for each duple
-    local dim = #matrix
-    local max_column_word = bit.rshift(dim-1, 5)+1
-    for from_ix = 1,dim do
-        local from_vector = matrix[from_ix]
-        for to_ix = 1,dim do
-            local from_word = bit.rshift(from_ix-1, 5)+1
-            local from_bit = bit.band(from_ix-1, 0x1F)
-            if bit.band(matrix[to_ix][from_word], bit.lshift(1, from_bit)) ~= 0 then
-                -- 32 bits at a time -- fast!
-                -- in the Luajit, it should pipeline, and be several times faster
-                local to_vector = matrix[to_ix]
-                for word_ix = 1,max_column_word do
-                    to_vector[word_ix] = bit.bor(from_vector[word_ix], to_vector[word_ix])
-                end
-            end
-        end
-    end
-end
-
-local function matrix_init( dim)
-    local matrix = {}
-    local max_column_word = bit.rshift(dim-1, 5)+1
-    for i = 1,dim do
-        matrix[i] = {}
-        for j = 1,max_column_word do
-            matrix[i][j] = 0
-        end
-    end
-    return matrix
-end
-
---[[
-In the matrices, I give in to Lua's conventions --
-everything is 1-based. Except, of course, bit position.
-In Pall's 32-bit vectors, that is 0-based.
---]]
-local function matrix_bit_set(matrix, row, column)
-    local column_word = bit.rshift(column-1, 5)+1
-    local column_bit = bit.band(column-1, 0x1F)
-    -- print("column_word:", column_word, " column_bit: ", column_bit)
-    local bit_vector = matrix[row]
-    bit_vector[column_word] = bit.bor(bit_vector[column_word], bit.lshift(1, column_bit))
-end
-
-local function matrix_bit_test(matrix, row, column)
-    local column_word = bit.rshift(column-1, 5)+1
-    local column_bit = bit.band(column-1, 0x1F)
-    -- print("column_word:", column_word, " column_bit: ", column_bit)
-    return bit.band(matrix[row][column_word], bit.lshift(1, column_bit)) ~= 0
 end
 
 --[[
@@ -344,30 +272,30 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     end
 
     -- now set up the reach matrix
-    local reach_matrix = matrix_init(#symbol_by_id)
+    local reach_matrix = matrix.init(#symbol_by_id)
     if not g_is_structural then
-        matrix_bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
+        matrix.bit_set(reach_matrix, augment_symbol.id, top_symbol.id)
     end
 
     for symbol_id = 1,#symbol_by_id do
         local symbol_props = symbol_by_id[symbol_id]
         local isym_props = symbol_props.isym_props
         -- every symbol reaches itself
-        matrix_bit_set(reach_matrix, symbol_id, symbol_id)
+        matrix.bit_set(reach_matrix, symbol_id, symbol_id)
         if isym_props then
             for _,lhs_props in pairs(symbol_props.lhs_by_rhs) do
-                matrix_bit_set(reach_matrix, lhs_props.id, symbol_id)
+                matrix.bit_set(reach_matrix, lhs_props.id, symbol_id)
             end
             if symbol_props.terminal then
-                matrix_bit_set(reach_matrix, symbol_id, sink_terminal.id)
+                matrix.bit_set(reach_matrix, symbol_id, sink_terminal.id)
             end
             if symbol_props.lexeme then
-                matrix_bit_set(reach_matrix, top_symbol.id, symbol_id)
+                matrix.bit_set(reach_matrix, top_symbol.id, symbol_id)
             end
         end
     end
 
-    transitive_closure(reach_matrix)
+    matrix.transitive_closure(reach_matrix)
 
     rhs_transitive_closure(symbol_by_name, 'nullable')
     rhs_transitive_closure(symbol_by_name, 'productive')
@@ -385,14 +313,14 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
     for symbol_id = 1,#symbol_by_id do
         local symbol_props = symbol_by_id[symbol_id]
-        if not matrix_bit_test(reach_matrix, augment_symbol.id, symbol_id) then
+        if not matrix.bit_test(reach_matrix, augment_symbol.id, symbol_id) then
             print("Symbol " .. symbol_props.name .. " is not accessible")
         end
         if not symbol_props.productive then
             print("Symbol " .. symbol_props.name .. " is not productive")
         end
         if symbol_props.nullable and
-        not matrix_bit_test(reach_matrix, symbol_id, sink_terminal.id)
+        not matrix.bit_test(reach_matrix, symbol_id, sink_terminal.id)
         then symbol_props.nulling = true end
         if symbol_props.lexeme then
             if symbol_props.nulling then
@@ -408,7 +336,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
     --[[ COMMENTED OUT
     for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
         for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
-            if matrix_bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+            if matrix.bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
                 print( from_symbol_props.name, "reaches", to_symbol_props.name)
             end
         end

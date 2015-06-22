@@ -20,6 +20,7 @@ file(COPY
     "location.lua"
     "lo_g.lua"
     "main.lua"
+    "matrix.lua"
     "unindent.lua"
     "util.lua"
     "wrap.lua"
