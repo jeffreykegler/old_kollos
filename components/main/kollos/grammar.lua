@@ -221,21 +221,30 @@ function grammar_class.rule_new(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
+    local xrule = grammar.xrule
+    local new_xrule = {}
+    xrule[#xrule+1] = new_xrule
+    local new_xrule_id = #xrule
+    new_xrule.id = new_xrule_id
+
+    new_xrule.name = grammar.name_base .. '@' .. line .. '-R' .. new_xrule_id
+
     local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
     if not symbol_props then
         return nil, grammar:development_error(symbol_error)
     end
-
-    local xrule = grammar.xrule
-    local xprec = grammar.xprec
-    local new_xrule = { lhs = symbol_props }
-    xrule[#xrule+1] = new_xrule
-    new_xrule.id = #xrule
+    new_xrule.lhs = symbol_props
 
     local lhs_xrules = symbol_props.lhs_xrules
     lhs_xrules[#lhs_xrules+1] = new_xrule
 
-    local current_xprec = { level = 0, xrule = new_xrule, top_alternatives = {} }
+    local xprec = grammar.xprec
+    local current_xprec = {
+        level = 0,
+        xrule = new_xrule,
+        top_alternatives = {},
+        name = new_xrule.name .. '-L0',
+    }
     xprec[#xprec+1] = current_xprec
     grammar.current_xprec = current_xprec
 
@@ -248,26 +257,34 @@ function grammar_class.precedence_new(grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    local field_name = next(args)
-    if field_name ~= nil then
-        return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
-    end
-
     local xrule = grammar.xrule
     if #xrule < 1 then
         return nil, grammar:development_error(who .. [[ called, but no current rule]])
     end
 
     local current_xrule = xrule[#xrule]
+    local xrule_precedences = current_xrule.precedences
+    local new_xprec = { xrule = current_xrule, top_alternatives = {} }
+    xrule_precedences[#xrule_precedences+1] = new_xprec
+
     local last_xprec = grammar.current_xprec
     local new_level = last_xprec.level + 1
-    local new_xprec = { level = new_level, xrule = current_xrule, top_alternatives = {} }
+    new_xprec.level = new_level
+
+    new_xprec.name = current_xrule.name .. '-L' .. new_level
+
+    local field_name = next(args)
+    if field_name ~= nil then
+        return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+    end
+
+    if #xrule < 1 then
+        return nil, grammar:development_error(who .. [[ called, but no current rule]])
+    end
+
     local xprec = grammar.xprec
     xprec[#xprec+1] = new_xprec
     grammar.current_xprec = new_xprec
-
-    local xrule_precedences = current_xrule.precedences
-    xrule_precedences[#xrule_precedences+1] = new_xprec
 
 end
 
@@ -284,7 +301,16 @@ local function subalternative_new(grammar, subalternative)
     local current_xprec = grammar.current_xprec
     local current_xrule = current_xprec.xrule
     local xlhs_by_rhs = grammar.xlhs_by_rhs
+
     local new_subalternative = { type = 'xalt', xprec = current_xprec }
+    local xsubalt = grammar.xsubalt
+    xsubalt[#xsubalt+1] = new_subalternative
+    local new_subalternative_id = #xsubalt
+    new_subalternative.id = new_subalternative_id
+    new_subalternative.name =
+        current_xprec.name
+        .. '-A'
+        .. new_subalternative_id
 
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
@@ -373,9 +399,6 @@ local function subalternative_new(grammar, subalternative)
         end
     end
 
-    local xsubalt = grammar.xsubalt
-    xsubalt[#xsubalt+1] = new_subalternative
-
     return new_subalternative
 
 end
@@ -455,8 +478,14 @@ local function xrhs_transitive_closure(grammar, xsubalt_by_rhs, property)
         local rhs = xsubalt_props.rhs
         for rhs_ix = 1,#rhs do
             local rhs_instance = rhs[rhs_ix]
+            print("Looking at ", property, " of rhs instance ",
+                rhs_ix,
+                rhs_instance.type,
+                rhs_instance.name
+            )
+
             if rhs_instance[property] then
-                table.insert(worklist, xsubalt_props)
+                worklist[#worklist+1] = xsubalt_props
                 break
             end
         end
@@ -508,16 +537,29 @@ local function xrhs_transitive_closure(grammar, xsubalt_by_rhs, property)
 
                 local parent = xsubalt_props.parent
                 if parent then
-                    table.insert(worklist, parent)
-                end
-                if xsubalt_props.top then
+                    worklist[#worklist+1] = parent
+                else
                     local xprec = xsubalt_props.xprec
                     local xrule = xprec.xrule
                     local lhs = xrule.lhs
                     local lhs_id = lhs.id
+
+                print("Adding to worklist by lhs->rhs for property ", property,
+                    lhs.name,
+                    xsubalt_props.type,
+                    xsubalt_props.name
+                )
+
                     local xsubalts = xsubalt_by_rhs[lhs_id]
                     for ix = 1,#xsubalts do
-                        table.insert(worklist, xsubalts[ix])
+
+                    print("xsubalt_by_rhs", ix,
+                        lhs.name,
+                        xsubalts[ix].type,
+                        xsubalts[ix].name
+                    )
+
+                        worklist[#worklist+1] = xsubalts[ix]
                     end
                 end
             end
@@ -667,6 +709,7 @@ local function grammar_new(config, args) -- luacheck: ignore config
     local grammar_object = {
         throw = true,
         name = '[NEW]',
+        name_base = '[NEW]',
         xrule = {},
         xprec = {},
         xtopalt = {},
@@ -714,6 +757,10 @@ local function grammar_new(config, args) -- luacheck: ignore config
     end
     args.name = nil
     grammar_object.name = name
+    -- This is used to name child objects of the grammar
+    -- For now, it is just the name of the grammar.
+    -- Someday I may create a method that allows it to be changed.
+    grammar_object.name_base = name
 
     local field_name = next(args)
     if field_name ~= nil then
