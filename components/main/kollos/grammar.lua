@@ -232,12 +232,14 @@ function grammar_class.rule_new(grammar, args)
     xrule[#xrule+1] = new_xrule
     new_xrule.id = #xrule
 
-    local xrules_of_lhs = symbol_props.lhs_xrules
-    xrules_of_lhs[#xrules_of_lhs+1] = new_xrule
+    local lhs_xrules = symbol_props.lhs_xrules
+    lhs_xrules[#lhs_xrules+1] = new_xrule
 
-    local current_xprec = { level = 0, xrule = new_xrule }
+    local current_xprec = { level = 0, xrule = new_xrule, top_alternatives = {} }
     xprec[#xprec+1] = current_xprec
     grammar.current_xprec = current_xprec
+
+    new_xrule.precedences = { current_xprec }
 end
 
 function grammar_class.precedence_new(grammar, args)
@@ -259,9 +261,14 @@ function grammar_class.precedence_new(grammar, args)
     local current_xrule = xrule[#xrule]
     local last_xprec = grammar.current_xprec
     local new_level = last_xprec.level + 1
-    local new_xprec = { level = new_level, xrule = current_xrule }
+    local new_xprec = { level = new_level, xrule = current_xrule, top_alternatives = {} }
     local xprec = grammar.xprec
     xprec[#xprec+1] = new_xprec
+    grammar.current_xprec = new_xprec
+
+    local xrule_precedences = current_xrule.precedences
+    xrule_precedences[#xrule_precedences+1] = new_xprec
+
 end
 
 -- throw is always set for this method
@@ -383,6 +390,8 @@ function grammar_class.alternative_new(grammar, args)
     end
     grammar:throw_set(old_throw_value)
     new_alternative.prec = grammar.current_xprec
+    local xprec_top_alternatives = grammar.current_xprec.top_alternatives
+    xprec_top_alternatives[#xprec_top_alternatives+1] = new_alternative
 
     local xalt = grammar.xalt
     xalt[#xalt+1] = new_alternative
@@ -430,7 +439,7 @@ In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
 --]]
 
-local function rhs_transitive_closure(grammar, property)
+local function xrhs_transitive_closure(grammar, property)
     local worklist = {}
     for _, symbol_props in pairs(grammar.xsym) do
         if symbol_props[property] == true then
@@ -527,6 +536,9 @@ function grammar_class.compile(grammar, args)
         matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
     end
 
+    xrhs_transitive_closure(grammar, 'nullable')
+    xrhs_transitive_closure(grammar, 'productive')
+
     local xlhs_by_rhs = grammar.xlhs_by_rhs
     for symbol_id = 1,#xsym do
         local symbol_props = xsym[symbol_id]
@@ -548,11 +560,9 @@ function grammar_class.compile(grammar, args)
 
     matrix.transitive_closure(reach_matrix)
 
-    rhs_transitive_closure(grammar, 'nullable')
-    rhs_transitive_closure(grammar, 'productive')
-
     -- Hygene, to do next
-    -- LHS of sequence rule is unique
+    -- Nullable semantics is unique
+    -- Ban sequences of nullables
     -- LHS of precedenced rule is unique
 
     -- Hygene, to do at some point
