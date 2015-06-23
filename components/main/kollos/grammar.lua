@@ -227,7 +227,7 @@ function grammar_class.rule_new(grammar, args)
     local new_xrule_id = #xrule
     new_xrule.id = new_xrule_id
 
-    new_xrule.name = grammar.name_base .. '@' .. line .. '-R' .. new_xrule_id
+    new_xrule.name = grammar.name_base .. '-R' .. new_xrule_id .. 'L' .. line
 
     local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
     if not symbol_props then
@@ -243,7 +243,7 @@ function grammar_class.rule_new(grammar, args)
         level = 0,
         xrule = new_xrule,
         top_alternatives = {},
-        name = new_xrule.name .. '-L0',
+        name = new_xrule.name .. 'P0L' .. line,
     }
     xprec[#xprec+1] = current_xprec
     grammar.current_xprec = current_xprec
@@ -271,7 +271,7 @@ function grammar_class.precedence_new(grammar, args)
     local new_level = last_xprec.level + 1
     new_xprec.level = new_level
 
-    new_xprec.name = current_xrule.name .. '-L' .. new_level
+    new_xprec.name = current_xrule.name .. 'P' .. new_level .. 'L' .. line
 
     local field_name = next(args)
     if field_name ~= nil then
@@ -309,8 +309,10 @@ local function subalternative_new(grammar, subalternative)
     new_subalternative.id = new_subalternative_id
     new_subalternative.name =
         current_xprec.name
-        .. '-A'
+        .. 'A'
         .. new_subalternative_id
+        .. 'L'
+        .. grammar.line
 
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
