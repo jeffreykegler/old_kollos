@@ -221,10 +221,10 @@ function grammar_class.rule_new(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
-    local xrule = grammar.xrule
+    local xrule_by_id = grammar.xrule_by_id
     local new_xrule = {}
-    xrule[#xrule+1] = new_xrule
-    local new_xrule_id = #xrule
+    xrule_by_id[#xrule_by_id+1] = new_xrule
+    local new_xrule_id = #xrule_by_id
     new_xrule.id = new_xrule_id
 
     local subname = 'r' .. new_xrule_id
@@ -244,20 +244,20 @@ function grammar_class.rule_new(grammar, args)
     local lhs_xrules = symbol_props.lhs_xrules
     lhs_xrules[#lhs_xrules+1] = new_xrule
 
-    local xprec = grammar.xprec
+    local xprec_by_id = grammar.xprec_by_id
     local xprec_subname = 'p0' .. new_xrule.subname
     local current_xprec = {
         level = 0,
         xrule = new_xrule,
         subname = xprec_subname,
         top_alternatives = {},
+        name =
+            grammar.name_base
+            .. ':'
+            .. line
+            .. xprec_subname
     }
-    xprec.name = 
-        grammar.name_base
-        .. ':'
-        .. line
-        .. xprec_subname
-    xprec[#xprec+1] = current_xprec
+    xprec_by_id[#xprec_by_id+1] = current_xprec
     grammar.current_xprec = current_xprec
 
     new_xrule.precedences = { current_xprec }
@@ -269,12 +269,12 @@ function grammar_class.precedence_new(grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    local xrule = grammar.xrule
-    if #xrule < 1 then
+    local xrule_by_id = grammar.xrule_by_id
+    if #xrule_by_id < 1 then
         return nil, grammar:development_error(who .. [[ called, but no current rule]])
     end
 
-    local current_xrule = xrule[#xrule]
+    local current_xrule = xrule_by_id[#xrule_by_id]
     local xrule_precedences = current_xrule.precedences
     local new_xprec = { xrule = current_xrule, top_alternatives = {} }
     xrule_precedences[#xrule_precedences+1] = new_xprec
@@ -296,12 +296,12 @@ function grammar_class.precedence_new(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
-    if #xrule < 1 then
+    if #xrule_by_id < 1 then
         return nil, grammar:development_error(who .. [[ called, but no current rule]])
     end
 
-    local xprec = grammar.xprec
-    xprec[#xprec+1] = new_xprec
+    local xprec_by_id = grammar.xprec_by_id
+    xprec_by_id[#xprec_by_id+1] = new_xprec
     grammar.current_xprec = new_xprec
 
 end
@@ -321,9 +321,9 @@ local function subalternative_new(grammar, subalternative)
     local xlhs_by_rhs = grammar.xlhs_by_rhs
 
     local new_subalternative = { type = 'xalt', xprec = current_xprec }
-    local xsubalt = grammar.xsubalt
-    xsubalt[#xsubalt+1] = new_subalternative
-    local new_subalternative_id = #xsubalt
+    local xsubalt_by_id = grammar.xsubalt_by_id
+    xsubalt_by_id[#xsubalt_by_id+1] = new_subalternative
+    local new_subalternative_id = #xsubalt_by_id
     new_subalternative.id = new_subalternative_id
     local id_within_top_alternative = grammar.id_within_top_alternative
     id_within_top_alternative = id_within_top_alternative + 1
@@ -450,10 +450,10 @@ function grammar_class.alternative_new(grammar, args)
     local xprec_top_alternatives = grammar.current_xprec.top_alternatives
     xprec_top_alternatives[#xprec_top_alternatives+1] = new_alternative
 
-    local xtopalt = grammar.xtopalt
-    xtopalt[#xtopalt+1] = new_alternative
-    local xsubalt = grammar.xsubalt
-    xsubalt[#xsubalt+1] = new_alternative
+    local xtopalt_by_id = grammar.xtopalt_by_id
+    xtopalt_by_id[#xtopalt_by_id+1] = new_alternative
+    local xsubalt_by_id = grammar.xsubalt_by_id
+    xsubalt_by_id[#xsubalt_by_id+1] = new_alternative
 
 end
 
@@ -503,7 +503,9 @@ local function xrhs_transitive_closure(grammar, xsubalt_by_rhs, property)
 
     -- Start the worklist with those subalternatives which have
     -- true children
-    for _, xsubalt_props in pairs(grammar.xsubalt) do
+    local xsubalt_by_id = grammar.xsubalt_by_id
+    for xsubalt_id = 1, #xsubalt_by_id do
+        local xsubalt_props = xsubalt_by_id[xsubalt_id]
         local rhs = xsubalt_props.rhs
         for rhs_ix = 1,#rhs do
             local rhs_instance = rhs[rhs_ix]
@@ -662,9 +664,9 @@ function grammar_class.compile(grammar, args)
         for symbol_id = 1,#xsym do
             xsubalt_by_rhs[symbol_id] = {}
         end
-        local xsubalt = grammar.xsubalt
-        for xsubalt_id = 1,#xsubalt do
-            local xsubalt_props = xsubalt[xsubalt_id]
+        local xsubalt_by_id = grammar.xsubalt_by_id
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt_props = xsubalt_by_id[xsubalt_id]
             local rhs = xsubalt_props.rhs
             for rhs_ix = 1,#rhs do
                 local rhs_instance = rhs[rhs_ix]
@@ -739,10 +741,10 @@ local function grammar_new(config, args) -- luacheck: ignore config
         throw = true,
         name = '[NEW]',
         name_base = '[NEW]',
-        xrule = {},
-        xprec = {},
-        xtopalt = {},
-        xsubalt = {},
+        xrule_by_id = {},
+        xprec_by_id = {},
+        xtopalt_by_id = {},
+        xsubalt_by_id = {},
 
         xsym = {},
         xsym_by_name = {},
