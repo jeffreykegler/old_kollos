@@ -227,7 +227,13 @@ function grammar_class.rule_new(grammar, args)
     local new_xrule_id = #xrule
     new_xrule.id = new_xrule_id
 
-    new_xrule.name = grammar.name_base .. '-R' .. new_xrule_id .. 'L' .. line
+    local subname = 'r' .. new_xrule_id
+    new_xrule.subname = subname
+    new_xrule.name =
+        grammar.name_base
+        .. ':'
+        .. grammar.line
+        .. subname
 
     local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
     if not symbol_props then
@@ -239,12 +245,18 @@ function grammar_class.rule_new(grammar, args)
     lhs_xrules[#lhs_xrules+1] = new_xrule
 
     local xprec = grammar.xprec
+    local xprec_subname = 'p0' .. new_xrule.subname
     local current_xprec = {
         level = 0,
         xrule = new_xrule,
+        subname = xprec_subname,
         top_alternatives = {},
-        name = new_xrule.name .. 'P0L' .. line,
     }
+    xprec.name = 
+        grammar.name_base
+        .. ':'
+        .. line
+        .. xprec_subname
     xprec[#xprec+1] = current_xprec
     grammar.current_xprec = current_xprec
 
@@ -271,7 +283,13 @@ function grammar_class.precedence_new(grammar, args)
     local new_level = last_xprec.level + 1
     new_xprec.level = new_level
 
-    new_xprec.name = current_xrule.name .. 'P' .. new_level .. 'L' .. line
+    local subname = 'p' .. new_level .. current_xrule.subname
+    new_xprec.subname = subname
+    new_xprec.name =
+        grammar.name_base
+        .. ':'
+        .. line
+        .. subname
 
     local field_name = next(args)
     if field_name ~= nil then
@@ -307,12 +325,19 @@ local function subalternative_new(grammar, subalternative)
     xsubalt[#xsubalt+1] = new_subalternative
     local new_subalternative_id = #xsubalt
     new_subalternative.id = new_subalternative_id
+    local id_within_top_alternative = grammar.id_within_top_alternative
+    id_within_top_alternative = id_within_top_alternative + 1
+    grammar.id_within_top_alternative = id_within_top_alternative
+    local subname =
+        'a'
+        .. id_within_top_alternative
+        .. current_xprec.subname
+    new_subalternative.subname = subname
     new_subalternative.name =
-        current_xprec.name
-        .. 'A'
-        .. new_subalternative_id
-        .. 'L'
+        grammar.name_base
+        .. ':'
         .. grammar.line
+        .. subname
 
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
@@ -410,6 +435,8 @@ function grammar_class.alternative_new(grammar, args)
     local line, file = common_args_process(who, grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
+
+    grammar.id_within_top_alternative = 0
 
     local old_throw_value = grammar:throw_set(true)
     local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
