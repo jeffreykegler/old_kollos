@@ -284,6 +284,7 @@ local function subalternative_new(grammar, subalternative)
     local current_xprec = grammar.current_xprec
     local current_xrule = current_xprec.xrule
     local xlhs_by_rhs = grammar.xlhs_by_rhs
+    local new_subalternative = { type = 'xalt' }
 
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
@@ -292,6 +293,7 @@ local function subalternative_new(grammar, subalternative)
             local instance_type = rhs_instance.type
             if not instance_type then
                 new_rhs_instance = subalternative_new(grammar, rhs_instance)
+                new_rhs_instance.parent = new_subalternative
             elseif instance_type == 'xstring' then
                 new_rhs_instance = rhs_instance
             elseif instance_type == 'xcc' then
@@ -319,7 +321,7 @@ local function subalternative_new(grammar, subalternative)
         new_rhs[#new_rhs+1] = new_rhs_instance
     end
 
-    local new_subalternative = { rhs = new_rhs, type = 'xalt' }
+    new_subalternative.rhs = new_rhs
     local action = subalternative.action
     if action then
         if type(action) ~= 'function' then
