@@ -222,18 +222,39 @@ function grammar_class.rule_new(grammar, args)
     end
 
     local xrule_by_id = grammar.xrule_by_id
-    local new_xrule = {}
-    xrule_by_id[#xrule_by_id+1] = new_xrule
-    local new_xrule_id = #xrule_by_id
-    new_xrule.id = new_xrule_id
+    local new_xrule_id = #xrule_by_id + 1
+    local new_xrule = {
+        id = new_xrule_id,
+        line = grammar.line,
+        name_base = grammar.name_base,
+    }
 
-    local subname = 'r' .. new_xrule_id
-    new_xrule.subname = subname
-    new_xrule.name =
-        grammar.name_base
-        .. ':'
-        .. grammar.line
-        .. subname
+    setmetatable(new_xrule, {
+            __index = function (table, key)
+                if key == 'type' then return 'xrule'
+                -- 'name' and 'subname' are computed "just in time"
+                -- and then memoized
+                elseif key == 'subname' then
+                    local subname =
+                        'r'
+                        .. table.id
+                    table.subname = subname
+                    return subname
+                elseif key == 'name' then
+                    local name =
+                        table.name_base
+                        .. ':'
+                        .. table.line
+                        .. table.subname
+                    table.name = name
+                    return name
+                end
+                return nil
+            end
+        })
+
+    xrule_by_id[new_xrule_id] = new_xrule
+    new_xrule.id = new_xrule_id
 
     local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
     if not symbol_props then
@@ -244,19 +265,39 @@ function grammar_class.rule_new(grammar, args)
     local lhs_xrules = symbol_props.lhs_xrules
     lhs_xrules[#lhs_xrules+1] = new_xrule
 
-    local xprec_by_id = grammar.xprec_by_id
-    local xprec_subname = 'p0' .. new_xrule.subname
     local current_xprec = {
         level = 0,
         xrule = new_xrule,
-        subname = xprec_subname,
         top_alternatives = {},
-        name =
-            grammar.name_base
-            .. ':'
-            .. line
-            .. xprec_subname
+        line = grammar.line,
+        name_base = grammar.name_base,
     }
+    setmetatable(current_xprec, {
+            __index = function (table, key)
+                if key == 'type' then return 'xprec'
+                -- 'name' and 'subname' are computed "just in time"
+                -- and then memoized
+                elseif key == 'subname' then
+                    local subname =
+                        'p'
+                        .. table.level
+                        .. table.xrule.subname
+                    table.subname = subname
+                    return subname
+                elseif key == 'name' then
+                    local name =
+                        table.name_base
+                        .. ':'
+                        .. table.line
+                        .. table.subname
+                    table.name = name
+                    return name
+                end
+                return nil
+            end
+        })
+
+    local xprec_by_id = grammar.xprec_by_id
     xprec_by_id[#xprec_by_id+1] = current_xprec
     grammar.current_xprec = current_xprec
 
@@ -274,22 +315,21 @@ function grammar_class.precedence_new(grammar, args)
         return nil, grammar:development_error(who .. [[ called, but no current rule]])
     end
 
-    local current_xrule = xrule_by_id[#xrule_by_id]
-    local xrule_precedences = current_xrule.precedences
-    local new_xprec = { xrule = current_xrule, top_alternatives = {} }
-    xrule_precedences[#xrule_precedences+1] = new_xprec
-
     local last_xprec = grammar.current_xprec
     local new_level = last_xprec.level + 1
-    new_xprec.level = new_level
 
-    local subname = 'p' .. new_level .. current_xrule.subname
-    new_xprec.subname = subname
-    new_xprec.name =
-        grammar.name_base
-        .. ':'
-        .. line
-        .. subname
+    local current_xrule = xrule_by_id[#xrule_by_id]
+    local xrule_precedences = current_xrule.precedences
+    local new_xprec = {
+        xrule = current_xrule,
+        top_alternatives = {},
+        line = grammar.line,
+        name_base = grammar.name_base,
+        level = new_level,
+    }
+    setmetatable(new_xprec, getmetatable(last_xprec))
+
+    xrule_precedences[#xrule_precedences+1] = new_xprec
 
     local field_name = next(args)
     if field_name ~= nil then
@@ -320,24 +360,44 @@ local function subalternative_new(grammar, subalternative)
     local current_xrule = current_xprec.xrule
     local xlhs_by_rhs = grammar.xlhs_by_rhs
 
-    local new_subalternative = { type = 'xalt', xprec = current_xprec }
+    local id_within_top_alternative = grammar.id_within_top_alternative
+    id_within_top_alternative = id_within_top_alternative + 1
+    grammar.id_within_top_alternative = id_within_top_alternative
+
+    local new_subalternative = {
+        xprec = current_xprec,
+        line = grammar.line,
+        id_within_top_alternative =
+            id_within_top_alternative,
+        name_base = grammar.name_base
+    }
+    setmetatable(new_subalternative, {
+            __index = function (table, key)
+                if key == 'type' then return 'xalt'
+                elseif key == 'subname' then
+                    local subname =
+                        'a'
+                        .. table.id_within_top_alternative
+                        .. table.xprec.subname
+                    table.subname = subname
+                    return subname
+                elseif key == 'name' then
+                    local name =
+                        table.name_base
+                        .. ':'
+                        .. table.line
+                        .. table.subname
+                    table.name = name
+                    return name
+                end
+                return nil
+            end
+        })
+
     local xsubalt_by_id = grammar.xsubalt_by_id
     xsubalt_by_id[#xsubalt_by_id+1] = new_subalternative
     local new_subalternative_id = #xsubalt_by_id
     new_subalternative.id = new_subalternative_id
-    local id_within_top_alternative = grammar.id_within_top_alternative
-    id_within_top_alternative = id_within_top_alternative + 1
-    grammar.id_within_top_alternative = id_within_top_alternative
-    local subname =
-        'a'
-        .. id_within_top_alternative
-        .. current_xprec.subname
-    new_subalternative.subname = subname
-    new_subalternative.name =
-        grammar.name_base
-        .. ':'
-        .. grammar.line
-        .. subname
 
     for rhs_ix = 1, table.maxn(subalternative) do
         local rhs_instance = subalternative[rhs_ix]
@@ -446,7 +506,7 @@ function grammar_class.alternative_new(grammar, args)
         else return nil, new_alternative end
     end
     grammar:throw_set(old_throw_value)
-    new_alternative.prec = grammar.current_xprec
+    new_alternative.xprec = grammar.current_xprec
     local xprec_top_alternatives = grammar.current_xprec.top_alternatives
     xprec_top_alternatives[#xprec_top_alternatives+1] = new_alternative
 
