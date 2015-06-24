@@ -558,105 +558,74 @@ In Marpa, "being productive" and
 "being nullable" are RHS transitive properties
 --]]
 
-local function xrhs_transitive_closure(grammar, xsubalt_by_rhs, property)
+local function xrhs_transitive_closure(grammar, property)
     local worklist = {}
+    local triggers = {}
 
-    -- Start the worklist with those subalternatives which have
-    -- true children
-    local xsubalt_by_id = grammar.xsubalt_by_id
-    for xsubalt_id = 1, #xsubalt_by_id do
-        local xsubalt_props = xsubalt_by_id[xsubalt_id]
-        local rhs = xsubalt_props.rhs
+    -- ok to shadow upvalue property, I think
+    local function property_of_instance(instance,
+            property) -- luacheck: ignore property
+        if instance[property] ~= nil then
+            return instance[property]
+        end
+        if instance.type == 'xsym' then
+            -- If a symbol with the property still not set,
+            -- return nil and the symbol id
+            return nil, instance.id
+        end
+        local rhs = instance.rhs
+        -- assume true, unless found false
         for rhs_ix = 1,#rhs do
             local rhs_instance = rhs[rhs_ix]
-            print("Looking at ", property, " of rhs instance ",
-                rhs_ix,
-                rhs_instance.type,
-                rhs_instance.name
-            )
-
-            if rhs_instance[property] then
-                worklist[#worklist+1] = xsubalt_props
-                break
+            local has_property, symbol_id = property_of_instance(rhs_instance, property)
+            if has_property == nil then
+                local current_triggers = triggers[symbol_id]
+                if current_triggers then
+                    current_triggers[#current_triggers+1] = instance
+                else
+                    triggers[symbol_id] = { instance }
+                end
+            elseif has_property == false then
+                instance[property] = false
+                return false
             end
         end
+        -- If instance is top level
+        if not instance.parent then
+            local xprec = instance.xprec
+            local xrule = xprec.xrule
+            local lhs = xrule.lhs
+            local lhs_id = lhs.id
+            print("Setting", lhs.name, "to true for", property)
+            local triggered_instances = triggers[lhs_id] or {}
+            for ix = 1,#triggered_instances do
+                worklist[#worklist+1] = triggered_instances[ix]
+            end
+        end
+        instance[property] = true
+        return true
+    end
+
+    local xsubalt_by_id = grammar.xsubalt_by_id
+    
+    -- First pass populates the worklist
+    for instance_ix = 1,#xsubalt_by_id do
+        property_of_instance(xsubalt_by_id[instance_ix], property)
     end
 
     while true do
-        local xsubalt_props = table.remove(worklist)
-
-        if not xsubalt_props then break end
-
-        print("Working on ", property, " of xsubalt ",
-            xsubalt_props.type,
-            xsubalt_props.name
-        )
-
-        if xsubalt_props[property] ~= true
-        then
-            local rhs = xsubalt_props.rhs
-            local xsubalt_has_property = true -- default to true
-            for rhs_ix = 1,#rhs do
-                local rhs_instance = rhs[rhs_ix]
-
-                print("Working on ", property, "rhs_ix", rhs_ix,
-                    xsubalt_props.type,
-                    xsubalt_props.name
-                )
-
-                print("Working on ", property, "rhs_ix", rhs_ix,
-                    'instance:',
-                    xsubalt_props.type,
-                    xsubalt_props.name
-                )
-
-                if not rhs_instance[property] then
-                    xsubalt_has_property = false
-                    break
-                end
-            end
-            if xsubalt_has_property then
-                -- we don't get here if the LHS symbol already
-                -- has the property, so no symbol is ever
-                -- put on worklist twice
-                xsubalt_props[property] = true
-
-                print("Setting property ", property, " true for xsubalt ",
-                    xsubalt_props.type,
-                    xsubalt_props.name
-                )
-
-                local parent = xsubalt_props.parent
-                if parent then
-                    worklist[#worklist+1] = parent
-                else
-                    local xprec = xsubalt_props.xprec
-                    local xrule = xprec.xrule
-                    local lhs = xrule.lhs
-                    local lhs_id = lhs.id
-
-                print("Adding to worklist by lhs->rhs for property ", property,
-                    lhs.name,
-                    xsubalt_props.type,
-                    xsubalt_props.name
-                )
-
-                    local xsubalts = xsubalt_by_rhs[lhs_id]
-                    for ix = 1,#xsubalts do
-
-                    print("xsubalt_by_rhs", ix,
-                        lhs.name,
-                        xsubalts[ix].type,
-                        xsubalts[ix].name
-                    )
-
-                        worklist[#worklist+1] = xsubalts[ix]
-                    end
-                end
-            end
-
-        end
+        local xalt_props = table.remove(worklist)
+        if not xalt_props then break end
+        property_of_instance(xalt_props, property)
     end
+
+    -- Final pass catches those subalternatives hidden
+    -- from the top-down logic because they were sequences
+    -- with min=0
+    for instance_ix = 1,#xsubalt_by_id do
+        property_of_instance(xsubalt_by_id[instance_ix], property)
+    end
+
 end
 
 function grammar_class.compile(grammar, args)
@@ -718,29 +687,8 @@ function grammar_class.compile(grammar, args)
         matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
     end
 
-    do
-
-        local xsubalt_by_rhs = {}
-        for symbol_id = 1,#xsym do
-            xsubalt_by_rhs[symbol_id] = {}
-        end
-        local xsubalt_by_id = grammar.xsubalt_by_id
-        for xsubalt_id = 1,#xsubalt_by_id do
-            local xsubalt_props = xsubalt_by_id[xsubalt_id]
-            local rhs = xsubalt_props.rhs
-            for rhs_ix = 1,#rhs do
-                local rhs_instance = rhs[rhs_ix]
-                if rhs_instance.type == 'xsym' then
-                    local entry = xsubalt_by_rhs[rhs_instance.id]
-                    entry[#entry+1] = xsubalt_props
-                end
-            end
-        end
-
-        xrhs_transitive_closure(grammar, xsubalt_by_rhs, 'nullable')
-        xrhs_transitive_closure(grammar, xsubalt_by_rhs, 'productive')
-
-    end
+    xrhs_transitive_closure(grammar, 'nullable')
+    xrhs_transitive_closure(grammar, 'productive')
 
     -- Ban unproductive symbols (and therefore rules)
     -- If we allow them, we must make sure that they, all
