@@ -510,8 +510,8 @@ function grammar_class.alternative_new(grammar, args)
     local xprec_top_alternatives = grammar.current_xprec.top_alternatives
     xprec_top_alternatives[#xprec_top_alternatives+1] = new_alternative
 
-    local xtopalt_by_id = grammar.xtopalt_by_id
-    xtopalt_by_id[#xtopalt_by_id+1] = new_alternative
+    local xtopalt_by_ix = grammar.xtopalt_by_ix
+    xtopalt_by_ix[#xtopalt_by_ix+1] = new_alternative
     local xsubalt_by_id = grammar.xsubalt_by_id
     xsubalt_by_id[#xsubalt_by_id+1] = new_alternative
 
@@ -665,6 +665,21 @@ local function report_nullable_precedenced_xrule(grammar, xrule)
     )
 end
 
+local function report_nullable_repetend(grammar, xsubalt)
+    local error_table = {
+        'grammar_new():' .. 'sequence repetend is nullable',
+        '  That is not allowed',
+        [[ The sequence is ]] .. xsubalt.name
+    }
+
+    return nil,
+    grammar:development_error(
+        table.concat(error_table, '\n'),
+        xsubalt.name_base,
+        xsubalt.line
+    )
+end
+
 function grammar_class.compile(grammar, args)
     local who = 'grammar.compile()'
     common_args_process(who, grammar, args)
@@ -745,6 +760,11 @@ function grammar_class.compile(grammar, args)
         end
     end
 
+    -- Ban nullable prececedenced rules.
+    -- They are just too confusing. Tf the user
+    -- *really* is sure they want it, and that she
+    -- knows what she is doing, she can write it out
+    -- in BNF.
     local xrule_by_id = grammar.xrule_by_id
     for xrule_id = 1,#xrule_by_id do
         local xrule = xrule_by_id[xrule_id]
@@ -754,6 +774,53 @@ function grammar_class.compile(grammar, args)
             local lhs = xrule.lhs
             if lhs.nullable then
                 return report_nullable_precedenced_xrule(grammar, xrule)
+            end
+        end
+    end
+
+    -- A sequence may be nullable because
+    -- 1) min=0, or
+    -- 2) a single instance of its repetend can be nulled
+    -- We only treat 2) as an error.
+    -- The problem with a nullable repetend, is that it makes
+    -- the number of repetends in any given sequence
+    -- highly ambigiuous.
+    --
+    -- If the user really wants sequences with nullable
+    -- repetends, and knows what she is doing,
+    -- then she can write them out in BNF.
+
+    local xsubalt_by_id = grammar.xsubalt_by_id
+    for subalt_id = 1,#xsubalt_by_id do
+        local xsubalt = xsubalt_by_id[subalt_id]
+        -- If this is a nullable sequenced rule
+        if xsubalt.nullable and
+            (xsubalt.min ~= 1 or xsubalt.max ~= 1)
+        then
+
+            -- If min>0, nullability must be due to
+            -- the repetend being nullable,
+            -- so report the error
+            if xsubalt.min > 0 then
+                return report_nullable_repetend(grammar, xsubalt)
+            end
+
+            -- If here, min==0,
+            -- but even so, then repetend may
+            -- be nullable.  Check to see if there are any
+            -- indelible (= non-nullable) elements in the 
+            -- repetend
+            local item_is_indelible = false
+            local rhs = xsubalt.rhs
+            for rhs_ix = 1,#rhs do
+                local rhs_instance = rhs[rhs_ix]
+                if not rhs_instance.nullable then
+                    item_is_indelible = true
+                    break
+                end
+            end
+            if not item_is_indelible then
+                return report_nullable_repetend(grammar, xsubalt)
             end
         end
     end
@@ -782,7 +849,6 @@ function grammar_class.compile(grammar, args)
     -- Hygene, to do next
     -- Nullable semantics is unique
     -- Ban sequences of nullables
-    -- LHS of precedenced rule is unique
 
     -- Hygene, to do at some point
     -- Start symbol is productive and a LHS
@@ -801,7 +867,7 @@ local function grammar_new(config, args) -- luacheck: ignore config
         name_base = '[NEW]',
         xrule_by_id = {},
         xprec_by_id = {},
-        xtopalt_by_id = {},
+        xtopalt_by_ix = {},
         xsubalt_by_id = {},
 
         xsym = {},
