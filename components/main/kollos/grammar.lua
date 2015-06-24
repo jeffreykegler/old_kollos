@@ -590,6 +590,7 @@ local function xrhs_transitive_closure(grammar, property)
                 return false
             end
         end
+        -- If here, property is true
         -- If instance is top level
         if not instance.parent then
             local xprec = instance.xprec
@@ -597,6 +598,7 @@ local function xrhs_transitive_closure(grammar, property)
             local lhs = xrule.lhs
             local lhs_id = lhs.id
             print("Setting", lhs.name, "to true for", property)
+            lhs[property] = true
             local triggered_instances = triggers[lhs_id] or {}
             for ix = 1,#triggered_instances do
                 worklist[#worklist+1] = triggered_instances[ix]
