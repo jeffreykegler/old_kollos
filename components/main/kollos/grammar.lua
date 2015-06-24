@@ -575,6 +575,7 @@ local function xrhs_transitive_closure(grammar, property)
         end
         local rhs = instance.rhs
         -- assume true, unless found false
+        local instance_has_property = true
         for rhs_ix = 1,#rhs do
             local rhs_instance = rhs[rhs_ix]
             local has_property, symbol_id = property_of_instance(rhs_instance, property)
@@ -585,27 +586,27 @@ local function xrhs_transitive_closure(grammar, property)
                 else
                     triggers[symbol_id] = { instance }
                 end
+                return nil, symbol_id
             elseif has_property == false then
-                instance[property] = false
-                return false
+                instance_has_property = false
+                break
             end
         end
-        -- If here, property is true
+        instance[property] = instance_has_property
         -- If instance is top level
         if not instance.parent then
             local xprec = instance.xprec
             local xrule = xprec.xrule
             local lhs = xrule.lhs
             local lhs_id = lhs.id
-            print("Setting", lhs.name, "to true for", property)
-            lhs[property] = true
+            print("Setting", lhs.name, "to", instance_has_property, "for", property)
+            lhs[property] = instance_has_property
             local triggered_instances = triggers[lhs_id] or {}
             for ix = 1,#triggered_instances do
                 worklist[#worklist+1] = triggered_instances[ix]
             end
         end
-        instance[property] = true
-        return true
+        return instance_has_property
     end
 
     local xsubalt_by_id = grammar.xsubalt_by_id
@@ -628,6 +629,40 @@ local function xrhs_transitive_closure(grammar, property)
         property_of_instance(xsubalt_by_id[instance_ix], property)
     end
 
+end
+
+local function report_nullable_precedenced_xrule(grammar, xrule)
+    local precedences = xrule.precedences
+    local nullable_alternatives = {}
+    for prec_ix = 1, #precedences do
+        local xprec = precedences[prec_ix]
+        local alternatives = xprec.top_alternatives
+        for alt_ix = 1, #alternatives do
+            local alternative = alternatives[alt_ix]
+            nullable_alternatives[#nullable_alternatives+1] = alternative
+            if #nullable_alternatives >= 3 then break end
+        end
+        if #nullable_alternatives >= 3 then break end
+    end
+    local error_table = {
+        'grammar_new():' .. 'precedenced rule is nullable',
+        ' That is not allowed',
+        [[ The rule is ]] .. xrule.name
+    }
+    for ix = 1, #nullable_alternatives do
+        error_table[#error_table+1]
+            = ' Alternative ' .. nullable_alternatives[ix].name .. " is nullable"
+    end
+
+    -- For now, report just the rule.
+    -- At some point, find one of the alternatives
+    -- which was nullable, and report that
+    return nil,
+    grammar:development_error(
+        table.concat(error_table, '\n'),
+        xrule.name_base,
+        xrule.line
+    )
 end
 
 function grammar_class.compile(grammar, args)
@@ -707,6 +742,19 @@ function grammar_class.compile(grammar, args)
                     .. [[ unproductive symbol: ]]
                     .. symbol_props.name
                 )
+        end
+    end
+
+    local xrule_by_id = grammar.xrule_by_id
+    for xrule_id = 1,#xrule_by_id do
+        local xrule = xrule_by_id[xrule_id]
+        local precedences = xrule.precedences
+        -- If it is a rule with multiple precedences
+        if #precedences > 1 then
+            local lhs = xrule.lhs
+            if lhs.nullable then
+                return report_nullable_precedenced_xrule(grammar, xrule)
+            end
         end
     end
 
