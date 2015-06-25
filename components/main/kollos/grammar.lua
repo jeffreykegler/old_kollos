@@ -687,18 +687,18 @@ function grammar_class.compile(grammar, args)
     local at_bottom = false
     local start_symbol = nil
     if args.seamless then
-         at_top = true
-         at_bottom = true
-         local start_symbol_name = args.seamless
-         args.seamless = nil
-         start_symbol
-             = grammar.xsym_by_name[start_symbol_name]
-         if not start_symbol then
+        at_top = true
+        at_bottom = true
+        local start_symbol_name = args.seamless
+        args.seamless = nil
+        start_symbol
+        = grammar.xsym_by_name[start_symbol_name]
+        if not start_symbol then
             return nil, grammar:development_error(
                 who
                 .. [[ value of 'seamless' named argument must be the start symbol]]
-                )
-         end
+            )
+        end
     elseif args.start then
         at_top = true
         local start_symbol_name = args.start
@@ -706,19 +706,19 @@ function grammar_class.compile(grammar, args)
         return nil, grammar:development_error(
             who
             .. [[ 'start' named argument not yet implemented]]
-            )
+        )
     elseif args.lexer then
         at_bottom = true
         args.lexer = nil
         return nil, grammar:development_error(
             who
             .. [[ 'lexer' named argument not yet implemented]]
-            )
+        )
     else
         return nil, grammar:development_error(
             who
             .. [[ must have 'seamless', 'start' or 'lexer' named argument]]
-            )
+        )
     end
 
     local field_name = next(args)
@@ -726,56 +726,57 @@ function grammar_class.compile(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
-local xtopalt_by_ix = grammar.xtopalt_by_ix
-do
-    local sorted_table = {}
-    for ix = 1,#xtopalt_by_ix do
-        sorted_table[ix] = xtopalt_by_ix[ix]
-    end
-    -- return true if alt1 < alt2, nil if ==, otherwise true
-    local function comparator(alt1, alt2)
-        local type = alt1.type
-        if type ~= alt2.type then
-            return type < alt2.type
+    -- Check for duplicate topalt's -- ignore min,max,action, etc.
+    local xtopalt_by_ix = grammar.xtopalt_by_ix
+    do
+        local sorted_table = {}
+        for ix = 1,#xtopalt_by_ix do
+            sorted_table[ix] = xtopalt_by_ix[ix]
         end
-        if type == 'xcc' then
-            if alt1.cc == alt2.cc then return nil end
-            return alt1.cc < alt2.cc
-        elseif type == 'xstring' then
-            if alt1.string == alt2.string then return nil end
-            return alt1.string < alt2.string
-        elseif type == 'xsym' then
-            if alt1.name == alt2.name then return nil end
-            return alt1.name < alt2.name
-        elseif type == 'xalt' then
-            -- Only an xalt can be the top, so only here do we
-            -- worry about the LHS
-            local lhs_name1 = alt1.xprec.xrule.lhs.name
-            local lhs_name2 = alt2.xprec.xrule.lhs.name
-            if lhs_name1 ~= lhs_name2 then
-                return lhs_name1 < lhs_name2
+        -- return true if alt1 < alt2, nil if ==, otherwise true
+        local function comparator(alt1, alt2)
+            local type = alt1.type
+            if type ~= alt2.type then
+                return type < alt2.type
             end
-            
-            local rhs1 = alt1.rhs
-            local rhs2 = alt2.rhs
-            local rhs_length = #rhs1
-            if rhs_length ~= #rhs2 then
-                return rhs_length < #rhs2
+            if type == 'xcc' then
+                if alt1.cc == alt2.cc then return nil end
+                return alt1.cc < alt2.cc
+            elseif type == 'xstring' then
+                if alt1.string == alt2.string then return nil end
+                return alt1.string < alt2.string
+            elseif type == 'xsym' then
+                if alt1.name == alt2.name then return nil end
+                return alt1.name < alt2.name
+            elseif type == 'xalt' then
+                -- Only an xalt can be the top, so only here do we
+                -- worry about the LHS
+                local lhs_name1 = alt1.xprec.xrule.lhs.name
+                local lhs_name2 = alt2.xprec.xrule.lhs.name
+                if lhs_name1 ~= lhs_name2 then
+                    return lhs_name1 < lhs_name2
+                end
+
+                local rhs1 = alt1.rhs
+                local rhs2 = alt2.rhs
+                local rhs_length = #rhs1
+                if rhs_length ~= #rhs2 then
+                    return rhs_length < #rhs2
+                end
+                for rhs_ix = 1, rhs_length do
+                    local result = comparator(rhs1[rhs_ix], rhs2[rhs_ix])
+                    if result ~= nil then return result end
+                end
+                return nil
+            else
+                -- Should never happen
+                error("Unknown type " .. type .. " in table.sort comparator")
             end
-            for rhs_ix = 1, rhs_length do
-                local result = comparator(rhs1[rhs_ix], rhs2[rhs_ix])
-                if result ~= nil then return result end
-            end
-            return nil
-        else
-            -- Should never happen
-            error("Unknown type " .. type .. " in table.sort comparator")
         end
-    end
-    table.sort(sorted_table, comparator)
-    for ix = 1, #sorted_table-1 do
-        if comparator(sorted_table[ix], sorted_table[ix+1]) == nil then
-            return nil,
+        table.sort(sorted_table, comparator)
+        for ix = 1, #sorted_table-1 do
+            if comparator(sorted_table[ix], sorted_table[ix+1]) == nil then
+                return nil,
                 grammar:development_error(
                     who
                     .. [[ Duplicate alternatives: ]]
@@ -784,9 +785,9 @@ do
                     .. sorted_table[ix+1].name
                     .. '\n'
                 )
+            end
         end
     end
-end
 
     local xsym = grammar.xsym
     local matrix_size = #xsym+2
@@ -807,18 +808,18 @@ end
     -- Start symbol must be a LHS
     if #start_symbol.lhs_xrules <= 0 then
         return nil,
-            grammar:development_error(
-                who
-                .. [[ start symbol must be LHS]] .. '\n'
-                .. [[ start symbol is <]] .. start_symbol.name '>\n'
-            )
+        grammar:development_error(
+            who
+            .. [[ start symbol must be LHS]] .. '\n'
+            .. [[ start symbol is <]] .. start_symbol.name '>\n'
+        )
     end
 
     -- Ban unproductive symbols (and therefore rules)
     -- If we allow them, we must make sure that they, all
     -- all symbols and rule they recursively make
     -- unproductive are not used in what follows.
-    -- Much of the logic requires that all symbols be 
+    -- Much of the logic requires that all symbols be
     -- productive
     --
     -- Also, we must always make sure that the start symbol
@@ -827,11 +828,11 @@ end
         local symbol_props = xsym[symbol_id]
         if not symbol_props.productive then
             return nil,
-                grammar:development_error(
-                    who
-                    .. [[ unproductive symbol: ]]
-                    .. symbol_props.name
-                )
+            grammar:development_error(
+                who
+                .. [[ unproductive symbol: ]]
+                .. symbol_props.name
+            )
         end
     end
 
@@ -870,7 +871,7 @@ end
         local xsubalt = xsubalt_by_id[subalt_id]
         -- If this is a nullable sequenced rule
         if xsubalt.nullable and
-            (xsubalt.min ~= 1 or xsubalt.max ~= 1)
+        (xsubalt.min ~= 1 or xsubalt.max ~= 1)
         then
 
             -- If min>0, nullability must be due to
@@ -882,8 +883,8 @@ end
 
             -- If here, min==0,
             -- but even so, then repetend may
-            -- be nullable.  Check to see if there are any
-            -- indelible (= non-nullable) elements in the 
+            -- be nullable. Check to see if there are any
+            -- indelible (= non-nullable) elements in the
             -- repetend
             local item_is_indelible = false
             local rhs = xsubalt.rhs
@@ -903,7 +904,6 @@ end
     -- Hygene, to do next
     -- Nullable semantics is unique
     -- Precedenced LHS is unique
-    -- Check for duplicate topalt's -- ignore min,max,action, etc.
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
@@ -916,7 +916,8 @@ end
         -- every symbol reaches itself
         matrix.bit_set(reach_matrix, symbol_id, symbol_id)
         for _,lhs_id in pairs(xlhs_by_rhs) do
-            matrix.bit_set(reach_matrix, lhs_id, symbol_id)
+            matrix.bit_set(reach_matrix,WARNING: positive indentation at the end
+ lhs_id, symbol_id)
         end
 
         if #symbol_props.lhs_xrules <= 0 then
@@ -933,8 +934,8 @@ end
 
     -- Hygene, to do at some point
     -- All symbols are accessible from start symbol
-    --    Later, make it so some symbols can be set to be "inaccessible ok"
-    --    Take into account min==max==0 sequences
+    -- Later, make it so some symbols can be set to be "inaccessible ok"
+    -- Take into account min==max==0 sequences
     -- Lowest precedence must have no precedenced symbol
 
 end
@@ -963,50 +964,50 @@ local function grammar_new(config, args) -- luacheck: ignore config
 
     if not args.file then
         return nil, grammar_object:development_error(who .. [[ requires 'file' named argument]],
-     debug.getinfo(2,'S').source,
-     debug.getinfo(2, 'l').currentline) end
+            debug.getinfo(2,'S').source,
+            debug.getinfo(2, 'l').currentline) end
 
-    if not args.line then
-        return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
-     debug.getinfo(2,'S').source,
-     debug.getinfo(2, 'l').currentline) end
+        if not args.line then
+            return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
+                debug.getinfo(2,'S').source,
+                debug.getinfo(2, 'l').currentline) end
 
-    local line, file
-    = common_args_process('grammar_new()', grammar_object, args)
-    -- if line is nil, the "file" is actually an error object
-    if line == nil then return line, file end
+            local line, file
+            = common_args_process('grammar_new()', grammar_object, args)
+            -- if line is nil, the "file" is actually an error object
+            if line == nil then return line, file end
 
-    local name = args.name
-    if not name then
-        return nil, grammar_object:development_error([[grammar must have a name]])
-    end
-    if type(name) ~= 'string' then
-        return nil, grammar_object:development_error([[grammar 'name' must be a string]])
-    end
-    if name:find('[^a-zA-Z0-9_]') then
-        return nil, grammar_object:development_error(
-            [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
-        )
-    end
-    if name:byte(1) == '_' then
-        return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
-    end
-    args.name = nil
-    grammar_object.name = name
-    -- This is used to name child objects of the grammar
-    -- For now, it is just the name of the grammar.
-    -- Someday I may create a method that allows it to be changed.
-    grammar_object.name_base = name
+            local name = args.name
+            if not name then
+                return nil, grammar_object:development_error([[grammar must have a name]])
+            end
+            if type(name) ~= 'string' then
+                return nil, grammar_object:development_error([[grammar 'name' must be a string]])
+            end
+            if name:find('[^a-zA-Z0-9_]') then
+                return nil, grammar_object:development_error(
+                    [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
+                )
+            end
+            if name:byte(1) == '_' then
+                return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
+            end
+            args.name = nil
+            grammar_object.name = name
+            -- This is used to name child objects of the grammar
+            -- For now, it is just the name of the grammar.
+            -- Someday I may create a method that allows it to be changed.
+            grammar_object.name_base = name
 
-    local field_name = next(args)
-    if field_name ~= nil then
-        return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
-    end
+            local field_name = next(args)
+            if field_name ~= nil then
+                return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+            end
 
-    return grammar_object
-end
+            return grammar_object
+        end
 
-grammar_class.new = grammar_new
-return grammar_class
+        grammar_class.new = grammar_new
+        return grammar_class
 
--- vim: expandtab shiftwidth=4:
+        -- vim: expandtab shiftwidth=4:
