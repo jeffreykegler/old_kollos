@@ -726,6 +726,68 @@ function grammar_class.compile(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
+local xtopalt_by_ix = grammar.xtopalt_by_ix
+do
+    local sorted_table = {}
+    for ix = 1,#xtopalt_by_ix do
+        sorted_table[ix] = xtopalt_by_ix[ix]
+    end
+    -- return true if alt1 < alt2, nil if ==, otherwise true
+    local function comparator(alt1, alt2)
+        local type = alt1.type
+        if type ~= alt2.type then
+            return type < alt2.type
+        end
+        if type == 'xcc' then
+            if alt1.cc == alt2.cc then return nil end
+            return alt1.cc < alt2.cc
+        elseif type == 'xstring' then
+            if alt1.string == alt2.string then return nil end
+            return alt1.string < alt2.string
+        elseif type == 'xsym' then
+            if alt1.name == alt2.name then return nil end
+            return alt1.name < alt2.name
+        elseif type == 'xalt' then
+            -- Only an xalt can be the top, so only here do we
+            -- worry about the LHS
+            local lhs_name1 = alt1.xprec.xrule.lhs.name
+            local lhs_name2 = alt2.xprec.xrule.lhs.name
+            if lhs_name1 ~= lhs_name2 then
+                return lhs_name1 < lhs_name2
+            end
+            
+            local rhs1 = alt1.rhs
+            local rhs2 = alt2.rhs
+            local rhs_length = #rhs1
+            if rhs_length ~= #rhs2 then
+                return rhs_length < #rhs2
+            end
+            for rhs_ix = 1, rhs_length do
+                local result = comparator(rhs1[rhs_ix], rhs2[rhs_ix])
+                if result ~= nil then return result end
+            end
+            return nil
+        else
+            -- Should never happen
+            error("Unknown type " .. type .. " in table.sort comparator")
+        end
+    end
+    table.sort(sorted_table, comparator)
+    for ix = 1, #sorted_table-1 do
+        if comparator(sorted_table[ix], sorted_table[ix+1]) == nil then
+            return nil,
+                grammar:development_error(
+                    who
+                    .. [[ Duplicate alternatives: ]]
+                    .. sorted_table[ix].name
+                    .. ' and '
+                    .. sorted_table[ix+1].name
+                    .. '\n'
+                )
+        end
+    end
+end
+
     local xsym = grammar.xsym
     local matrix_size = #xsym+2
 
@@ -843,7 +905,6 @@ function grammar_class.compile(grammar, args)
     -- Precedenced LHS is unique
     -- Check for duplicate topalt's -- ignore min,max,action, etc.
 
-    local xtopalt_by_ix = grammar.xtopalt_by_ix
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
         -- If this is a nullable sequenced rule
