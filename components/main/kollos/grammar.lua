@@ -727,11 +727,15 @@ function grammar_class.compile(grammar, args)
     end
 
     local xtopalt_by_ix = grammar.xtopalt_by_ix
+
+    -- Check for duplicate topalt's
+    -- ignore min,max,action, etc.
     do
         local sorted_table = {}
         for ix = 1,#xtopalt_by_ix do
             sorted_table[ix] = xtopalt_by_ix[ix]
         end
+
         -- return true if alt1 < alt2, nil if ==, otherwise true
         local function comparator(alt1, alt2)
             local type = alt1.type
@@ -835,23 +839,33 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    -- Ban nullable prececedenced rules.
-    -- They are just too confusing. Tf the user
-    -- *really* is sure they want it, and that she
-    -- knows what she is doing, she can write it out
-    -- in BNF.
-    local xrule_by_id = grammar.xrule_by_id
-    for xrule_id = 1,#xrule_by_id do
-        local xrule = xrule_by_id[xrule_id]
-        local precedences = xrule.precedences
-        -- If it is a rule with multiple precedences
-        if #precedences > 1 then
-            local lhs = xrule.lhs
-            if lhs.nullable then
-                return report_nullable_precedenced_xrule(grammar, xrule)
+-- Ban nullable prececedenced rules.
+-- They are just too confusing. Tf the user
+-- *really* is sure they want it, and that she
+-- knows what she is doing, she can write it out
+-- in BNF.
+local xrule_by_id = grammar.xrule_by_id
+for xrule_id = 1,#xrule_by_id do
+    local xrule = xrule_by_id[xrule_id]
+    local precedences = xrule.precedences
+    -- If it is a rule with multiple precedences
+    if #precedences > 1 then
+        local lhs = xrule.lhs
+        if lhs.nullable then
+            return report_nullable_precedenced_xrule(grammar, xrule)
+        end
+        -- label the top alternatives with their precedence level
+        for prec_ix = 1, #precedences do
+            local xprec = precedences[prec_ix]
+            local level = xprec.level
+            local alternatives = xprec.top_alternatives
+            for alt_ix = 1, #alternatives do
+                local alternative = alternatives[alt_ix]
+                alternative.precedence_level = level
             end
         end
     end
+end
 
     -- A sequence may be nullable because
     -- 1) min=0, or
@@ -903,7 +917,6 @@ function grammar_class.compile(grammar, args)
     -- Hygene, to do next
     -- Nullable semantics is unique
     -- Precedenced LHS is unique
-    -- Check for duplicate topalt's -- ignore min,max,action, etc.
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
