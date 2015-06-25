@@ -97,7 +97,7 @@ local function common_args_process(who, grammar, args)
             who .. [[ 'file' named argument is ']]
             .. type(file)
             .. [['; it should be 'string']]
-            )
+        )
     end
     grammar.file = file
     args.file = nil
@@ -169,16 +169,16 @@ end
 function grammar_class.string(grammar, string)
     if type(string) ~= 'string' then
         grammar:development_error(
-         [[string in alternate is type ']]
-        .. type(string)
-        .. [['; it must be a string]])
+            [[string in alternate is type ']]
+            .. type(string)
+            .. [['; it must be a string]])
     end
     return {
         string = string,
         type = 'xstring',
         productive = true,
         nullable = false
-        }
+    }
 end
 
 -- create a RHS instance of type 'xstring'
@@ -187,13 +187,13 @@ end
 function grammar_class.cc(grammar, cc)
     if type(cc) ~= 'string' then
         grammar:development_error(
-        [[charclass in alternate is type ']]
-        .. type(cc)
-        .. [['; it must be a string]])
+            [[charclass in alternate is type ']]
+            .. type(cc)
+            .. [['; it must be a string]])
     end
     if not cc:match('^%[.+%]$') then
         grammar:development_error(
-         [[charclass in alternate must be in square brackets]])
+            [[charclass in alternate must be in square brackets]])
     end
 
     return {
@@ -232,20 +232,20 @@ function grammar_class.rule_new(grammar, args)
     setmetatable(new_xrule, {
             __index = function (table, key)
                 if key == 'type' then return 'xrule'
-                -- 'name' and 'subname' are computed "just in time"
-                -- and then memoized
+                    -- 'name' and 'subname' are computed "just in time"
+                    -- and then memoized
                 elseif key == 'subname' then
                     local subname =
-                        'r'
-                        .. table.id
+                    'r'
+                    .. table.id
                     table.subname = subname
                     return subname
                 elseif key == 'name' then
                     local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
+                    table.name_base
+                    .. ':'
+                    .. table.line
+                    .. table.subname
                     table.name = name
                     return name
                 end
@@ -275,21 +275,21 @@ function grammar_class.rule_new(grammar, args)
     setmetatable(current_xprec, {
             __index = function (table, key)
                 if key == 'type' then return 'xprec'
-                -- 'name' and 'subname' are computed "just in time"
-                -- and then memoized
+                    -- 'name' and 'subname' are computed "just in time"
+                    -- and then memoized
                 elseif key == 'subname' then
                     local subname =
-                        'p'
-                        .. table.level
-                        .. table.xrule.subname
+                    'p'
+                    .. table.level
+                    .. table.xrule.subname
                     table.subname = subname
                     return subname
                 elseif key == 'name' then
                     local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
+                    table.name_base
+                    .. ':'
+                    .. table.line
+                    .. table.subname
                     table.name = name
                     return name
                 end
@@ -368,7 +368,7 @@ local function subalternative_new(grammar, subalternative)
         xprec = current_xprec,
         line = grammar.line,
         id_within_top_alternative =
-            id_within_top_alternative,
+        id_within_top_alternative,
         name_base = grammar.name_base
     }
     setmetatable(new_subalternative, {
@@ -376,17 +376,17 @@ local function subalternative_new(grammar, subalternative)
                 if key == 'type' then return 'xalt'
                 elseif key == 'subname' then
                     local subname =
-                        'a'
-                        .. table.id_within_top_alternative
-                        .. table.xprec.subname
+                    'a'
+                    .. table.id_within_top_alternative
+                    .. table.xprec.subname
                     table.subname = subname
                     return subname
                 elseif key == 'name' then
                     local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
+                    table.name_base
+                    .. ':'
+                    .. table.line
+                    .. table.subname
                     table.name = name
                     return name
                 end
@@ -610,7 +610,7 @@ local function xrhs_transitive_closure(grammar, property)
     end
 
     local xsubalt_by_id = grammar.xsubalt_by_id
-    
+
     -- First pass populates the worklist
     for instance_ix = 1,#xsubalt_by_id do
         property_of_instance(xsubalt_by_id[instance_ix], property)
@@ -651,7 +651,7 @@ local function report_nullable_precedenced_xrule(grammar, xrule)
     }
     for ix = 1, #nullable_alternatives do
         error_table[#error_table+1]
-            = ' Alternative ' .. nullable_alternatives[ix].name .. " is nullable"
+        = ' Alternative ' .. nullable_alternatives[ix].name .. " is nullable"
     end
 
     -- For now, report just the rule.
@@ -668,7 +668,7 @@ end
 local function report_nullable_repetend(grammar, xsubalt)
     local error_table = {
         'grammar_new():' .. 'sequence repetend is nullable',
-        '  That is not allowed',
+        ' That is not allowed',
         [[ The sequence is ]] .. xsubalt.name
     }
 
@@ -726,7 +726,6 @@ function grammar_class.compile(grammar, args)
         return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
     end
 
-    -- Check for duplicate topalt's -- ignore min,max,action, etc.
     local xtopalt_by_ix = grammar.xtopalt_by_ix
     do
         local sorted_table = {}
@@ -904,6 +903,7 @@ function grammar_class.compile(grammar, args)
     -- Hygene, to do next
     -- Nullable semantics is unique
     -- Precedenced LHS is unique
+    -- Check for duplicate topalt's -- ignore min,max,action, etc.
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
@@ -916,8 +916,7 @@ function grammar_class.compile(grammar, args)
         -- every symbol reaches itself
         matrix.bit_set(reach_matrix, symbol_id, symbol_id)
         for _,lhs_id in pairs(xlhs_by_rhs) do
-            matrix.bit_set(reach_matrix,WARNING: positive indentation at the end
- lhs_id, symbol_id)
+            matrix.bit_set(reach_matrix, lhs_id, symbol_id)
         end
 
         if #symbol_props.lhs_xrules <= 0 then
@@ -964,50 +963,50 @@ local function grammar_new(config, args) -- luacheck: ignore config
 
     if not args.file then
         return nil, grammar_object:development_error(who .. [[ requires 'file' named argument]],
-            debug.getinfo(2,'S').source,
-            debug.getinfo(2, 'l').currentline) end
+     debug.getinfo(2,'S').source,
+     debug.getinfo(2, 'l').currentline) end
 
-        if not args.line then
-            return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
-                debug.getinfo(2,'S').source,
-                debug.getinfo(2, 'l').currentline) end
+    if not args.line then
+        return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
+     debug.getinfo(2,'S').source,
+     debug.getinfo(2, 'l').currentline) end
 
-            local line, file
-            = common_args_process('grammar_new()', grammar_object, args)
-            -- if line is nil, the "file" is actually an error object
-            if line == nil then return line, file end
+    local line, file
+    = common_args_process('grammar_new()', grammar_object, args)
+    -- if line is nil, the "file" is actually an error object
+    if line == nil then return line, file end
 
-            local name = args.name
-            if not name then
-                return nil, grammar_object:development_error([[grammar must have a name]])
-            end
-            if type(name) ~= 'string' then
-                return nil, grammar_object:development_error([[grammar 'name' must be a string]])
-            end
-            if name:find('[^a-zA-Z0-9_]') then
-                return nil, grammar_object:development_error(
-                    [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
-                )
-            end
-            if name:byte(1) == '_' then
-                return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
-            end
-            args.name = nil
-            grammar_object.name = name
-            -- This is used to name child objects of the grammar
-            -- For now, it is just the name of the grammar.
-            -- Someday I may create a method that allows it to be changed.
-            grammar_object.name_base = name
+    local name = args.name
+    if not name then
+        return nil, grammar_object:development_error([[grammar must have a name]])
+    end
+    if type(name) ~= 'string' then
+        return nil, grammar_object:development_error([[grammar 'name' must be a string]])
+    end
+    if name:find('[^a-zA-Z0-9_]') then
+        return nil, grammar_object:development_error(
+            [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
+        )
+    end
+    if name:byte(1) == '_' then
+        return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
+    end
+    args.name = nil
+    grammar_object.name = name
+    -- This is used to name child objects of the grammar
+    -- For now, it is just the name of the grammar.
+    -- Someday I may create a method that allows it to be changed.
+    grammar_object.name_base = name
 
-            local field_name = next(args)
-            if field_name ~= nil then
-                return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
-            end
+    local field_name = next(args)
+    if field_name ~= nil then
+        return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+    end
 
-            return grammar_object
-        end
+    return grammar_object
+end
 
-        grammar_class.new = grammar_new
-        return grammar_class
+grammar_class.new = grammar_new
+return grammar_class
 
-        -- vim: expandtab shiftwidth=4:
+-- vim: expandtab shiftwidth=4:
