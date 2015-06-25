@@ -67,6 +67,6 @@ l0:alternative_new{l0:cc'[%d]', min = 1}
 
 l0:compile{ seamless = 'E', line = __LINE__}
 
-print(inspect(l0))
+-- print(inspect(l0))
 
 -- vim: expandtab shiftwidth=4:
