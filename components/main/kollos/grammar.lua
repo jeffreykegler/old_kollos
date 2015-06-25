@@ -667,7 +667,7 @@ end
 
 local function report_nullable_repetend(grammar, xsubalt)
     local error_table = {
-        'grammar_new():' .. 'sequence repetend is nullable',
+        'grammar.compile():' .. 'sequence repetend is nullable',
         ' That is not allowed',
         [[ The sequence is ]] .. xsubalt.name
     }
@@ -677,6 +677,37 @@ local function report_nullable_repetend(grammar, xsubalt)
         table.concat(error_table, '\n'),
         xsubalt.name_base,
         xsubalt.line
+    )
+end
+
+local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
+
+    local error_table = {
+        'grammar.compile():' .. 'precedenced rule shares LHS with another rule',
+        ' That is not allowed: a precedenced rule must have a dedicated LHS',
+        [[ The precedenced rule is ]] .. precedenced_xrule.name,
+        [[ The LHS is ]] .. lhs.name,
+        [[ This LHS is shared with the rule ]] .. lhs.name,
+    }
+
+    -- just show at most 3 other rules
+    local xrules = lhs.xrules
+    local shown_count = 0
+    while shown_count >= 3 do
+        local other_xrule = xrules[shown_count+1]
+        if other_xrule == nil then break end
+        if other_xrule ~= precedenced_xrule then
+            error_table[#error_table+1] =
+                [[ This LHS is shared with the rule ]] .. other_xrule.name
+            shown_count = shown_count + 1
+        end
+    end
+
+    return nil,
+    grammar:development_error(
+        table.concat(error_table, '\n'),
+        precedenced_xrule.name_base,
+        precedenced_xrule.line
     )
 end
 
@@ -844,6 +875,19 @@ function grammar_class.compile(grammar, args)
     -- *really* is sure they want it, and that she
     -- knows what she is doing, she can write it out
     -- in BNF.
+
+    -- Also, ensure that precedenced LHS is not shared
+    -- with any other rule.  Again, this reduces confusion.
+    -- There is no loss of generality.  Any grammar which
+    -- breaks this rule can be rewritten
+    -- by adding a dedicated LHS symbol for the
+    -- precedenced rule.
+    -- This can be done while preserving the semantics.
+
+    -- Also, this loop labels all precedenced alternatives
+    -- with their precedence level, in preparation for later
+    -- processing
+
     local xrule_by_id = grammar.xrule_by_id
     for xrule_id = 1,#xrule_by_id do
         local xrule = xrule_by_id[xrule_id]
@@ -853,6 +897,9 @@ function grammar_class.compile(grammar, args)
             local lhs = xrule.lhs
             if lhs.nullable then
                 return report_nullable_precedenced_xrule(grammar, xrule)
+            end
+            if #lhs.lhs_xrules > 1 then
+                return report_shared_precedenced_lhs(grammar, xrule, lhs)
             end
             -- label the top alternatives with their precedence level
             for prec_ix = 1, #precedences do
@@ -916,7 +963,6 @@ function grammar_class.compile(grammar, args)
 
     -- Hygene, to do next
     -- Nullable semantics is unique
-    -- Precedenced LHS is unique
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
@@ -947,8 +993,8 @@ function grammar_class.compile(grammar, args)
     -- Hygene, to do at some point
     -- All symbols are accessible from start symbol
     -- Later, make it so some symbols can be set to be "inaccessible ok"
-    -- Take into account min==max==0 sequences
-    -- Lowest precedence must have no precedenced symbol
+    ---- Take into account min==max==0 sequences
+    ---- Lowest precedence must have no precedenced symbol
 
 end
 
