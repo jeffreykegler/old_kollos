@@ -742,12 +742,25 @@ function grammar_class.compile(grammar, args)
     xrhs_transitive_closure(grammar, 'nullable')
     xrhs_transitive_closure(grammar, 'productive')
 
+    -- Start symbol must be a LHS
+    if #start_symbol.lhs_xrules <= 0 then
+        return nil,
+            grammar:development_error(
+                who
+                .. [[ start symbol must be LHS]] .. '\n'
+                .. [[ start symbol is <]] .. start_symbol.name '>\n'
+            )
+    end
+
     -- Ban unproductive symbols (and therefore rules)
     -- If we allow them, we must make sure that they, all
     -- all symbols and rule they recursively make
     -- unproductive are not used in what follows.
     -- Much of the logic requires that all symbols be 
     -- productive
+    --
+    -- Also, we must always make sure that the start symbol
+    -- is productive
     for symbol_id = 1,#xsym do
         local symbol_props = xsym[symbol_id]
         if not symbol_props.productive then
@@ -825,6 +838,17 @@ function grammar_class.compile(grammar, args)
         end
     end
 
+    -- Hygene, to do next
+    -- Nullable semantics is unique
+    -- Precedenced LHS is unique
+    -- Check for duplicate topalt's -- ignore min,max,action, etc.
+
+    local xtopalt_by_ix = grammar.xtopalt_by_ix
+    for topalt_id = 1,#xtopalt_by_ix do
+        local xtopalt = xtopalt_by_ix[topalt_id]
+        -- If this is a nullable sequenced rule
+    end
+
     local xlhs_by_rhs = grammar.xlhs_by_rhs
     for symbol_id = 1,#xsym do
         local symbol_props = xsym[symbol_id]
@@ -846,14 +870,10 @@ function grammar_class.compile(grammar, args)
 
     matrix.transitive_closure(reach_matrix)
 
-    -- Hygene, to do next
-    -- Nullable semantics is unique
-    -- Ban sequences of nullables
-
     -- Hygene, to do at some point
-    -- Start symbol is productive and a LHS
     -- All symbols are accessible from start symbol
-    --    Later, make it so some symbols can be set to be "inaccessilbe ok"
+    --    Later, make it so some symbols can be set to be "inaccessible ok"
+    --    Take into account min==max==0 sequences
     -- Lowest precedence must have no precedenced symbol
 
 end
