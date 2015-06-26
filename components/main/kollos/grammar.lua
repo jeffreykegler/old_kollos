@@ -475,16 +475,16 @@ local function subalternative_new(grammar, subalternative)
     new_subalternative.min = min subalternative.min = nil
     new_subalternative.max = max subalternative.max = nil
 
-if min == 0 then
-    if max == 0 then
-        grammar:development_error(
-            who
-            .. [[: a nulling sequence, where min == max == 0, is not allowed ]]
-        )
+    if min == 0 then
+        if max == 0 then
+            grammar:development_error(
+                who
+                .. [[: a nulling sequence, where min == max == 0, is not allowed ]]
+            )
+        end
+        new_subalternative.productive = true
+        new_subalternative.nullable = true
     end
-    new_subalternative.productive = true
-    new_subalternative.nullable = true
-end
 
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
@@ -704,7 +704,7 @@ local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
         if other_xrule == nil then break end
         if other_xrule ~= precedenced_xrule then
             error_table[#error_table+1] =
-                [[ This LHS is shared with the rule ]] .. other_xrule.name
+            [[ This LHS is shared with the rule ]] .. other_xrule.name
             shown_count = shown_count + 1
         end
     end
@@ -724,12 +724,12 @@ local default_nullable_semantics = { }
 -- Use the alternative, which the caller has ensured is
 -- nullable, as the source of a nullable semantics
 local function nullable_semantics_create(alternative)
-     local action = alternative.action
-     if action then
-         return { action = action }
-     end
-     -- return default semantics
-     return default_nullable_semantics
+    local action = alternative.action
+    if action then
+        return { action = action }
+    end
+    -- return default semantics
+    return default_nullable_semantics
 end
 
 --[[
@@ -787,10 +787,10 @@ local function find_nullable_semantics(grammar, symbol)
 
     local error_table = {
         'grammar_new():' .. 'Ambiguous nullable semantics',
-        '  That is not allowed',
-        '  An explicit empty rule is one solution ...',
-        '  The nullable semantics of an empty rule override all other choices.',
-        '  The symbol with ambiguous semantics was <' .. symbol.name .. '>',
+        ' That is not allowed',
+        ' An explicit empty rule is one solution ...',
+        ' The nullable semantics of an empty rule override all other choices.',
+        ' The symbol with ambiguous semantics was <' .. symbol.name .. '>',
     }
     error_table[#error_table+1]
     = ' Nullable alternative #1 is ' .. nullable_alternatives[1].name
@@ -981,8 +981,8 @@ function grammar_class.compile(grammar, args)
     -- in BNF.
 
     -- Also, ensure that precedenced LHS is not shared
-    -- with any other rule.  Again, this reduces confusion.
-    -- There is no loss of generality.  Any grammar which
+    -- with any other rule. Again, this reduces confusion.
+    -- There is no loss of generality. Any grammar which
     -- breaks this rule can be rewritten
     -- by adding a dedicated LHS symbol for the
     -- precedenced rule.
@@ -1065,20 +1065,20 @@ function grammar_class.compile(grammar, args)
         end
     end
 
--- Nullable semantics is unique
-for symbol_id = 1,#xsym do
-    local symbol_props = xsym[symbol_id]
-    if symbol_props.nullable then
-        local semantics, error_object
+    -- Nullable semantics is unique
+    for symbol_id = 1,#xsym do
+        local symbol_props = xsym[symbol_id]
+        if symbol_props.nullable then
+            local semantics, error_object
             = find_nullable_semantics(grammar, symbol_props)
-        if not semantics then
-            -- the lower level did not throw the error, so it
-            -- should not be thrown
-            return nil, error_object
+            if not semantics then
+                -- the lower level did not throw the error, so it
+                -- should not be thrown
+                return nil, error_object
+            end
+            symbol_props.semantics = semantics
         end
-        symbol_props.semantics = semantics
     end
-end
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
