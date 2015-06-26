@@ -475,10 +475,16 @@ local function subalternative_new(grammar, subalternative)
     new_subalternative.min = min subalternative.min = nil
     new_subalternative.max = max subalternative.max = nil
 
-    if min == 0 then
-        new_subalternative.productive = true
-        new_subalternative.nullable = true
+if min == 0 then
+    if max == 0 then
+        grammar:development_error(
+            who
+            .. [[: a nulling sequence, where min == max == 0, is not allowed ]]
+        )
     end
+    new_subalternative.productive = true
+    new_subalternative.nullable = true
+end
 
     for field_name,_ in pairs(subalternative) do
         if type(field_name) ~= 'number' then
@@ -708,6 +714,104 @@ local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
         table.concat(error_table, '\n'),
         precedenced_xrule.name_base,
         precedenced_xrule.line
+    )
+end
+
+-- Right now empty table indicates default semantics
+-- Maybe do something more explicit?
+local default_nullable_semantics = { }
+
+-- Use the alternative, which the caller has ensured is
+-- nullable, as the source of a nullable semantics
+local function nullable_semantics_create(alternative)
+     local action = alternative.action
+     if action then
+         return { action = action }
+     end
+     -- return default semantics
+     return default_nullable_semantics
+end
+
+--[[
+
+Find and return the nullable semantics of <symbol>.
+On error, return nil and the error object, or else
+throw the error, as specified by the grammar
+
+Semantics are
+
+1) Those of the only nullable alternative, when there 
+is only one.
+
+2) Those of the explicit empty rule, if there is one
+
+3) The default semantics, if that is the semantics of
+all the nullable alternatives
+
+If none of the above are true, it is a fatal error
+
+--]]
+
+local function find_nullable_semantics(grammar, symbol)
+    local xrules = symbol.lhs_rules
+    local nullable_alternatives = {}
+    local has_only_default_semantics = true
+    for xrule_ix = 1, #xrules do
+        local precedences = xrules[xrule_ix].precedences
+        for prec_ix = 1, #precedences do
+            local alternatives = precedences[prec_ix].top_alternatives
+            for alt_ix = 1, #alternatives do
+                local alternative = alternatives[alt_ix]
+                if alternative.nullable then
+                    local rhs = alternative.rhs
+                    if #rhs <= 0 then
+                        return nullable_semantics_create(grammar, alternative)
+                    end
+                    nullable_alternatives[#nullable_alternatives+1] = alternative
+                    if alternative.action then
+                        has_only_default_semantics = false
+                    end
+                end
+            end
+        end
+    end
+    if #nullable_alternatives == 1 then
+        return nullable_semantics_create(grammar, nullable_alternatives[1])
+    end
+    if has_only_default_semantics then
+        return default_nullable_semantics
+    end
+
+    -- If here, we consider the semantics ambiguous, and report
+    -- an error
+
+    local error_table = {
+        'grammar_new():' .. 'Ambiguous nullable semantics',
+        '  That is not allowed',
+        '  An explicit empty rule is one solution ...',
+        '  The nullable semantics of an empty rule override all other choices.',
+        '  The symbol with ambiguous semantics was <' .. symbol.name .. '>',
+    }
+    error_table[#error_table+1]
+    = ' Nullable alternative #1 is ' .. nullable_alternatives[1].name
+    error_table[#error_table+1]
+    = ' Nullable alternative #2 is ' .. nullable_alternatives[2].name
+    if #nullable_alternatives > 2 then
+        error_table[#error_table+1]
+        = ' Nullable alternative #'
+        .. #nullable_alternatives
+        .. ' is '
+        .. nullable_alternatives[#nullable_alternatives].name
+    end
+
+    -- For now, report just the rule.
+    -- At some point, find one of the alternatives
+    -- which was nullable, and report that
+    return nil,
+    grammar:development_error(
+        table.concat(error_table, '\n'),
+        nullable_alternatives[1].name_base,
+        nullable_alternatives[1].line
     )
 end
 
@@ -961,8 +1065,20 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    -- Hygene, to do next
-    -- Nullable semantics is unique
+-- Nullable semantics is unique
+for symbol_id = 1,#xsym do
+    local symbol_props = xsym[symbol_id]
+    if symbol_props.nullable then
+        local semantics, error_object
+            = find_nullable_semantics(grammar, symbol_props)
+        if not semantics then
+            -- the lower level did not throw the error, so it
+            -- should not be thrown
+            return nil, error_object
+        end
+        symbol_props.semantics = semantics
+    end
+end
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
