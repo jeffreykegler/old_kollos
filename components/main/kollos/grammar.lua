@@ -1160,11 +1160,9 @@ function grammar_class.compile(grammar, args)
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
-        -- If this is a nullable sequenced rule
+        -- Do precedenced stuff
+        ---- Lowest precedence must have no precedenced symbol
     end
-
-    -- Hygiene, to do at some point
-    ---- Lowest precedence must have no precedenced symbol
 
 end
 
