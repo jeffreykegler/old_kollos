@@ -153,7 +153,15 @@ local function _symbol_new(grammar, args)
     local props = xsym_by_name[name]
     if props then return props end
 
-    props = { name = name, type = 'xsym', lhs_xrules = {} }
+    props = {
+        name = name,
+        type = 'xsym',
+        lhs_xrules = {},
+        -- am not trying to be very accurate about the line
+        -- it should be the line of an alternative containing that symbol
+        name_base = grammar.name_base,
+        line = grammar.line,
+    }
     xsym_by_name[name] = props
 
     local xsym = grammar.xsym
@@ -820,7 +828,7 @@ function grammar_class.compile(grammar, args)
     common_args_process(who, grammar, args)
     local at_top = false
     local at_bottom = false
-    local start_symbol = nil
+    local start_symbol
     if args.seamless then
         at_top = true
         at_bottom = true
@@ -836,7 +844,6 @@ function grammar_class.compile(grammar, args)
         end
     elseif args.start then
         at_top = true
-        local start_symbol_name = args.start
         args.start = nil
         return nil, grammar:development_error(
             who
@@ -1106,10 +1113,56 @@ function grammar_class.compile(grammar, args)
 
     matrix.transitive_closure(reach_matrix)
 
+for symbol_id = 1,#xsym do
+    local symbol_props = xsym[symbol_id]
+    if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
+        grammar:development_error(
+            who
+            .. "Symbol " .. symbol_props.name .. " is not accessible",
+            symbol_props.name_base,
+            symbol_props.line
+        )
+    end
+
+    -- Since all symbols are now productive, a symbol is nulling iff
+    -- it is nullable and does NOT reach a terminal
+    if symbol_props.nullable and
+    not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
+    then symbol_props.nulling = true end
+
+    -- A nulling lexeme is a fatal error
+    if #symbol_props.lhs_xrules <= 0 and symbol_props.nulling then
+        grammar:development_error(
+            who
+            "Symbol " .. symbol_props.name .. " is a nulling lexeme",
+            symbol_props.name_base,
+            symbol_props.line
+        )
+    end
+end
+
+    --[[ COMMENTED OUT
+    for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
+        for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+            if matrix.bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+                print( from_symbol_props.name, "reaches", to_symbol_props.name)
+            end
+        end
+    end
+    --]]
+
+    if start_symbol.nulling then
+        grammar:development_error(
+            who
+        "Start symbol " .. start_symbol.name .. " is nulling",
+            start_symbol.name_base,
+            start_symbol.line
+        )
+    end
+
     -- Hygene, to do at some point
     -- All symbols are accessible from start symbol
     -- Later, make it so some symbols can be set to be "inaccessible ok"
-    ---- Take into account min==max==0 sequences
     ---- Lowest precedence must have no precedenced symbol
 
 end
