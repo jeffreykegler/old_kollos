@@ -1113,37 +1113,37 @@ function grammar_class.compile(grammar, args)
 
     matrix.transitive_closure(reach_matrix)
 
-for symbol_id = 1,#xsym do
-    local symbol_props = xsym[symbol_id]
-    if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
-        grammar:development_error(
-            who
-            .. "Symbol " .. symbol_props.name .. " is not accessible",
-            symbol_props.name_base,
-            symbol_props.line
-        )
-    end
+    for symbol_id = 1,#xsym do
+        local symbol_props = xsym[symbol_id]
+        if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
+            grammar:development_error(
+                who
+                .. "Symbol " .. symbol_props.name .. " is not accessible",
+                symbol_props.name_base,
+                symbol_props.line
+            )
+        end
 
-    -- Since all symbols are now productive, a symbol is nulling iff
-    -- it is nullable and does NOT reach a terminal
-    if symbol_props.nullable and
-    not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
-    then symbol_props.nulling = true end
+        -- Since all symbols are now productive, a symbol is nulling iff
+        -- it is nullable and does NOT reach a terminal
+        if symbol_props.nullable and
+        not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
+        then symbol_props.nulling = true end
 
-    -- A nulling lexeme is a fatal error
-    if #symbol_props.lhs_xrules <= 0 and symbol_props.nulling then
-        grammar:development_error(
-            who
-            "Symbol " .. symbol_props.name .. " is a nulling lexeme",
-            symbol_props.name_base,
-            symbol_props.line
-        )
+        -- A nulling lexeme is a fatal error
+        if #symbol_props.lhs_xrules <= 0 and symbol_props.nulling then
+            grammar:development_error(
+                who
+                "Symbol " .. symbol_props.name .. " is a nulling lexeme",
+                symbol_props.name_base,
+                symbol_props.line
+            )
+        end
     end
-end
 
     --[[ COMMENTED OUT
-    for from_symbol_id,from_symbol_props in ipairs(symbol_by_id) do
-        for to_symbol_id,to_symbol_props in ipairs(symbol_by_id) do
+    for from_symbol_id,from_symbol_props in ipairs(xsym) do
+        for to_symbol_id,to_symbol_props in ipairs(xsym) do
             if matrix.bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
                 print( from_symbol_props.name, "reaches", to_symbol_props.name)
             end
@@ -1154,7 +1154,7 @@ end
     if start_symbol.nulling then
         grammar:development_error(
             who
-        "Start symbol " .. start_symbol.name .. " is nulling",
+            "Start symbol " .. start_symbol.name .. " is nulling",
             start_symbol.name_base,
             start_symbol.line
         )
