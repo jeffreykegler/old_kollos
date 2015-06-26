@@ -1087,11 +1087,6 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    for topalt_id = 1,#xtopalt_by_ix do
-        local xtopalt = xtopalt_by_ix[topalt_id]
-        -- If this is a nullable sequenced rule
-    end
-
     local xlhs_by_rhs = grammar.xlhs_by_rhs
     for symbol_id = 1,#xsym do
         local symbol_props = xsym[symbol_id]
@@ -1115,6 +1110,8 @@ function grammar_class.compile(grammar, args)
 
     for symbol_id = 1,#xsym do
         local symbol_props = xsym[symbol_id]
+
+        -- Later, make it so some symbols can be set to be "inaccessible ok"
         if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
             grammar:development_error(
                 who
@@ -1154,15 +1151,19 @@ function grammar_class.compile(grammar, args)
     if start_symbol.nulling then
         grammar:development_error(
             who
-            "Start symbol " .. start_symbol.name .. " is nulling",
+            .. "Start symbol " .. start_symbol.name .. " is nulling\n"
+            .. "  This is not yet implemented",
             start_symbol.name_base,
             start_symbol.line
         )
     end
 
-    -- Hygene, to do at some point
-    -- All symbols are accessible from start symbol
-    -- Later, make it so some symbols can be set to be "inaccessible ok"
+    for topalt_id = 1,#xtopalt_by_ix do
+        local xtopalt = xtopalt_by_ix[topalt_id]
+        -- If this is a nullable sequenced rule
+    end
+
+    -- Hygiene, to do at some point
     ---- Lowest precedence must have no precedenced symbol
 
 end
