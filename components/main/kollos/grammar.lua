@@ -741,23 +741,23 @@ local function nullable_semantics_create(alternative)
 end
 
 --[[
-
-Find and return the nullable semantics of <symbol>.
-On error, return nil and the error object, or else
-throw the error, as specified by the grammar
-
-Semantics are
-
-1) Those of the only nullable alternative, when there 
-is only one.
-
-2) Those of the explicit empty rule, if there is one
-
-3) The default semantics, if that is the semantics of
-all the nullable alternatives
-
-If none of the above are true, it is a fatal error
-
+-- 
+-- Find and return the nullable semantics of <symbol>.
+-- On error, return nil and the error object, or else
+-- throw the error, as specified by the grammar
+-- 
+-- Semantics are
+-- 
+-- 1) Those of the only nullable alternative, when there 
+-- is only one.
+-- 
+-- 2) Those of the explicit empty rule, if there is one
+-- 
+-- 3) The default semantics, if that is the semantics of
+-- all the nullable alternatives
+-- 
+-- If none of the above are true, it is a fatal error
+-- 
 --]]
 
 local function find_nullable_semantics(grammar, symbol)
@@ -1152,49 +1152,138 @@ function grammar_class.compile(grammar, args)
         grammar:development_error(
             who
             .. "Start symbol " .. start_symbol.name .. " is nulling\n"
-            .. "  This is not yet implemented",
+            .. " This is not yet implemented",
             start_symbol.name_base,
             start_symbol.line
         )
     end
 
-local function alt_to_work_data_add(alt)
-    local wrule = { }
-    local lhs;
-    -- at top, use brick from xrule.lhs
-    -- otherwise, new internal lhs
-    if alt.parent then
-        -- Create a new internal LHS
-        -- write _wsym_new based on _symbol_new()
-        lhs = { }
-    else
-        local lhs_xsym = alt.xprec.xrule.lhs
-        lhs = {
+    --[[
+    -- I(=Jeffrey) put these "working data" functions inside the compile()
+    -- function to take advantage of upvalues. This also makes it easy for the
+    -- "working data" to be cleaned up -- it will just be garbage collected
+    -- when compile() returns. If these functions were top-level, the data
+    -- would have to be top-level as well.
+    --]]
+
+    local wrule_by_id = {}
+    local wsym_by_id = {}
+    local wsym_by_name = {}
+
+    -- Create a new *internal* lhs for this
+    -- alt
+    local function _lh_wsym_new(alt)
+        local alt_name = alt.name
+        local name = 'lhs!' .. alt_name
+        local wsym_props = wsym_by_name[name]
+        if wsym_props then return wsym_props end
+
+        wsym_props = {
+            name = name,
+            type = 'wsym',
             xalt = alt,
-            lhs = true,
-            xsym = lhs_xsym
+            -- I assume alt is not nulling
+            nullable = alt.nullable
+            -- lhs_xrules = {},
+            -- am not trying to be very accurate about the line
+            -- it should be the line of an alternative containing that symbol
         }
+        wsym_by_name[name] = wsym_props
+
+        wsym_by_id[#wsym_by_id+1] = wsym_props
+        wsym_props.id = #wsym_by_id
+
+        return wsym_props
     end
-    wrule.lhs = lhs
-    local rhs = alt.rhs
-    -- just skip empty alternatives
-    if #rhs == 0 then return end
-    -- for now don't process precedences
-    for rhs_ix = 1,#rhs do
-        local rh_instance = rhs[rhs_ix]
-        if rh_instance.nulling then
-            -- Do nothing for a nulling instance
-        elseif type == 'xcc' then
-            wrules
+
+    local function alt_to_work_data_add(xalt)
+        print(__FILE__, __LINE__)
+        local wrule = {
+           lhs = {
+                xalt = xalt,
+                lhs = true,
+           }
+        }
+        local wrule_lhs = wrule.lhs
+        -- at top, use brick from xrule.lhs
+        -- otherwise, new internal lhs
+        if xalt.parent then
+            wrule_lhs.sym = _lh_wsym_new(xalt)
         else
-            -- Not yet implemented
+            wrule_lhs.sym = xalt.xprec.xrule.lhs
         end
+        wrule_lhs.type = wrule_lhs.sym.type
+
+        local rhs = xalt.rhs
+        -- just skip empty alternatives
+        if #rhs == 0 then return end
+        -- for now don't process precedences
+        local work_rh_instance = {}
+        for rhs_ix = 1,#rhs do
+            local x_rh_instance = rhs[rhs_ix]
+            local instance_type = x_rh_instance.type
+            local new_work_instance
+            if x_rh_instance.nulling then
+                -- Do nothing for a nulling instance
+            elseif instance_type == 'xsym' then
+                new_work_instance = {
+                        xalt = xalt,
+                        rhs_ix = rhs_ix,
+                        type = 'xsym',
+                        nullable = x_rh_instance.nullable,
+                        xsym = x_rh_instance
+                    }
+            elseif instance_type == 'xcc' then
+                new_work_instance = {
+                        xalt = xalt,
+                        rhs_ix = rhs_ix,
+                        type = 'xcc',
+                        nullable = false,
+                        xcc = x_rh_instance
+                    }
+            elseif instance_type == 'xstring' then
+                -- An 'xstring' is a "brick terminal", but
+                -- for "at bottom" grammars, it may have
+                -- sub-bricks
+                new_work_instance = {
+                        xalt = xalt,
+                        rhs_ix = rhs_ix,
+                        type = 'xstring',
+                        nullable = false,
+                        xstring = x_rh_instance
+                    }
+            elseif instance_type == 'xalt' then
+                -- This is always a wsym, because an xsym
+                -- LHS occurs only for a top level alternative,
+                -- and, if we are here, we are dealing with
+                -- a subalternative
+                local new_lhs = alt_to_work_data_add(x_rh_instance)
+                new_work_instance = {
+                        xalt = xalt,
+                        rhs_ix = rhs_ix,
+                        type = 'wsym',
+                        nullable = false,
+                        wsym = new_lhs
+                }
+            else
+                -- internal error, should never happen
+                error(__FILE__ .. ' ' .. __LINE__ .. "Bad type: " .. instance_type)
+            end
+            work_rh_instance[#work_rh_instance+1] = new_work_instance
+            wrule.rhs = work_rh_instance
+        end
+
+        wrule_by_id[#wrule_by_id+1] = wrule
+
+        return wrule_lhs.sym
     end
-end
 
     for topalt_id = 1,#xtopalt_by_ix do
         alt_to_work_data_add(xtopalt_by_ix[topalt_id])
     end
+
+    print(inspect(wsym_by_id))
+    print(inspect(wrule_by_id))
 
 end
 
