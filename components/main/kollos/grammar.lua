@@ -358,12 +358,12 @@ end
 -- throw is always set for this method
 -- the error is caught by the caller and re-thrown or not,
 -- as needed
-local function subalternative_new(grammar, subalternative)
+local function subalternative_new(grammar, src_subalternative)
 
     -- use name of caller
     local who = 'alternative_new()'
 
-    local new_rhs = {}
+    local new_rh_instances = {}
 
     local current_xprec = grammar.current_xprec
     local current_xrule = current_xprec.xrule
@@ -408,43 +408,53 @@ local function subalternative_new(grammar, subalternative)
     local new_subalternative_id = #xsubalt_by_id
     new_subalternative.id = new_subalternative_id
 
-    for rhs_ix = 1, table.maxn(subalternative) do
-        local rhs_instance = subalternative[rhs_ix]
-        local new_rhs_instance
-        if type(rhs_instance) == 'table' then
-            local instance_type = rhs_instance.type
+    for rh_ix = 1, table.maxn(src_subalternative) do
+        local src_rh_instance = src_subalternative[rh_ix]
+        local new_rh_instance = {
+             xalt = new_subalternative,
+             rh_ix = rh_ix,
+        }
+        if type(src_rh_instance) == 'table' then
+            local instance_type = src_rh_instance.type
             if not instance_type then
-                new_rhs_instance = subalternative_new(grammar, rhs_instance)
-                new_rhs_instance.parent = new_subalternative
+                local new_rhs_xalt = subalternative_new(grammar, src_rh_instance)
+                new_rh_instance.type = 'xalt'
+                new_rh_instance.element = new_rhs_xalt
+                new_rhs_xalt.parent_instance = new_rh_instance
             elseif instance_type == 'xstring' then
-                new_rhs_instance = rhs_instance
+                new_rh_instance.type = instance_type
+                new_rh_instance.element = src_rh_instance
             elseif instance_type == 'xcc' then
-                new_rhs_instance = rhs_instance
+                new_rh_instance.type = instance_type
+                new_rh_instance.element = src_rh_instance
             else
                 grammar:development_error(
-                    [[Problem with rule rhs item #]] .. rhs_ix
+                    [[Problem with rule rhs item #]] .. rh_ix
                     .. ' unexpected type: ' .. instance_type
                 )
             end
         else
             local error_string
-            print(inspect(rhs_instance))
-            new_rhs_instance, error_string = _symbol_new(grammar, { name = rhs_instance })
-            if not new_rhs_instance then
+            print(inspect(src_rh_instance))
+            local new_rhs_sym
+            new_rhs_sym, error_string = _symbol_new(grammar, { name = src_rh_instance })
+            if not new_rhs_sym then
                 -- using return statements even for thrown errors is the
                 -- standard idiom, but in this case, I think it is clearer
                 -- without the return
                 grammar:development_error(
-                    [[Problem with rule rhs item #]] .. rhs_ix .. ' ' .. error_string
+                    [[Problem with rule rhs item #]] .. rh_ix .. ' ' .. error_string
                 )
             end
-            xlhs_by_rhs[new_rhs_instance.id] = current_xrule.lhs.id
+            new_rh_instance.type = 'xsym'
+            new_rh_instance.element = new_rhs_sym
+            xlhs_by_rhs[new_rhs_sym.id] = current_xrule.lhs.id
         end
-        new_rhs[#new_rhs+1] = new_rhs_instance
+        new_rh_instances[#new_rh_instances+1] = new_rh_instance
     end
 
-    new_subalternative.rhs = new_rhs
-    local action = subalternative.action
+    new_subalternative.rh_instances = new_rh_instances
+    local action = src_subalternative.action
     if action then
         if type(action) ~= 'function' then
             grammar:development_error(
@@ -455,11 +465,11 @@ local function subalternative_new(grammar, subalternative)
             )
         end
         new_subalternative.action = action
-        subalternative.action = nil
+        src_subalternative.action = nil
     end
 
-    local min = subalternative.min
-    local max = subalternative.max
+    local min = src_subalternative.min
+    local max = src_subalternative.max
     if min ~= nil and type(min) ~= 'number' then
         grammar:development_error(
             who
@@ -481,8 +491,10 @@ local function subalternative_new(grammar, subalternative)
         if max == nil then max = 1 end
     elseif max == nil then max = -1 end
 
-    new_subalternative.min = min subalternative.min = nil
-    new_subalternative.max = max subalternative.max = nil
+    new_subalternative.min = min
+    src_subalternative.min = nil
+    new_subalternative.max = max
+    src_subalternative.max = nil
 
     if min == 0 then
         if max == 0 then
@@ -495,7 +507,7 @@ local function subalternative_new(grammar, subalternative)
         new_subalternative.nullable = true
     end
 
-    for field_name,_ in pairs(subalternative) do
+    for field_name,_ in pairs(src_subalternative) do
         if type(field_name) ~= 'number' then
             grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
         end
@@ -578,70 +590,73 @@ local function xrhs_transitive_closure(grammar, property)
     local triggers = {}
 
     -- ok to shadow upvalue property, I think
-    local function property_of_instance(instance,
+    local function property_of_instance_element(element,
             property) -- luacheck: ignore property
-        if instance[property] ~= nil then
-            return instance[property]
+        if element[property] ~= nil then
+            return element[property]
         end
-        if instance.type == 'xsym' then
+        if element.type == 'xsym' then
             -- If a symbol with the property still not set,
             -- return nil and the symbol id
-            return nil, instance.id
+            return nil, element.id
         end
-        local rhs = instance.rhs
+
+        -- If we are here, the element must be an xalt
+        local rh_instances = element.rh_instances
         -- assume true, unless found false
-        local instance_has_property = true
-        for rhs_ix = 1,#rhs do
-            local rhs_instance = rhs[rhs_ix]
-            local has_property, symbol_id = property_of_instance(rhs_instance, property)
+        local element_has_property = true
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            local child_element = rh_instance.element
+            local has_property, symbol_id = property_of_instance_element(child_element, property)
             if has_property == nil then
                 local current_triggers = triggers[symbol_id]
                 if current_triggers then
-                    current_triggers[#current_triggers+1] = instance
+                    current_triggers[#current_triggers+1] = child_element
                 else
-                    triggers[symbol_id] = { instance }
+                    triggers[symbol_id] = { child_element }
                 end
                 return nil, symbol_id
             elseif has_property == false then
-                instance_has_property = false
+                element_has_property = false
                 break
             end
         end
-        instance[property] = instance_has_property
+        element[property] = element_has_property
         -- If instance is top level
-        if not instance.parent then
-            local xprec = instance.xprec
+        if not element.parent_instance then
+            local xprec = element.xprec
             local xrule = xprec.xrule
             local lhs = xrule.lhs
             local lhs_id = lhs.id
-            print("Setting", lhs.name, "to", instance_has_property, "for", property)
-            lhs[property] = instance_has_property
+            print("Setting", lhs.name, "to", element_has_property, "for", property)
+            lhs[property] = element_has_property
             local triggered_instances = triggers[lhs_id] or {}
             for ix = 1,#triggered_instances do
                 worklist[#worklist+1] = triggered_instances[ix]
             end
         end
-        return instance_has_property
+        return element_has_property
     end
 
     local xsubalt_by_id = grammar.xsubalt_by_id
 
     -- First pass populates the worklist
-    for instance_ix = 1,#xsubalt_by_id do
-        property_of_instance(xsubalt_by_id[instance_ix], property)
+    for xsubalt_id = 1,#xsubalt_by_id do
+        property_of_instance_element(xsubalt_by_id[xsubalt_id], property)
     end
 
     while true do
         local xalt_props = table.remove(worklist)
         if not xalt_props then break end
-        property_of_instance(xalt_props, property)
+        property_of_instance_element(xalt_props, property)
     end
 
     -- Final pass catches those subalternatives hidden
     -- from the top-down logic because they were sequences
     -- with min=0
-    for instance_ix = 1,#xsubalt_by_id do
-        property_of_instance(xsubalt_by_id[instance_ix], property)
+    for xsubalt_id = 1,#xsubalt_by_id do
+        property_of_instance_element(xsubalt_by_id[xsubalt_id], property)
     end
 
 end
@@ -903,14 +918,17 @@ function grammar_class.compile(grammar, args)
                     return lhs_name1 < lhs_name2
                 end
 
-                local rhs1 = alt1.rhs
-                local rhs2 = alt2.rhs
-                local rhs_length = #rhs1
-                if rhs_length ~= #rhs2 then
-                    return rhs_length < #rhs2
+                local rh_instance1 = alt1.rh_instances
+                local rh_instance2 = alt2.rh_instances
+                local rhs_length = #rh_instance1
+                if rhs_length ~= #rh_instance2 then
+                    return rhs_length < #rh_instance2
                 end
-                for rhs_ix = 1, rhs_length do
-                    local result = comparator(rhs1[rhs_ix], rhs2[rhs_ix])
+                for rh_ix = 1, rhs_length do
+                    local result = comparator(
+                        rh_instance1[rh_ix].element,
+                        rh_instance2[rh_ix].element
+                    )
                     if result ~= nil then return result end
                 end
                 return nil
@@ -1059,10 +1077,10 @@ function grammar_class.compile(grammar, args)
             -- indelible (= non-nullable) elements in the
             -- repetend
             local item_is_indelible = false
-            local rhs = xsubalt.rhs
-            for rhs_ix = 1,#rhs do
-                local rhs_instance = rhs[rhs_ix]
-                if not rhs_instance.nullable then
+            local rh_instances = xsubalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rhs_instance = rh_instances[rh_ix]
+                if not rhs_instance.element.nullable then
                     item_is_indelible = true
                     break
                 end
@@ -1201,7 +1219,7 @@ function grammar_class.compile(grammar, args)
         print(__FILE__, __LINE__)
         local wrule = {
            lhs = {
-                xalt = xalt,
+                element = xalt,
                 lhs = true,
            }
         }
