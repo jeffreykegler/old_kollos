@@ -1158,10 +1158,42 @@ function grammar_class.compile(grammar, args)
         )
     end
 
+local function alt_to_work_data_add(alt)
+    local wrule = { }
+    local lhs;
+    -- at top, use brick from xrule.lhs
+    -- otherwise, new internal lhs
+    if alt.parent then
+        -- Create a new internal LHS
+        -- write _wsym_new based on _symbol_new()
+        lhs = { }
+    else
+        local lhs_xsym = alt.xprec.xrule.lhs
+        lhs = {
+            xalt = alt,
+            lhs = true,
+            xsym = lhs_xsym
+        }
+    end
+    wrule.lhs = lhs
+    local rhs = alt.rhs
+    -- just skip empty alternatives
+    if #rhs == 0 then return end
+    -- for now don't process precedences
+    for rhs_ix = 1,#rhs do
+        local rh_instance = rhs[rhs_ix]
+        if rh_instance.nulling then
+            -- Do nothing for a nulling instance
+        elseif type == 'xcc' then
+            wrules
+        else
+            -- Not yet implemented
+        end
+    end
+end
+
     for topalt_id = 1,#xtopalt_by_ix do
-        local xtopalt = xtopalt_by_ix[topalt_id]
-        -- Do precedenced stuff
-        ---- Lowest precedence must have no precedenced symbol
+        alt_to_work_data_add(xtopalt_by_ix[topalt_id])
     end
 
 end
