@@ -27,6 +27,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -- luacheck: std lua51
 -- luacheck: globals bit
+-- luacheck: globals __FILE__ __LINE__
 
 local inspect = require "kollos.inspect" -- luacheck: ignore
 local kollos_c = require "kollos_c"
@@ -1183,7 +1184,7 @@ function grammar_class.compile(grammar, args)
             type = 'wsym',
             xalt = alt,
             -- I assume alt is not nulling
-            nullable = alt.nullable
+            nullable = alt.nullable,
             -- lhs_xrules = {},
             -- am not trying to be very accurate about the line
             -- it should be the line of an alternative containing that symbol
@@ -1257,29 +1258,50 @@ function grammar_class.compile(grammar, args)
                 -- LHS occurs only for a top level alternative,
                 -- and, if we are here, we are dealing with
                 -- a subalternative
-                local new_lhs = alt_to_work_data_add(x_rh_instance)
-                new_work_instance = {
-                        xalt = xalt,
-                        rhs_ix = rhs_ix,
-                        type = 'wsym',
-                        nullable = false,
-                        wsym = new_lhs
-                }
+
+                -- while the xalt cannot be nulling, a subalt
+                -- can be
+                if not x_rh_instance.nulling then
+                    local subalt_wrule = alt_to_work_data_add(x_rh_instance)
+                    local new_lhs = subalt_wrule.lhs.sym
+                    new_work_instance = {
+                            xalt = xalt,
+                            rhs_ix = rhs_ix,
+                            type = 'wsym',
+                            nullable = new_lhs.nullable,
+                            wsym = new_lhs
+                    }
+                end
             else
                 -- internal error, should never happen
                 error(__FILE__ .. ' ' .. __LINE__ .. "Bad type: " .. instance_type)
             end
-            work_rh_instance[#work_rh_instance+1] = new_work_instance
-            wrule.rhs = work_rh_instance
+
+            -- new_work_instance may be nil, if nulling
+            -- if so, we skip this instance, and the work rule
+            -- is shorter than the external alternative
+            if new_work_instance then
+                work_rh_instance[#work_rh_instance+1] = new_work_instance
+            end
         end
 
+        -- I don't think it's possible for there to be an empty
+        -- RHS, because the caller has ensured that the xalt is
+        -- not nulling
+        assert( #work_rh_instance > 0 )
+        wrule.rhs = work_rh_instance 
         wrule_by_id[#wrule_by_id+1] = wrule
+        return wrule
 
-        return wrule_lhs.sym
     end
 
     for topalt_id = 1,#xtopalt_by_ix do
-        alt_to_work_data_add(xtopalt_by_ix[topalt_id])
+        local xtopalt = xtopalt_by_ix[topalt_id]
+        local top_wrule = alt_to_work_data_add(xtopalt)
+        if xtopalt.precedence_level then
+            local precedenced_symbols = {}
+            gather_precedenced_instances(top_wrule)
+        end
     end
 
     print(inspect(wsym_by_id))
