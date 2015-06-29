@@ -418,20 +418,10 @@ local function subalternative_new(grammar, src_subalternative)
             local instance_type = src_rh_instance.type
             if not instance_type then
                 local new_rhs_xalt = subalternative_new(grammar, src_rh_instance)
-                new_rh_instance.type = 'xalt'
                 new_rh_instance.element = new_rhs_xalt
                 new_rhs_xalt.parent_instance = new_rh_instance
-            elseif instance_type == 'xstring' then
-                new_rh_instance.type = instance_type
-                new_rh_instance.element = src_rh_instance
-            elseif instance_type == 'xcc' then
-                new_rh_instance.type = instance_type
-                new_rh_instance.element = src_rh_instance
             else
-                grammar:development_error(
-                    [[Problem with rule rhs item #]] .. rh_ix
-                    .. ' unexpected type: ' .. instance_type
-                )
+                new_rh_instance.element = src_rh_instance
             end
         else
             local error_string
