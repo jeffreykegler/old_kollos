@@ -1345,8 +1345,12 @@ function grammar_class.compile(grammar, args)
                             -- Second, correct and mark the associator
                             associator_instance.precedence_level = level
                             associator_instance.associator = assoc
-                            associator_instances[#associator_instances+1]
-                                = associator_instance
+                            if assoc == 'left' or assoc == 'right' then
+                                -- 'group' assoc is not a problem for sequences, so
+                                -- we do not need to collect those instances
+                                associator_instances[#associator_instances+1]
+                                    = associator_instance
+                            end
                         end
                     end
                 end
@@ -1356,17 +1360,46 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    for ix = 1, #associator_instances do
-         local instance = associator_instances[ix]
-         local assoc_type = instance.associator
-         local current_xalt = instance.xalt
-         while current_xalt do
-              local parent_instance = current_xalt.parent_instance
-              if not parent_instance then break end
-              parent_instance.contains_associator = assoc_type
-              current_xalt = parent_instance.xalt
-         end
+for ix = 1, #associator_instances do
+    local instance = associator_instances[ix]
+    local assoc_type = instance.associator
+    if assoc_type == 'left' or assoc_type == 'right' then
+        local current_xalt = instance.xalt
+        while current_xalt do
+            local parent_instance = current_xalt.parent_instance
+            if not parent_instance then break end
+
+            -- At some point, I might add logic to allow associators
+            -- in sequences with min>=1, automatically rewriting to
+            -- break out the singleton. But the automatic
+            -- rewrite would be complicated, what with the various
+            -- sequence-separation and -termination options,
+            -- and it is quite possible the user is writing the rule
+            -- that way because he has not thought the matter through.
+            -- If the user does know what he is doing,
+            -- it may be best to require him to write out explicitly what
+            -- he wants.
+            if current_xalt.min ~= 1 or current_xalt.min ~= 1 then
+                grammar:development_error(
+                    who
+                    .. 'Precedence ' .. assoc_type .. '-associator is inside a sequence\n'
+                    .. ' That is not allowed\n'
+                    .. ' Marpa must be able to find a unique '
+                    .. assoc_type
+                    .. '-associator\n'
+                    .. ' Possible solution: rewrite so that an unique '
+                    .. assoc_type
+                    .. ' is outside the sequence\n',
+                    current_xalt.name_base,
+                    current_xalt.line
+                )
+            end
+
+            -- parent_instance.contains_associator = assoc_type
+            current_xalt = parent_instance.xalt
+        end
     end
+end
 
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
