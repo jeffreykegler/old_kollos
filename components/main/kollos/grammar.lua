@@ -1233,74 +1233,50 @@ function grammar_class.compile(grammar, args)
         end
         wrule_lhs.type = wrule_lhs.sym.type
 
-        local rhs = xalt.rhs
+        local rh_instances = xalt.rh_instances
         -- just skip empty alternatives
-        if #rhs == 0 then return end
+        if #rh_instances == 0 then return end
         -- for now don't process precedences
         local work_rh_instance = {}
-        for rhs_ix = 1,#rhs do
-            local x_rh_instance = rhs[rhs_ix]
-            local instance_type = x_rh_instance.type
+        for rh_ix = 1,#rh_instances do
+            local x_rh_instance = rh_instances[rh_ix]
+            local x_element = x_rh_instance.element
+            local element_type = x_element.type
             local new_work_instance
-            if x_rh_instance.nulling then
-                -- Do nothing for a nulling instance
-            elseif instance_type == 'xsym' then
-                new_work_instance = {
-                        xalt = xalt,
-                        rhs_ix = rhs_ix,
-                        type = 'xsym',
-                        nullable = x_rh_instance.nullable,
-                        xsym = x_rh_instance
-                    }
-            elseif instance_type == 'xcc' then
-                new_work_instance = {
-                        xalt = xalt,
-                        rhs_ix = rhs_ix,
-                        type = 'xcc',
-                        nullable = false,
-                        xcc = x_rh_instance
-                    }
-            elseif instance_type == 'xstring' then
-                -- An 'xstring' is a "brick terminal", but
-                -- for "at bottom" grammars, it may have
-                -- sub-bricks
-                new_work_instance = {
-                        xalt = xalt,
-                        rhs_ix = rhs_ix,
-                        type = 'xstring',
-                        nullable = false,
-                        xstring = x_rh_instance
-                    }
-            elseif instance_type == 'xalt' then
-                -- This is always a wsym, because an xsym
-                -- LHS occurs only for a top level alternative,
-                -- and, if we are here, we are dealing with
-                -- a subalternative
 
-                -- while the xalt cannot be nulling, a subalt
-                -- can be
-                if not x_rh_instance.nulling then
-                    local subalt_wrule = alt_to_work_data_add(x_rh_instance)
-                    local new_lhs = subalt_wrule.lhs.sym
-                    new_work_instance = {
-                            xalt = xalt,
-                            rhs_ix = rhs_ix,
-                            type = 'wsym',
-                            nullable = new_lhs.nullable,
-                            wsym = new_lhs
-                    }
+            -- Do nothing for a nulling instance
+            if not x_element.nulling then
+                new_work_instance = {
+                    xalt = xalt,
+                    rh_ix = rh_ix
+                }
+                if element_type == 'xalt' then
+                    -- This is always a wsym, because an xsym
+                    -- LHS occurs only for a top level alternative,
+                    -- and, if we are here, we are dealing with
+                    -- a subalternative
+
+                    -- Skip a nulling rh instance.
+                    -- While the xalt cannot be nulling, a subalt
+                    -- can be.
+
+                    -- Because of these skips, a working rule may have
+                    -- a right side shorter than the external alternative
+                    -- from which it is derived.
+                    -- But it will *never* be zero length, because the caller
+                    -- made sure the external alternative is not nulling
+                    if not x_rh_instance.nulling then
+                        local subalt_wrule = alt_to_work_data_add(x_rh_instance)
+                        local new_lhs = subalt_wrule.lhs.element
+                        new_work_instance.element = new_lhs
+                        work_rh_instance[#work_rh_instance+1] = new_work_instance
+                    end
+                else
+                    new_work_instance.element = x_element
+                    work_rh_instance[#work_rh_instance+1] = new_work_instance
                 end
-            else
-                -- internal error, should never happen
-                error(__FILE__ .. ' ' .. __LINE__ .. "Bad type: " .. instance_type)
             end
 
-            -- new_work_instance may be nil, if nulling
-            -- if so, we skip this instance, and the work rule
-            -- is shorter than the external alternative
-            if new_work_instance then
-                work_rh_instance[#work_rh_instance+1] = new_work_instance
-            end
         end
 
         -- I don't think it's possible for there to be an empty
