@@ -1176,29 +1176,28 @@ function grammar_class.compile(grammar, args)
     local wsym_by_id = {}
     local wsym_by_name = {}
 
-    -- Create a new *internal* lhs for this
-    -- alt
-    local function _lh_wsym_new(alt)
-        local alt_name = alt.name
-        local name = 'lhs!' .. alt_name
+    local function _wsym_ensure(name)
         local wsym_props = wsym_by_name[name]
         if wsym_props then return wsym_props end
-
         wsym_props = {
             name = name,
             type = 'wsym',
-            xalt = alt,
-            -- I assume alt is not nulling
-            nullable = alt.nullable,
-            -- lhs_xrules = {},
-            -- am not trying to be very accurate about the line
-            -- it should be the line of an alternative containing that symbol
         }
         wsym_by_name[name] = wsym_props
-
         wsym_by_id[#wsym_by_id+1] = wsym_props
         wsym_props.id = #wsym_by_id
+        return wsym_props
+    end
 
+    -- Create a new *internal* lhs for this
+    -- alt
+    local function _lh_wsym_ensure(alt)
+        local alt_name = alt.name
+        local name = 'lhs!' .. alt_name
+        local wsym_props = _wsym_ensure(name)
+        wsym_props.xalt = alt
+        wsym_props.nullable = alt.nullable
+        wsym_props.line = alt.line
         return wsym_props
     end
 
@@ -1214,7 +1213,7 @@ function grammar_class.compile(grammar, args)
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
         if xalt.parent_instance then
-            wrule_lhs.sym = _lh_wsym_new(xalt)
+            wrule_lhs.sym = _lh_wsym_ensure(xalt)
         else
             wrule_lhs.sym = xalt.xprec.xrule.lhs
         end
