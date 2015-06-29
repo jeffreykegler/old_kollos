@@ -410,6 +410,13 @@ local function subalternative_new(grammar, src_subalternative)
 
     for rh_ix = 1, table.maxn(src_subalternative) do
         local src_rh_instance = src_subalternative[rh_ix]
+        if not src_rh_instance then
+                grammar:development_error(
+                    [[Problem with rule rhs item #]] .. rh_ix .. ' '
+                    .. "wrong type: "
+                    .. type(src_rh_instance)
+                )
+        end
         local new_rh_instance = {
              xalt = new_subalternative,
              rh_ix = rh_ix,
@@ -1021,16 +1028,6 @@ function grammar_class.compile(grammar, args)
             if #lhs.lhs_xrules > 1 then
                 return report_shared_precedenced_lhs(grammar, xrule, lhs)
             end
-            -- label the top alternatives with their precedence level
-            for prec_ix = 1, #precedences do
-                local xprec = precedences[prec_ix]
-                local level = xprec.level
-                local alternatives = xprec.top_alternatives
-                for alt_ix = 1, #alternatives do
-                    local alternative = alternatives[alt_ix]
-                    alternative.precedence_level = level
-                end
-            end
         end
     end
 
@@ -1216,7 +1213,7 @@ function grammar_class.compile(grammar, args)
         local wrule_lhs = wrule.lhs
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
-        if xalt.parent then
+        if xalt.parent_instance then
             wrule_lhs.sym = _lh_wsym_new(xalt)
         else
             wrule_lhs.sym = xalt.xprec.xrule.lhs
@@ -1295,6 +1292,12 @@ function grammar_class.compile(grammar, args)
         end
     end
 
+    -- a global, which we will use to track "associator instances"
+    -- which need a special rewrite if they are in a sequence
+    local associator_instances = {}
+
+    -- This logic
+    -- relies on a precedenced xrule having a dedicated LHS
     for xrule_id = 1,#xrule_by_id do
         local xrule = xrule_by_id[xrule_id]
         local precedences = xrule.precedences
@@ -1309,13 +1312,61 @@ function grammar_class.compile(grammar, args)
                 local alternatives = xprec.top_alternatives
                 for alt_ix = 1, #alternatives do
                     local alternative = alternatives[alt_ix]
+                    alternative.precedence_level = level
                     local precedenced_instances = {}
                     gather_precedenced_instances(
                         alternative, lhs.id,
                         precedenced_instances)
+                    if #precedenced_instances > 0 then
+                        if level == 0 then
+                            -- Need a more precise explanation of what kind of
+                            -- this *is* OK at precedence 0
+                            grammar:development_error(
+                                who
+                                .. "Recursive alternative " .. alternative.name .. " at precedence 0\n"
+                                .. "  That is not allowed\n"
+                                .. "  Precedence 0 is the bottom level\n",
+                                alternative.name_base,
+                                alternative.line
+                            )
+                        end
+                        local assoc = alternative.assoc or 'left'
+                        -- First set them all to the next lower precedence
+                        local associator_ix
+                        -- Default is top level, so we do nothing for 'group' precedence
+                        if assoc == 'left' then associator_ix = 1
+                        elseif assoc == 'right' then associator_ix = #precedenced_instances
+                        end
+                        if associator_ix then
+                            -- 
+                            for ix = 1,#precedenced_instances do 
+                                precedenced_instances[ix].precedence_level = level-1
+                            end
+                            local associator_instance = precedenced_instances[associator_ix]
+                            -- Second, correct and mark the associator
+                            associator_instance.precedence_level = level
+                            associator_instance.associator = assoc
+                            associator_instances[#associator_instances+1]
+                                = associator_instance
+                        end
+                    end
                 end
             end
+            -- TODO: create precedenced symbols -- default is top
+            -- TODO: create precedenced rule "ladder"
         end
+    end
+
+    for ix = 1, #associator_instances do
+         local instance = associator_instances[ix]
+         local assoc_type = instance.associator
+         local current_xalt = instance.xalt
+         while current_xalt do
+              local parent_instance = current_xalt.parent_instance
+              if not parent_instance then break end
+              parent_instance.contains_associator = assoc_type
+              current_xalt = parent_instance.xalt
+         end
     end
 
     for topalt_id = 1,#xtopalt_by_ix do
