@@ -1256,7 +1256,7 @@ function grammar_class.compile(grammar, args)
                     -- But it will *never* be zero length, because the caller
                     -- made sure the external alternative is not nulling
                     if not x_rh_instance.nulling then
-                        local subalt_wrule = alt_to_work_data_add(x_rh_instance)
+                        local subalt_wrule = alt_to_work_data_add(x_element)
                         local new_lhs = subalt_wrule.lhs.element
                         new_work_instance.element = new_lhs
                         work_rh_instance[#work_rh_instance+1] = new_work_instance
@@ -1279,14 +1279,41 @@ function grammar_class.compile(grammar, args)
 
     end
 
-    for topalt_id = 1,#xtopalt_by_ix do
-        local xtopalt = xtopalt_by_ix[topalt_id]
-        local top_wrule = alt_to_work_data_add(xtopalt)
-        if xtopalt.precedence_level then
-            local precedenced_symbols = {}
-            gather_precedenced_instances(top_wrule)
+    for xrule_id = 1,#xrule_by_id do
+        local xrule = xrule_by_id[xrule_id]
+        local precedences = xrule.precedences
+        -- If it is a rule with multiple precedences
+        -- Create "precedence ladder" of wrules,
+        -- and precedenced symbols
+        if #precedences > 1 then
+            local lhs = xrule.lhs
+            for prec_ix = 1, #precedences do
+                local xprec = precedences[prec_ix]
+                local level = xprec.level
+                local alternatives = xprec.top_alternatives
+                for alt_ix = 1, #alternatives do
+                    local alternative = alternatives[alt_ix]
+                    alternative.precedence_level = level
+                end
+            end
         end
     end
+
+    for topalt_id = 1,#xtopalt_by_ix do
+        local xtopalt = xtopalt_by_ix[topalt_id]
+        alt_to_work_data_add(xtopalt)
+    end
+
+    --[[ COMMENTED OUT rewrite *work* rules to add precedences here
+    -- or do it above as part of alt_to_work_data_add()?
+        if xtopalt.precedence_level then -- TODO
+            local assoc = assoc or 'left'
+            local xprec = xtopalt.xprec
+            local xrule = xprec.xrule
+            local lhs = xrule.lhs
+            local lhs_id = lhs.id
+        end
+    --]]
 
     print(inspect(wsym_by_id))
     print(inspect(wrule_by_id))
