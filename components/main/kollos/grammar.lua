@@ -1204,10 +1204,10 @@ function grammar_class.compile(grammar, args)
     local function alt_to_work_data_add(xalt)
         print(__FILE__, __LINE__)
         local wrule = {
-           lhs = {
+            lhs = {
                 element = xalt,
                 lhs = true,
-           }
+            }
         }
         local wrule_lhs = wrule.lhs
         -- at top, use brick from xrule.lhs
@@ -1269,31 +1269,30 @@ function grammar_class.compile(grammar, args)
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
         assert( #work_rh_instance > 0 )
-        wrule.rhs = work_rh_instance 
+        wrule.rhs = work_rh_instance
         wrule_by_id[#wrule_by_id+1] = wrule
         return wrule
 
     end
 
-    local function gather_precedenced_instances(xalt, lhs_id, instances)
+    local precedenced_instances = {}
+    local function gather_precedenced_instances(xalt, lhs_id, in_seq)
         local rh_instances = xalt.rh_instances
         for rh_ix = 1,#rh_instances do
             local rh_instance = rh_instances[rh_ix]
             local element = rh_instance.element
             local type = element.type
             if type == 'xsym' then
-                if element.id ==  lhs_id then
-                    instances[#instances+1] = rh_instance
+                if element.id == lhs_id then
+                    if in_seq then rh_instance.in_seq = true end
+                    precedenced_instances[#precedenced_instances+1] = rh_instance
                 end
             elseif type == 'xalt' then
-                gather_precedenced_instances(element, lhs_id, instances)
+                local element_is_seq = element.min ~= 1 or element.max ~= 1
+                gather_precedenced_instances(element, lhs_id, in_seq or element_is_seq)
             end
         end
     end
-
-    -- a global, which we will use to track "associator instances"
-    -- which need a special rewrite if they are in a sequence
-    local associator_instances = {}
 
     -- This logic
     -- relies on a precedenced xrule having a dedicated LHS
@@ -1312,10 +1311,10 @@ function grammar_class.compile(grammar, args)
                 for alt_ix = 1, #alternatives do
                     local alternative = alternatives[alt_ix]
                     alternative.precedence_level = level
-                    local precedenced_instances = {}
+                    precedenced_instances = {}
                     gather_precedenced_instances(
                         alternative, lhs.id,
-                        precedenced_instances)
+                        false)
                     if #precedenced_instances > 0 then
                         if level == 0 then
                             -- Need a more precise explanation of what kind of
@@ -1323,8 +1322,8 @@ function grammar_class.compile(grammar, args)
                             grammar:development_error(
                                 who
                                 .. "Recursive alternative " .. alternative.name .. " at precedence 0\n"
-                                .. "  That is not allowed\n"
-                                .. "  Precedence 0 is the bottom level\n",
+                                .. " That is not allowed\n"
+                                .. " Precedence 0 is the bottom level\n",
                                 alternative.name_base,
                                 alternative.line
                             )
@@ -1336,21 +1335,41 @@ function grammar_class.compile(grammar, args)
                         if assoc == 'left' then associator_ix = 1
                         elseif assoc == 'right' then associator_ix = #precedenced_instances
                         end
+                        -- Second, check, correct and mark the associator
                         if associator_ix then
-                            -- 
-                            for ix = 1,#precedenced_instances do 
+                            --
+                            for ix = 1,#precedenced_instances do
                                 precedenced_instances[ix].precedence_level = level-1
                             end
                             local associator_instance = precedenced_instances[associator_ix]
-                            -- Second, correct and mark the associator
+
+                            if associator_instance.in_seq then
+                                -- At some point, I might add logic to allow associators
+                                -- in sequences with min>=1, automatically rewriting to
+                                -- break out the singleton. But the automatic
+                                -- rewrite would be complicated, what with the various
+                                -- sequence-separation and -termination options,
+                                -- and it is quite possible the user is writing the rule
+                                -- that way because he has not thought the matter through.
+                                -- If the user does know what he is doing,
+                                -- it may be best to require him to write out explicitly what
+                                -- he wants.
+                                grammar:development_error(
+                                    who
+                                    .. 'Precedence ' .. assoc .. '-associator is inside a sequence\n'
+                                    .. ' That is not allowed\n'
+                                    .. ' Marpa must be able to find a unique '
+                                    .. assoc
+                                    .. '-associator\n'
+                                    .. ' Possible solution: rewrite so that an unique '
+                                    .. assoc
+                                    .. ' is outside the sequence\n',
+                                    associator_instance.name_base,
+                                    associator_instance.line
+                                )
+                            end
                             associator_instance.precedence_level = level
                             associator_instance.associator = assoc
-                            if assoc == 'left' or assoc == 'right' then
-                                -- 'group' assoc is not a problem for sequences, so
-                                -- we do not need to collect those instances
-                                associator_instances[#associator_instances+1]
-                                    = associator_instance
-                            end
                         end
                     end
                 end
@@ -1360,47 +1379,6 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-for ix = 1, #associator_instances do
-    local instance = associator_instances[ix]
-    local assoc_type = instance.associator
-    if assoc_type == 'left' or assoc_type == 'right' then
-        local current_xalt = instance.xalt
-        while current_xalt do
-            local parent_instance = current_xalt.parent_instance
-            if not parent_instance then break end
-
-            -- At some point, I might add logic to allow associators
-            -- in sequences with min>=1, automatically rewriting to
-            -- break out the singleton. But the automatic
-            -- rewrite would be complicated, what with the various
-            -- sequence-separation and -termination options,
-            -- and it is quite possible the user is writing the rule
-            -- that way because he has not thought the matter through.
-            -- If the user does know what he is doing,
-            -- it may be best to require him to write out explicitly what
-            -- he wants.
-            if current_xalt.min ~= 1 or current_xalt.min ~= 1 then
-                grammar:development_error(
-                    who
-                    .. 'Precedence ' .. assoc_type .. '-associator is inside a sequence\n'
-                    .. ' That is not allowed\n'
-                    .. ' Marpa must be able to find a unique '
-                    .. assoc_type
-                    .. '-associator\n'
-                    .. ' Possible solution: rewrite so that an unique '
-                    .. assoc_type
-                    .. ' is outside the sequence\n',
-                    current_xalt.name_base,
-                    current_xalt.line
-                )
-            end
-
-            -- parent_instance.contains_associator = assoc_type
-            current_xalt = parent_instance.xalt
-        end
-    end
-end
-
     for topalt_id = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_id]
         alt_to_work_data_add(xtopalt)
@@ -1408,13 +1386,13 @@ end
 
     --[[ COMMENTED OUT rewrite *work* rules to add precedences here
     -- or do it above as part of alt_to_work_data_add()?
-        if xtopalt.precedence_level then -- TODO
-            local assoc = assoc or 'left'
-            local xprec = xtopalt.xprec
-            local xrule = xprec.xrule
-            local lhs = xrule.lhs
-            local lhs_id = lhs.id
-        end
+    if xtopalt.precedence_level then -- TODO
+        local assoc = assoc or 'left'
+        local xprec = xtopalt.xprec
+        local xrule = xprec.xrule
+        local lhs = xrule.lhs
+        local lhs_id = lhs.id
+    end
     --]]
 
     print(inspect(wsym_by_id))
