@@ -1279,21 +1279,40 @@ function grammar_class.compile(grammar, args)
 
     end
 
+    local function gather_precedenced_instances(xalt, lhs_id, instances)
+        local rh_instances = xalt.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            local element = rh_instance.element
+            local type = element.type
+            if type == 'xsym' then
+                if element.id ==  lhs_id then
+                    instances[#instances+1] = rh_instance
+                end
+            elseif type == 'xalt' then
+                gather_precedenced_instances(element, lhs_id, instances)
+            end
+        end
+    end
+
     for xrule_id = 1,#xrule_by_id do
         local xrule = xrule_by_id[xrule_id]
         local precedences = xrule.precedences
+        local lhs = xrule.lhs
         -- If it is a rule with multiple precedences
         -- Create "precedence ladder" of wrules,
         -- and precedenced symbols
         if #precedences > 1 then
-            local lhs = xrule.lhs
             for prec_ix = 1, #precedences do
                 local xprec = precedences[prec_ix]
                 local level = xprec.level
                 local alternatives = xprec.top_alternatives
                 for alt_ix = 1, #alternatives do
                     local alternative = alternatives[alt_ix]
-                    alternative.precedence_level = level
+                    local precedenced_instances = {}
+                    gather_precedenced_instances(
+                        alternative, lhs.id,
+                        precedenced_instances)
                 end
             end
         end
