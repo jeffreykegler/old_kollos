@@ -1304,6 +1304,7 @@ function grammar_class.compile(grammar, args)
         -- Create "precedence ladder" of wrules,
         -- and precedenced symbols
         if #precedences > 1 then
+            lhs.top_precedence_level = precedences[#precedences].level
             for prec_ix = 1, #precedences do
                 local xprec = precedences[prec_ix]
                 local level = xprec.level
@@ -1383,17 +1384,6 @@ function grammar_class.compile(grammar, args)
         local xtopalt = xtopalt_by_ix[topalt_id]
         alt_to_work_data_add(xtopalt)
     end
-
-    --[[ COMMENTED OUT rewrite *work* rules to add precedences here
-    -- or do it above as part of alt_to_work_data_add()?
-    if xtopalt.precedence_level then -- TODO
-        local assoc = assoc or 'left'
-        local xprec = xtopalt.xprec
-        local xrule = xprec.xrule
-        local lhs = xrule.lhs
-        local lhs_id = lhs.id
-    end
-    --]]
 
     print(inspect(wsym_by_id))
     print(inspect(wrule_by_id))
