@@ -1282,7 +1282,7 @@ function grammar_class.compile(grammar, args)
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
         assert( #work_rh_instance > 0 )
-        wrule.rhs = work_rh_instance
+        wrule.rh_instances = work_rh_instance
         wrule_by_id[#wrule_by_id+1] = wrule
         return wrule
 
@@ -1494,6 +1494,55 @@ function grammar_class.compile(grammar, args)
          print("unexpected xsym field:", field)
     end
 
+    -- census wrule and winstance fields
+    -- TODO: remove after development
+    local wrule_field_census = {}
+    local winstance_field_census = {}
+    local wrule_field_census_expected = {
+        rh_instances = true,
+    }
+    local winstance_field_census_expected = {
+    }
+    for wrule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[wrule_id]
+        for field,_ in pairs(wrule) do
+             if not wrule_field_census_expected[field] then
+                 wrule_field_census[field] = true
+             end
+        end
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            for field,_ in pairs(rh_instance) do
+                 if not winstance_field_census_expected[field] then
+                     winstance_field_census[field] = true
+                 end
+            end
+        end
+    end
+    for field,_ in pairs(wrule_field_census) do
+         print("unexpected wrule field:", field)
+    end
+    for field,_ in pairs(winstance_field_census) do
+         print("unexpected winstance field:", field)
+    end
+
+    -- census wsym fields
+    -- TODO: remove after development
+    local wsym_field_census = {}
+    local wsym_field_census_expected = {
+    }
+    for wsym_id = 1,#wsym_by_id do
+        local wsym = wsym_by_id[wsym_id]
+        for field,_ in pairs(wsym) do
+             if not wsym_field_census_expected[field] then
+                 wsym_field_census[field] = true
+             end
+        end
+    end
+    for field,_ in pairs(wsym_field_census) do
+         print("unexpected wsym field:", field)
+    end
 
     -- print(inspect(wsym_by_id))
     -- print(inspect(wrule_by_id))
