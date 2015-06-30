@@ -1233,9 +1233,9 @@ function grammar_class.compile(grammar, args)
         local alt_name = alt.name
         local name = 'lhs!' .. alt_name
         local wsym_props = _wsym_ensure(name)
-        wsym_props.xalt = alt
         wsym_props.nullable = alt.nullable
         wsym_props.line = alt.line
+        wsym_props.name_base = alt.name_base
         return wsym_props
     end
 
@@ -1519,37 +1519,50 @@ function grammar_class.compile(grammar, args)
     local winstance_field_census = {}
     local wrule_field_census_expected = {
         rh_instances = true,
+        lhs = true,
     }
     local winstance_field_census_expected = {
+        xalt = true,
+        rh_ix = true,
+        element = true,
+        xsym = true,
     }
     for wrule_id = 1,#wrule_by_id do
         local wrule = wrule_by_id[wrule_id]
         for field,_ in pairs(wrule) do
-             if not wrule_field_census_expected[field] then
-                 wrule_field_census[field] = true
-             end
+            if not wrule_field_census_expected[field] then
+                wrule_field_census[field] = true
+            end
         end
         local rh_instances = wrule.rh_instances
         for rh_ix = 1,#rh_instances do
             local rh_instance = rh_instances[rh_ix]
             for field,_ in pairs(rh_instance) do
-                 if not winstance_field_census_expected[field] then
-                     winstance_field_census[field] = true
-                 end
+                if not winstance_field_census_expected[field] then
+                    winstance_field_census[field] = true
+                end
             end
         end
     end
     for field,_ in pairs(wrule_field_census) do
-         print("unexpected wrule field:", field)
+        print("unexpected wrule field:", field)
     end
     for field,_ in pairs(winstance_field_census) do
-         print("unexpected winstance field:", field)
+        print("unexpected winstance field:", field)
     end
 
     -- census wsym fields
     -- TODO: remove after development
     local wsym_field_census = {}
     local wsym_field_census_expected = {
+         alt = true,
+         id = true,
+         line = true,
+         name = true,
+         name_base = true,
+         nullable = true,
+         precedence_level = true,
+         xsym = true,
     }
     for wsym_id = 1,#wsym_by_id do
         local wsym = wsym_by_id[wsym_id]
