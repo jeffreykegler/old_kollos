@@ -444,7 +444,6 @@ local function subalternative_new(grammar, src_subalternative)
                     [[Problem with rule rhs item #]] .. rh_ix .. ' ' .. error_string
                 )
             end
-            new_rh_instance.type = 'xsym'
             new_rh_instance.element = new_rhs_sym
             xlhs_by_rhs[new_rhs_sym.id] = current_xrule.lhs.id
         end
@@ -1408,6 +1407,7 @@ function grammar_class.compile(grammar, args)
     -- census subalt fields
     -- TODO: remove after development
     local xsubalt_field_census = {}
+    local xinstance_field_census = {}
     local xsubalt_field_census_expected = {
         action = true,
         id = true,
@@ -1425,6 +1425,8 @@ function grammar_class.compile(grammar, args)
 	subname = true,
 	xprec = true,
     }
+    local xinstance_field_census_expected = {
+    }
     for xsubalt_id = 1,#xsubalt_by_id do
         local xsubalt = xsubalt_by_id[xsubalt_id]
         for field,_ in pairs(xsubalt) do
@@ -1432,9 +1434,21 @@ function grammar_class.compile(grammar, args)
                  xsubalt_field_census[field] = true
              end
         end
+        local rh_instances = xsubalt.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            for field,_ in pairs(rh_instance) do
+                 if not xinstance_field_census_expected[field] then
+                     xinstance_field_census[field] = true
+                 end
+            end
+        end
     end
     for field,_ in pairs(xsubalt_field_census) do
-         print("xsubalt field:", field)
+         print("unexpected xsubalt field:", field)
+    end
+    for field,_ in pairs(xinstance_field_census) do
+         print("unexpected xinstance field:", field)
     end
 
     -- census xsym fields
@@ -1460,7 +1474,7 @@ function grammar_class.compile(grammar, args)
         end
     end
     for field,_ in pairs(xsym_field_census) do
-         print("xsym field:", field)
+         print("unexpected xsym field:", field)
     end
 
 
