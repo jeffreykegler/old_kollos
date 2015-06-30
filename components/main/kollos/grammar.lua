@@ -369,6 +369,20 @@ local function xinstance_new(element, xalt, rh_ix)
     return new_instance
 end
 
+local function winstance_new(element, xalt, rh_ix)
+    local new_instance = {
+        xalt = xalt,
+        rh_ix = rh_ix,
+        element = element
+    }
+    setmetatable(new_instance, {
+            __index = function (table, key)
+                return table.element[key]
+            end
+        })
+    return new_instance
+end
+
 -- throw is always set for this method
 -- the error is caught by the caller and re-thrown or not,
 -- as needed
@@ -1273,11 +1287,11 @@ function grammar_class.compile(grammar, args)
                     if not x_rh_instance.nulling then
                         local subalt_wrule = alt_to_work_data_add(x_element)
                         local new_lhs = subalt_wrule.lhs.element
-                        local new_work_instance = xinstance_new(new_lhs, xalt, rh_ix)
+                        local new_work_instance = winstance_new(new_lhs, xalt, rh_ix)
                         work_rh_instance[#work_rh_instance+1] = new_work_instance
                     end
                 else
-                    local new_work_instance = xinstance_new(x_element, xalt, rh_ix)
+                    local new_work_instance = winstance_new(x_element, xalt, rh_ix)
                     work_rh_instance[#work_rh_instance+1] = new_work_instance
                 end
             end
