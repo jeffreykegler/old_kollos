@@ -165,9 +165,9 @@ local function _symbol_new(grammar, args)
     }
     xsym_by_name[name] = props
 
-    local xsym = grammar.xsym
-    xsym[#xsym+1] = props
-    props.id = #xsym
+    local xsym_by_id = grammar.xsym_by_id
+    xsym_by_id[#xsym_by_id+1] = props
+    props.id = #xsym_by_id
 
     return props
 end
@@ -369,6 +369,7 @@ local function subalternative_new(grammar, src_subalternative)
     local current_xrule = current_xprec.xrule
     local xlhs_by_rhs = grammar.xlhs_by_rhs
 
+    -- used to form the name of the subalternative
     local id_within_top_alternative = grammar.id_within_top_alternative
     id_within_top_alternative = id_within_top_alternative + 1
     grammar.id_within_top_alternative = id_within_top_alternative
@@ -950,14 +951,14 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    local xsym = grammar.xsym
-    local matrix_size = #xsym+2
+    local xsym_by_id = grammar.xsym_by_id
+    local matrix_size = #xsym_by_id+2
 
     -- Not the real augment symbol, but a temporary that
     -- "fakes" it
-    local augment_symbol_id = #xsym + 1
+    local augment_symbol_id = #xsym_by_id + 1
 
-    local terminal_sink_id = #xsym + 2
+    local terminal_sink_id = #xsym_by_id + 2
     local reach_matrix = matrix.init(matrix_size)
     if at_top then
         matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
@@ -985,8 +986,8 @@ function grammar_class.compile(grammar, args)
     --
     -- Also, we must always make sure that the start symbol
     -- is productive
-    for symbol_id = 1,#xsym do
-        local symbol_props = xsym[symbol_id]
+    for symbol_id = 1,#xsym_by_id do
+        local symbol_props = xsym_by_id[symbol_id]
         if not symbol_props.productive then
             return nil,
             grammar:development_error(
@@ -1079,8 +1080,8 @@ function grammar_class.compile(grammar, args)
     end
 
     -- Nullable semantics is unique
-    for symbol_id = 1,#xsym do
-        local symbol_props = xsym[symbol_id]
+    for symbol_id = 1,#xsym_by_id do
+        local symbol_props = xsym_by_id[symbol_id]
         if symbol_props.nullable then
             local semantics, error_object
             = find_nullable_semantics(grammar, symbol_props)
@@ -1094,8 +1095,8 @@ function grammar_class.compile(grammar, args)
     end
 
     local xlhs_by_rhs = grammar.xlhs_by_rhs
-    for symbol_id = 1,#xsym do
-        local symbol_props = xsym[symbol_id]
+    for symbol_id = 1,#xsym_by_id do
+        local symbol_props = xsym_by_id[symbol_id]
         -- every symbol reaches itself
         matrix.bit_set(reach_matrix, symbol_id, symbol_id)
         for _,lhs_id in pairs(xlhs_by_rhs) do
@@ -1114,8 +1115,8 @@ function grammar_class.compile(grammar, args)
 
     matrix.transitive_closure(reach_matrix)
 
-    for symbol_id = 1,#xsym do
-        local symbol_props = xsym[symbol_id]
+    for symbol_id = 1,#xsym_by_id do
+        local symbol_props = xsym_by_id[symbol_id]
 
         -- Later, make it so some symbols can be set to be "inaccessible ok"
         if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
@@ -1145,8 +1146,8 @@ function grammar_class.compile(grammar, args)
     end
 
     --[[ COMMENTED OUT
-    for from_symbol_id,from_symbol_props in ipairs(xsym) do
-        for to_symbol_id,to_symbol_props in ipairs(xsym) do
+    for from_symbol_id,from_symbol_props in ipairs(xsym_by_id) do
+        for to_symbol_id,to_symbol_props in ipairs(xsym_by_id) do
             if matrix.bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
                 print( from_symbol_props.name, "reaches", to_symbol_props.name)
             end
@@ -1202,7 +1203,7 @@ function grammar_class.compile(grammar, args)
     end
 
     local function alt_to_work_data_add(xalt)
-        print(__FILE__, __LINE__)
+        -- print(__FILE__, __LINE__)
         local wrule = {
             lhs = {
                 element = xalt,
@@ -1375,18 +1376,96 @@ function grammar_class.compile(grammar, args)
                     end
                 end
             end
+
+            -- Create a new *internal* lhs for this
+            -- alt
+            local function precedenced_wsym_ensure(xsym, precedence)
+                -- TODO: finish this
+                -- The symbol for the top precedence level is the original
+                -- symbol
+                if xsym.top_precedence_level == precedence then
+                    return xsym
+                end
+                local new_wsym_name = xsym.name .. '!prec' .. precedence
+                local wsym_props = _wsym_ensure(new_wsym_name)
+                -- wsym_props.xalt = alt
+                -- wsym_props.nullable = alt.nullable
+                -- wsym_props.line = alt.line
+                return wsym_props
+            end
+
             -- TODO: create precedenced symbols -- default is top
+
             -- TODO: create precedenced rule "ladder"
         end
     end
 
-    for topalt_id = 1,#xtopalt_by_ix do
-        local xtopalt = xtopalt_by_ix[topalt_id]
+    for topalt_ix = 1,#xtopalt_by_ix do
+        local xtopalt = xtopalt_by_ix[topalt_ix]
         alt_to_work_data_add(xtopalt)
     end
 
-    print(inspect(wsym_by_id))
-    print(inspect(wrule_by_id))
+    -- census subalt fields
+    -- TODO: remove after development
+    local xsubalt_field_census = {}
+    local xsubalt_field_census_expected = {
+        line = true,
+        name_base = true,
+        id = true,
+        nullable = true,
+        productive = true,
+        name = true,
+        action = true,
+        min = true,
+        max = true,
+        rh_instances = true,
+	xprec = true,
+	subname = true,
+	parent_instance = true,
+	id_within_top_alternative = true,
+	precedence_level = true,
+    }
+    for xsubalt_id = 1,#xsubalt_by_id do
+        local xsubalt = xsubalt_by_id[xsubalt_id]
+        for field,_ in pairs(xsubalt) do
+             if not xsubalt_field_census_expected[field] then
+                 xsubalt_field_census[field] = true
+             end
+        end
+    end
+    for field,_ in pairs(xsubalt_field_census) do
+         print("xsubalt field:", field)
+    end
+
+    -- census xsym fields
+    -- TODO: remove after development
+    local xsym_field_census = {}
+    local xsym_field_census_expected = {
+        id = true,
+        lhs_xrules = true,
+        line = true,
+        name_base = true,
+        name = true,
+        nullable = true,
+        productive = true,
+        top_precedence_level = true,
+        type = true,
+    }
+    for xsym_id = 1,#xsym_by_id do
+        local xsym = xsym_by_id[xsym_id]
+        for field,_ in pairs(xsym) do
+             if not xsym_field_census_expected[field] then
+                 xsym_field_census[field] = true
+             end
+        end
+    end
+    for field,_ in pairs(xsym_field_census) do
+         print("xsym field:", field)
+    end
+
+
+    -- print(inspect(wsym_by_id))
+    -- print(inspect(wrule_by_id))
 
 end
 
@@ -1402,7 +1481,7 @@ local function grammar_new(config, args) -- luacheck: ignore config
         xtopalt_by_ix = {},
         xsubalt_by_id = {},
 
-        xsym = {},
+        xsym_by_id = {},
         xsym_by_name = {},
 
         -- maps LHS id to RHS id
