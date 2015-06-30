@@ -1409,21 +1409,21 @@ function grammar_class.compile(grammar, args)
     -- TODO: remove after development
     local xsubalt_field_census = {}
     local xsubalt_field_census_expected = {
-        line = true,
-        name_base = true,
-        id = true,
-        nullable = true,
-        productive = true,
-        name = true,
         action = true,
-        min = true,
-        max = true,
-        rh_instances = true,
-	xprec = true,
-	subname = true,
-	parent_instance = true,
+        id = true,
 	id_within_top_alternative = true,
+        line = true,
+        max = true,
+        min = true,
+        name_base = true,
+        name = true,
+        nullable = true,
+	parent_instance = true,
 	precedence_level = true,
+        productive = true,
+        rh_instances = true,
+	subname = true,
+	xprec = true,
     }
     for xsubalt_id = 1,#xsubalt_by_id do
         local xsubalt = xsubalt_by_id[xsubalt_id]
