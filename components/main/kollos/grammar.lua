@@ -355,6 +355,20 @@ function grammar_class.precedence_new(grammar, args)
 
 end
 
+local function xinstance_new(element, xalt, rh_ix)
+    local new_instance = {
+        xalt = xalt,
+        rh_ix = rh_ix,
+        element = element
+    }
+    setmetatable(new_instance, {
+            __index = function (table, key)
+                return table.element[key]
+            end
+        })
+    return new_instance
+end
+
 -- throw is always set for this method
 -- the error is caught by the caller and re-thrown or not,
 -- as needed
@@ -423,22 +437,19 @@ local function subalternative_new(grammar, src_subalternative)
                     .. type(src_rh_instance)
                 )
         end
-        local new_rh_instance = {
-             xalt = new_subalternative,
-             rh_ix = rh_ix,
-        }
+        local new_rh_instance
+
         if type(src_rh_instance) == 'table' then
             local instance_type = src_rh_instance.type
             if not instance_type then
                 local new_rhs_xalt = subalternative_new(grammar, src_rh_instance)
-                new_rh_instance.element = new_rhs_xalt
+                new_rh_instance = xinstance_new(new_rhs_xalt, new_subalternative, rh_ix)
                 new_rhs_xalt.parent_instance = new_rh_instance
             else
-                new_rh_instance.element = src_rh_instance
+                new_rh_instance = xinstance_new(src_rh_instance, new_subalternative, rh_ix)
             end
         else
             local error_string
-            print(inspect(src_rh_instance))
             local new_rhs_sym
             new_rhs_sym, error_string = _symbol_new(grammar, { name = src_rh_instance })
             if not new_rhs_sym then
@@ -449,7 +460,7 @@ local function subalternative_new(grammar, src_subalternative)
                     [[Problem with rule rhs item #]] .. rh_ix .. ' ' .. error_string
                 )
             end
-            new_rh_instance.element = new_rhs_sym
+            new_rh_instance = xinstance_new(new_rhs_sym, new_subalternative, rh_ix)
             xlhs_by_rhs[new_rhs_sym.id] = current_xrule.lhs.id
         end
         new_rh_instances[#new_rh_instances+1] = new_rh_instance
@@ -1241,14 +1252,9 @@ function grammar_class.compile(grammar, args)
             local x_rh_instance = rh_instances[rh_ix]
             local x_element = x_rh_instance.element
             local element_type = x_element.type
-            local new_work_instance
 
             -- Do nothing for a nulling instance
             if not x_element.nulling then
-                new_work_instance = {
-                    xalt = xalt,
-                    rh_ix = rh_ix
-                }
                 if element_type == 'xalt' then
                     -- This is always a wsym, because an xsym
                     -- LHS occurs only for a top level alternative,
@@ -1267,11 +1273,11 @@ function grammar_class.compile(grammar, args)
                     if not x_rh_instance.nulling then
                         local subalt_wrule = alt_to_work_data_add(x_element)
                         local new_lhs = subalt_wrule.lhs.element
-                        new_work_instance.element = new_lhs
+                        local new_work_instance = xinstance_new(new_lhs, xalt, rh_ix)
                         work_rh_instance[#work_rh_instance+1] = new_work_instance
                     end
                 else
-                    new_work_instance.element = x_element
+                    local new_work_instance = xinstance_new(x_element, xalt, rh_ix)
                     work_rh_instance[#work_rh_instance+1] = new_work_instance
                 end
             end
@@ -1390,7 +1396,7 @@ function grammar_class.compile(grammar, args)
                 end
             end
 
-            -- TODO: create precedenced symbols
+            -- TODO: create precedenced rule "ladder"
             do
                 -- The symbol for the top precedence level is the original
                 -- symbol
@@ -1405,7 +1411,6 @@ function grammar_class.compile(grammar, args)
                 end
             end
 
-            -- TODO: create precedenced rule "ladder"
         end
     end
 
