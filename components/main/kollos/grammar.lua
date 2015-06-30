@@ -409,6 +409,11 @@ local function subalternative_new(grammar, src_subalternative)
     local new_subalternative_id = #xsubalt_by_id
     new_subalternative.id = new_subalternative_id
 
+    -- maxn() is used, because the src_alternative's are 
+    -- part of a user interface, so that there might be nil's
+    -- mixed in the series anywhere.
+    -- These are fatal errors, and we have to make sure
+    -- we can detect them.
     for rh_ix = 1, table.maxn(src_subalternative) do
         local src_rh_instance = src_subalternative[rh_ix]
         if not src_rh_instance then
