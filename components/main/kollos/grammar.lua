@@ -1181,8 +1181,16 @@ function grammar_class.compile(grammar, args)
         if wsym_props then return wsym_props end
         wsym_props = {
             name = name,
-            type = 'wsym',
         }
+        setmetatable(wsym_props, {
+                __index = function (table, key)
+                    if key == 'type' then return 'wsym' end
+                    local xsym = table.xsym
+                    if xsym then return xsym[key] end
+                    return nil
+                end
+            })
+
         wsym_by_name[name] = wsym_props
         wsym_by_id[#wsym_by_id+1] = wsym_props
         wsym_props.id = #wsym_by_id
@@ -1304,7 +1312,8 @@ function grammar_class.compile(grammar, args)
         -- Create "precedence ladder" of wrules,
         -- and precedenced symbols
         if #precedences > 1 then
-            lhs.top_precedence_level = precedences[#precedences].level
+            local top_precedence_level = precedences[#precedences].level
+            lhs.top_precedence_level = top_precedence_level
             for prec_ix = 1, #precedences do
                 local xprec = precedences[prec_ix]
                 local level = xprec.level
@@ -1376,24 +1385,20 @@ function grammar_class.compile(grammar, args)
                 end
             end
 
-            -- Create a new *internal* lhs for this
-            -- alt
-            local function precedenced_wsym_ensure(xsym, precedence)
-                -- TODO: finish this
+            -- TODO: create precedenced symbols
+            do
                 -- The symbol for the top precedence level is the original
                 -- symbol
-                if xsym.top_precedence_level == precedence then
-                    return xsym
+                local wsym_props = _wsym_ensure(lhs.name)
+                wsym_props.xsym = lhs
+                wsym_props.precedence_level = top_precedence_level
+                for level = 0, top_precedence_level-1 do
+                    local new_wsym_name = lhs.name .. '!prec' .. level
+                    wsym_props = _wsym_ensure(new_wsym_name)
+                    wsym_props.xsym = lhs
+                    wsym_props.precedence_level = level
                 end
-                local new_wsym_name = xsym.name .. '!prec' .. precedence
-                local wsym_props = _wsym_ensure(new_wsym_name)
-                -- wsym_props.xalt = alt
-                -- wsym_props.nullable = alt.nullable
-                -- wsym_props.line = alt.line
-                return wsym_props
             end
-
-            -- TODO: create precedenced symbols -- default is top
 
             -- TODO: create precedenced rule "ladder"
         end
@@ -1418,6 +1423,7 @@ function grammar_class.compile(grammar, args)
         name_base = true,
         name = true,
         nullable = true,
+        nulling = true,
 	parent_instance = true,
 	precedence_level = true,
         productive = true,
@@ -1466,6 +1472,7 @@ function grammar_class.compile(grammar, args)
         name_base = true,
         name = true,
         nullable = true,
+        nulling = true,
         productive = true,
         top_precedence_level = true,
         type = true,
