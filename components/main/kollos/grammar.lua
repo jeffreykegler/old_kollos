@@ -1426,6 +1426,11 @@ function grammar_class.compile(grammar, args)
 	xprec = true,
     }
     local xinstance_field_census_expected = {
+        associator = true,
+        element = true,
+        precedence_level = true,
+        rh_ix = true,
+        xalt = true,
     }
     for xsubalt_id = 1,#xsubalt_by_id do
         local xsubalt = xsubalt_by_id[xsubalt_id]
