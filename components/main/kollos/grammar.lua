@@ -182,15 +182,50 @@ function grammar_class.string(grammar, string)
             .. type(string)
             .. [['; it must be a string]])
     end
-    return {
+
+    local current_xprec = grammar.current_xprec
+
+    -- used to form the name of the cc
+    local id_within_top_alternative = grammar.cc_id_within_top_alternative
+    id_within_top_alternative = id_within_top_alternative + 1
+    grammar.cc_id_within_top_alternative = id_within_top_alternative
+
+    local new_string = {
         string = string,
-        type = 'xstring',
         productive = true,
-        nullable = false
+        nullable = false,
+        id_within_top_alternative =
+        id_within_top_alternative,
+        xprec = current_xprec,
+        line = grammar.line,
+        name_base = grammar.name_base
     }
+    setmetatable(new_string, {
+            __index = function (table, key)
+                if key == 'type' then return 'xstring'
+                elseif key == 'subname' then
+                    local subname =
+                    'str'
+                    .. table.id_within_top_alternative
+                    .. table.xprec.subname
+                    table.subname = subname
+                    return subname
+                elseif key == 'name' then
+                    local name =
+                    table.name_base
+                    .. ':'
+                    .. table.line
+                    .. table.subname
+                    table.name = name
+                    return name
+                end
+                return nil
+            end
+        })
+    return new_string
 end
 
--- create a RHS instance of type 'xstring'
+-- create a RHS instance of type 'xcc'
 -- throw is always set by the caller, which catches
 -- any error
 function grammar_class.cc(grammar, cc)
@@ -227,7 +262,7 @@ function grammar_class.cc(grammar, cc)
                 if key == 'type' then return 'xcc'
                 elseif key == 'subname' then
                     local subname =
-                    'CC'
+                    'cc'
                     .. table.id_within_top_alternative
                     .. table.xprec.subname
                     table.subname = subname
@@ -594,7 +629,7 @@ function grammar_class.alternative_new(grammar, args)
     local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
     -- if ok is false, then new_alterative is actually an error object
     if not ok then
-        if old_throw_value then error(new_alternative)
+        if old_throw_value then error(new_alternative, 2)
         else return nil, new_alternative end
     end
     grammar:throw_set(old_throw_value)
