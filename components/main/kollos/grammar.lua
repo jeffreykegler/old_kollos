@@ -377,6 +377,7 @@ local function winstance_new(element, xalt, rh_ix)
     }
     setmetatable(new_instance, {
             __index = function (table, key)
+                if key == 'element' then return nil end
                 return table.element[key]
             end
         })
@@ -1214,7 +1215,9 @@ function grammar_class.compile(grammar, args)
         }
         setmetatable(wsym_props, {
                 __index = function (table, key)
+                    print(key)
                     if key == 'type' then return 'wsym' end
+                    if key == 'xsym' then return nil end
                     local xsym = table.xsym
                     if xsym then return xsym[key] end
                     return nil
@@ -1242,20 +1245,15 @@ function grammar_class.compile(grammar, args)
     local function alt_to_work_data_add(xalt)
         -- print(__FILE__, __LINE__)
         local wrule = {
-            lhs = {
-                element = xalt,
-                lhs = true,
-            }
+            xalt = xalt,
         }
-        local wrule_lhs = wrule.lhs
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
         if xalt.parent_instance then
-            wrule_lhs.sym = _lh_wsym_ensure(xalt)
+            wrule.lhs = _lh_wsym_ensure(xalt)
         else
-            wrule_lhs.sym = xalt.xprec.xrule.lhs
+            wrule.lhs = xalt.xprec.xrule.lhs
         end
-        wrule_lhs.type = wrule_lhs.sym.type
 
         local rh_instances = xalt.rh_instances
         -- just skip empty alternatives
@@ -1286,7 +1284,7 @@ function grammar_class.compile(grammar, args)
                     -- made sure the external alternative is not nulling
                     if not x_rh_instance.nulling then
                         local subalt_wrule = alt_to_work_data_add(x_element)
-                        local new_lhs = subalt_wrule.lhs.element
+                        local new_lhs = subalt_wrule.lhs
                         local new_work_instance = winstance_new(new_lhs, xalt, rh_ix)
                         work_rh_instance[#work_rh_instance+1] = new_work_instance
                     end
@@ -1431,6 +1429,20 @@ function grammar_class.compile(grammar, args)
     for topalt_ix = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_ix]
         alt_to_work_data_add(xtopalt)
+    end
+
+    for wrule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[wrule_id]
+        local desc_table = {
+            wrule.lhs.name,
+            '::=',
+        }
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            desc_table[#desc_table+1] = rh_instance.name
+        end
+        print(table.concat(desc_table, ' '))
     end
 
     -- census subalt fields

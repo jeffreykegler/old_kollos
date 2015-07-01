@@ -46,7 +46,7 @@ l0:alternative_new{
    l0:string'*',
    {'ws', min = 0, max = 1 },
    'E',
-   action = function () return E*E end} -- luacheck: ignore E
+   action = function () return E[1]*E[2] end} -- luacheck: ignore E
 l0:precedence_new{ line = __LINE__ }
 l0:alternative_new{
    'E',
@@ -54,7 +54,7 @@ l0:alternative_new{
    l0:string'+',
    {'ws', min = 0, max = 1 },
    'E',
-   action = function () return E+E end} -- luacheck: ignore E
+   action = function () return E[1]+E[2] end} -- luacheck: ignore E
 
 l0:line_set(__LINE__)
 l0:rule_new{'ws'}
