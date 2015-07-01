@@ -205,12 +205,47 @@ function grammar_class.cc(grammar, cc)
             [[charclass in alternate must be in square brackets]])
     end
 
-    return {
+    local current_xprec = grammar.current_xprec
+
+    -- used to form the name of the cc
+    local id_within_top_alternative = grammar.cc_id_within_top_alternative
+    id_within_top_alternative = id_within_top_alternative + 1
+    grammar.cc_id_within_top_alternative = id_within_top_alternative
+
+    local new_cc = {
         cc = cc,
-        type = 'xcc',
         productive = true,
-        nullable = false
+        nullable = false,
+        id_within_top_alternative =
+        id_within_top_alternative,
+        xprec = current_xprec,
+        line = grammar.line,
+        name_base = grammar.name_base
     }
+    setmetatable(new_cc, {
+            __index = function (table, key)
+                if key == 'type' then return 'xcc'
+                elseif key == 'subname' then
+                    local subname =
+                    'CC'
+                    .. table.id_within_top_alternative
+                    .. table.xprec.subname
+                    table.subname = subname
+                    return subname
+                elseif key == 'name' then
+                    local name =
+                    table.name_base
+                    .. ':'
+                    .. table.line
+                    .. table.subname
+                    table.name = name
+                    return name
+                end
+                return nil
+            end
+        })
+    return new_cc
+
 end
 
 function grammar_class.rule_new(grammar, args)
@@ -399,9 +434,9 @@ local function subalternative_new(grammar, src_subalternative)
     local xlhs_by_rhs = grammar.xlhs_by_rhs
 
     -- used to form the name of the subalternative
-    local id_within_top_alternative = grammar.id_within_top_alternative
+    local id_within_top_alternative = grammar.alt_id_within_top_alternative
     id_within_top_alternative = id_within_top_alternative + 1
-    grammar.id_within_top_alternative = id_within_top_alternative
+    grammar.alt_id_within_top_alternative = id_within_top_alternative
 
     local new_subalternative = {
         xprec = current_xprec,
@@ -551,7 +586,9 @@ function grammar_class.alternative_new(grammar, args)
     -- if line is nil, the "file" is actually an error object
     if line == nil then return line, file end
 
-    grammar.id_within_top_alternative = 0
+    grammar.alt_id_within_top_alternative = 0
+    grammar.cc_id_within_top_alternative = 0
+    grammar.string_id_within_top_alternative = 0
 
     local old_throw_value = grammar:throw_set(true)
     local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
