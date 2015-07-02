@@ -1314,17 +1314,24 @@ function grammar_class.compile(grammar, args)
         return wsym_props
     end
 
+    local function wrule_new(lhs, ...)
+        local wrule = {
+            lhs = lhs,
+            rh_instances = ...
+        }
+        wrule_by_id[#wrule_by_id+1] = wrule
+        return wrule
+    end
+
     local function alt_to_work_data_add(xalt)
         -- print(__FILE__, __LINE__)
-        local wrule = {
-            xalt = xalt,
-        }
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
+        local new_lhs
         if xalt.parent_instance then
-            wrule.lhs = _lh_wsym_ensure(xalt)
+            new_lhs = _lh_wsym_ensure(xalt)
         else
-            wrule.lhs = xalt.xprec.xrule.lhs
+            new_lhs = xalt.xprec.xrule.lhs
         end
 
         local rh_instances = xalt.rh_instances
@@ -1356,8 +1363,8 @@ function grammar_class.compile(grammar, args)
                     -- made sure the external alternative is not nulling
                     if not x_rh_instance.nulling then
                         local subalt_wrule = alt_to_work_data_add(x_element)
-                        local new_lhs = subalt_wrule.lhs
-                        local new_work_instance = winstance_new(new_lhs, xalt, rh_ix)
+                        local subalt_lhs = subalt_wrule.lhs
+                        local new_work_instance = winstance_new(subalt_lhs, xalt, rh_ix)
                         work_rh_instance[#work_rh_instance+1] = new_work_instance
                     end
                 else
@@ -1371,11 +1378,10 @@ function grammar_class.compile(grammar, args)
         -- I don't think it's possible for there to be an empty
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
-        assert( #work_rh_instance > 0 )
-        wrule.rh_instances = work_rh_instance
-        wrule_by_id[#wrule_by_id+1] = wrule
-        return wrule
-
+        assert( #work_rh_instance > 0 ) -- TODO remove after development
+        local new_wrule = wrule_new(new_lhs, work_rh_instance)
+        new_wrule.xalt = xalt
+        return new_wrule
     end
 
     local precedenced_instances = {}
@@ -1481,17 +1487,20 @@ function grammar_class.compile(grammar, args)
             end
 
             -- TODO: create precedenced rule "ladder"
+            local next_ladder_lhs = lhs
             do
-                -- The symbol for the top precedence level is the original
-                -- symbol
+                -- We need a symbol for the top precedence level
+                -- in addition to the original symbol
                 local wsym_props = _wsym_ensure(lhs.name)
                 wsym_props.xsym = lhs
                 wsym_props.precedence_level = top_precedence_level
-                for level = 0, top_precedence_level-1 do
+                for level = top_precedence_level,1,-1 do
                     local new_wsym_name = lhs.name .. '!prec' .. level
                     wsym_props = _wsym_ensure(new_wsym_name)
                     wsym_props.xsym = lhs
                     wsym_props.precedence_level = level
+                    wrule_new(next_ladder_lhs, winstance_new(wsym_props))
+                    next_ladder_lhs = wsym_props
                 end
             end
 
@@ -1500,7 +1509,8 @@ function grammar_class.compile(grammar, args)
 
     for topalt_ix = 1,#xtopalt_by_ix do
         local xtopalt = xtopalt_by_ix[topalt_ix]
-        alt_to_work_data_add(xtopalt)
+        local brick_wrule = alt_to_work_data_add(xtopalt)
+        brick_wrule.brick = true
     end
 
     for wrule_id = 1,#wrule_by_id do
@@ -1602,14 +1612,14 @@ function grammar_class.compile(grammar, args)
     local wrule_field_census = {}
     local winstance_field_census = {}
     local wrule_field_census_expected = {
-        rh_instances = true,
+        brick = true,
         lhs = true,
+        rh_instances = true,
     }
     local winstance_field_census_expected = {
-        xalt = true,
-        rh_ix = true,
         element = true,
-        xsym = true,
+        rh_ix = true,
+        xalt = true,
     }
     for wrule_id = 1,#wrule_by_id do
         local wrule = wrule_by_id[wrule_id]
