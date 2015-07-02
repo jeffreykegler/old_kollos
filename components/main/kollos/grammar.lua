@@ -1279,6 +1279,8 @@ function grammar_class.compile(grammar, args)
     local wsym_by_id = {}
     local wsym_by_name = {}
 
+    -- 2nd return value is true if this is
+    -- a new symbol
     local function _wsym_ensure(name)
         local wsym_props = wsym_by_name[name]
         if wsym_props then return wsym_props end
@@ -1299,7 +1301,7 @@ function grammar_class.compile(grammar, args)
         wsym_by_name[name] = wsym_props
         wsym_by_id[#wsym_by_id+1] = wsym_props
         wsym_props.id = #wsym_by_id
-        return wsym_props
+        return wsym_props,true
     end
 
     -- Create a new *internal* lhs for this
@@ -1307,11 +1309,24 @@ function grammar_class.compile(grammar, args)
     local function _lh_wsym_ensure(alt)
         local alt_name = alt.name
         local name = 'lhs!' .. alt_name
-        local wsym_props = _wsym_ensure(name)
-        wsym_props.nullable = alt.nullable
-        wsym_props.line = alt.line
-        wsym_props.name_base = alt.name_base
+        local wsym_props,is_new = _wsym_ensure(name)
+        if is_new then
+            wsym_props.nullable = alt.nullable
+            wsym_props.line = alt.line
+            wsym_props.name_base = alt.name_base
+        end
         return wsym_props
+    end
+
+    local function precedenced_wsym_ensure(base_wsym, precedence)
+        local name = base_wsym.name .. '!prec' .. precedence
+        local new_wsym,is_new = _wsym_ensure(name)
+        if is_new then
+            new_wsym.nullable = false
+            new_wsym.line = base_wsym.line
+            new_wsym.name_base = base_wsym.name_base
+        end
+        return new_wsym
     end
 
     local function wrule_new(lhs, ...)
@@ -1328,17 +1343,22 @@ function grammar_class.compile(grammar, args)
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
         local new_lhs
+        local precedence_level = xalt.precedence_level
         if xalt.parent_instance then
             new_lhs = _lh_wsym_ensure(xalt)
         else
             new_lhs = xalt.xprec.xrule.lhs
+            if xalt.precedence_level then
+                new_lhs =
+                precedenced_wsym_ensure(new_lhs, precedence_level)
+            end
         end
 
         local rh_instances = xalt.rh_instances
         -- just skip empty alternatives
         if #rh_instances == 0 then return end
         -- for now don't process precedences
-        local work_rh_instance = {}
+        local work_rh_instances = {}
         for rh_ix = 1,#rh_instances do
             local x_rh_instance = rh_instances[rh_ix]
             local x_element = x_rh_instance.element
@@ -1365,11 +1385,19 @@ function grammar_class.compile(grammar, args)
                         local subalt_wrule = alt_to_work_data_add(x_element)
                         local subalt_lhs = subalt_wrule.lhs
                         local new_work_instance = winstance_new(subalt_lhs, xalt, rh_ix)
-                        work_rh_instance[#work_rh_instance+1] = new_work_instance
+                        work_rh_instances[#work_rh_instances+1] = new_work_instance
                     end
                 else
-                    local new_work_instance = winstance_new(x_element, xalt, rh_ix)
-                    work_rh_instance[#work_rh_instance+1] = new_work_instance
+                    local new_element
+                    local level = x_rh_instance.precedence_level
+                    if element_type == 'xsym' and level ~= nil then
+                        new_element =
+                            precedenced_wsym_ensure(x_element, level)
+                    else
+                        new_element = x_element
+                    end
+                    local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                    work_rh_instances[#work_rh_instances+1] = new_work_instance
                 end
             end
 
@@ -1378,8 +1406,8 @@ function grammar_class.compile(grammar, args)
         -- I don't think it's possible for there to be an empty
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
-        assert( #work_rh_instance > 0 ) -- TODO remove after development
-        local new_wrule = wrule_new(new_lhs, work_rh_instance)
+        assert( #work_rh_instances > 0 ) -- TODO remove after development
+        local new_wrule = wrule_new(new_lhs, work_rh_instances)
         new_wrule.xalt = xalt
         return new_wrule
     end
@@ -1494,12 +1522,11 @@ function grammar_class.compile(grammar, args)
                 local wsym_props = _wsym_ensure(lhs.name)
                 wsym_props.xsym = lhs
                 wsym_props.precedence_level = top_precedence_level
-                for level = top_precedence_level,1,-1 do
-                    local new_wsym_name = lhs.name .. '!prec' .. level
-                    wsym_props = _wsym_ensure(new_wsym_name)
+                for level = top_precedence_level,0,-1 do
+                    wsym_props = precedenced_wsym_ensure(lhs, level)
                     wsym_props.xsym = lhs
                     wsym_props.precedence_level = level
-                    wrule_new(next_ladder_lhs, winstance_new(wsym_props))
+                    wrule_new(next_ladder_lhs, {winstance_new(wsym_props)})
                     next_ladder_lhs = wsym_props
                 end
             end
