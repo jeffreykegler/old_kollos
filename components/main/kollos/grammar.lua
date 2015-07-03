@@ -1279,7 +1279,7 @@ function grammar_class.compile(grammar, args)
     -- would have to be top-level as well.
     --]]
 
-    local wrule_by_id = {}
+    local wrule_by_sig = {}
     local wsym_by_name = {}
 
     -- 2nd return value is true if this is
@@ -1302,8 +1302,8 @@ function grammar_class.compile(grammar, args)
             })
 
         wsym_by_name[name] = wsym_props
-        wsym_props.id = grammar.next_wid
-        grammar.next_id = grammar.next_wid + 1
+        wsym_props.wid = grammar.next_wid
+        grammar.next_wid = grammar.next_wid + 1
         return wsym_props,true
     end
 
@@ -1332,12 +1332,53 @@ function grammar_class.compile(grammar, args)
         return new_wsym
     end
 
-    local function wrule_new(lhs, ...)
-        local wrule = {
-            lhs = lhs,
-            rh_instances = ...
+    local function cloned_wsym_ensure(xsym, precedence)
+        local name = xsym.name
+        local new_wsym,is_new = _wsym_ensure(name)
+        if is_new then
+            new_wsym.nullable = xsym.nullable
+            new_wsym.line = xsym.line
+            new_wsym.name_base = xsym.name_base
+        end
+        return new_wsym
+    end
+
+    local function wrule_ensure(rule_args)
+        local max = rule_args.max or 1
+        local min = rule_args.min or 1
+        local separator = rule_args.separator
+        local separator_id = separator and separator.id or -1
+        local lhs = rule_args.lhs
+        if not lhs.wid then error(lhs.name .. ' ' .. lhs.type) end
+        local rh_instances = rule_args.rh_instances
+        local sig_table = {
+            lhs.wid,
+            min,
+            max,
+            separator_id,
         }
-        wrule_by_id[#wrule_by_id+1] = wrule
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            local wid = rh_instance.wid
+            if not wid then error(rh_instance.type .. ' ' .. rh_instance.name .. ' ' .. rh_instance.element.name) end
+            sig_table[#sig_table+1] = wid
+        end
+        print("sig table:", inspect(sig_table))
+        local sig = table.concat(sig_table, '|')
+        print("sig:", sig)
+        local wrule = wrule_by_sig[sig]
+        if wrule then return wrule end
+        wrule = {
+            separator = separator,
+            min = min,
+            max = max,
+            lhs = lhs,
+            rh_instances = rh_instances,
+            sig = sig,
+            brick = rule_args.brick,
+            xalt = rule_args.xalt,
+        }
+        wrule_by_sig[sig] = wrule
         return wrule
     end
 
@@ -1350,10 +1391,12 @@ function grammar_class.compile(grammar, args)
         if xalt.parent_instance then
             new_lhs = _lh_wsym_ensure(xalt)
         else
-            new_lhs = xalt.xprec.xrule.lhs
+            local old_lhs = xalt.xprec.xrule.lhs
             if xalt.precedence_level then
                 new_lhs =
-                precedenced_wsym_ensure(new_lhs, precedence_level)
+                precedenced_wsym_ensure(old_lhs, precedence_level)
+            else
+                new_lhs = cloned_wsym_ensure(old_lhs)
             end
         end
 
@@ -1397,7 +1440,7 @@ function grammar_class.compile(grammar, args)
                         new_element =
                             precedenced_wsym_ensure(x_element, level)
                     else
-                        new_element = x_element
+                        new_element = cloned_wsym_ensure(x_element)
                     end
                     local new_work_instance = winstance_new(new_element, xalt, rh_ix)
                     work_rh_instances[#work_rh_instances+1] = new_work_instance
@@ -1410,8 +1453,15 @@ function grammar_class.compile(grammar, args)
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
         assert( #work_rh_instances > 0 ) -- TODO remove after development
-        local new_wrule = wrule_new(new_lhs, work_rh_instances)
-        new_wrule.xalt = xalt
+        local new_wrule = wrule_ensure{
+            lhs = new_lhs,
+            rh_instances = work_rh_instances,
+            xalt = xalt,
+            min = xalt.min,
+            max = xalt.max,
+            separator = xalt.separator,
+            separation = xalt.separation,
+        }
         return new_wrule
     end
 
@@ -1518,7 +1568,7 @@ function grammar_class.compile(grammar, args)
             end
 
             -- TODO: create precedenced rule "ladder"
-            local next_ladder_lhs = lhs
+            local next_ladder_lhs = cloned_wsym_ensure(lhs)
             do
                 -- We need a symbol for the top precedence level
                 -- in addition to the original symbol
@@ -1529,7 +1579,8 @@ function grammar_class.compile(grammar, args)
                     wsym_props = precedenced_wsym_ensure(lhs, level)
                     wsym_props.xsym = lhs
                     wsym_props.precedence_level = level
-                    wrule_new(next_ladder_lhs, {winstance_new(wsym_props)})
+                    wrule_ensure{lhs = next_ladder_lhs,
+                        rh_instances = {winstance_new(wsym_props)}}
                     next_ladder_lhs = wsym_props
                 end
             end
@@ -1543,8 +1594,7 @@ function grammar_class.compile(grammar, args)
         brick_wrule.brick = true
     end
 
-    for wrule_id = 1,#wrule_by_id do
-        local wrule = wrule_by_id[wrule_id]
+    for _,wrule in pairs(wrule_by_sig) do
         local desc_table = {
             wrule.lhs.name,
             '::=',
@@ -1645,14 +1695,17 @@ function grammar_class.compile(grammar, args)
         brick = true,
         lhs = true,
         rh_instances = true,
+        min = true,
+        max = true,
+        sig = true,
+        xalt = true,
     }
     local winstance_field_census_expected = {
         element = true,
         rh_ix = true,
         xalt = true,
     }
-    for wrule_id = 1,#wrule_by_id do
-        local wrule = wrule_by_id[wrule_id]
+    for _,wrule in pairs(wrule_by_sig) do
         for field,_ in pairs(wrule) do
             if not wrule_field_census_expected[field] then
                 wrule_field_census[field] = true
@@ -1701,7 +1754,7 @@ function grammar_class.compile(grammar, args)
     end
 
     -- print(inspect(wsym_by_name))
-    -- print(inspect(wrule_by_id))
+    -- print(inspect(wrule_by_sig))
 
 end
 
