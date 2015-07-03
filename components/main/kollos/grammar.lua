@@ -222,6 +222,8 @@ function grammar_class.string(grammar, string)
                 return nil
             end
         })
+    new_string.wid = grammar.next_wid
+    grammar.next_wid = grammar.next_wid + 1
     return new_string
 end
 
@@ -279,6 +281,8 @@ function grammar_class.cc(grammar, cc)
                 return nil
             end
         })
+    new_cc.wid = grammar.next_wid
+    grammar.next_wid = grammar.next_wid + 1
     return new_cc
 
 end
@@ -1276,7 +1280,6 @@ function grammar_class.compile(grammar, args)
     --]]
 
     local wrule_by_id = {}
-    local wsym_by_id = {}
     local wsym_by_name = {}
 
     -- 2nd return value is true if this is
@@ -1299,8 +1302,8 @@ function grammar_class.compile(grammar, args)
             })
 
         wsym_by_name[name] = wsym_props
-        wsym_by_id[#wsym_by_id+1] = wsym_props
-        wsym_props.id = #wsym_by_id
+        wsym_props.id = grammar.next_wid
+        grammar.next_id = grammar.next_wid + 1
         return wsym_props,true
     end
 
@@ -1684,9 +1687,9 @@ function grammar_class.compile(grammar, args)
          nullable = true,
          precedence_level = true,
          xsym = true,
+         wid = true,
     }
-    for wsym_id = 1,#wsym_by_id do
-        local wsym = wsym_by_id[wsym_id]
+    for _,wsym in pairs(wsym_by_name) do
         for field,_ in pairs(wsym) do
              if not wsym_field_census_expected[field] then
                  wsym_field_census[field] = true
@@ -1697,7 +1700,7 @@ function grammar_class.compile(grammar, args)
          print("unexpected wsym field:", field)
     end
 
-    -- print(inspect(wsym_by_id))
+    -- print(inspect(wsym_by_name))
     -- print(inspect(wrule_by_id))
 
 end
@@ -1719,6 +1722,10 @@ local function grammar_new(config, args) -- luacheck: ignore config
 
         -- maps LHS id to RHS id
         xlhs_by_rhs = {},
+
+        -- track next available id of a rh object
+        -- for a work grammar
+        next_wid = 0,
     }
     setmetatable(grammar_object, {
             __index = grammar_class,
