@@ -1360,12 +1360,10 @@ function grammar_class.compile(grammar, args)
         for rh_ix = 1,#rh_instances do
             local rh_instance = rh_instances[rh_ix]
             local wid = rh_instance.wid
-            if not wid then error(rh_instance.type .. ' ' .. rh_instance.name .. ' ' .. rh_instance.element.name) end
             sig_table[#sig_table+1] = wid
         end
-        print("sig table:", inspect(sig_table))
+        -- print("sig table:", inspect(sig_table))
         local sig = table.concat(sig_table, '|')
-        print("sig:", sig)
         local wrule = wrule_by_sig[sig]
         if wrule then return wrule end
         wrule = {
