@@ -446,8 +446,8 @@ local function xinstance_new(element, xalt, rh_ix)
     }
     setmetatable(new_instance, {
             __index = function (table, key)
-                if key == 'rawtype' then return 'xinstance' end
-                return table.element[key]
+                if key == 'rawtype' then return 'xinstance'
+                else return table.element[key] end
             end
         })
     return new_instance
@@ -461,12 +461,29 @@ local function winstance_new(element, xalt, rh_ix)
     }
     setmetatable(new_instance, {
             __index = function (table, key)
-                if key == 'rawtype' then return 'xinstance' end
+                if key == 'rawtype' then return 'winstance' end
                 if key == 'element' then return nil end
                 return table.element[key]
             end
         })
     return new_instance
+end
+
+local function _top_xalt_lhs(top_xalt)
+    local xprec = top_xalt.xprec
+    local xrule = xprec.xrule
+    return xrule.lhs
+end
+
+local function _xalt_lhs(xalt)
+    -- parent_instance field is only defined
+    -- when the xalt is the child of *exactly*
+    -- one instance.
+    local parent = xalt.parent_instance
+    while parent do
+        parent = parent.parent_instance
+    end
+    return _top_xalt_lhs(parent)
 end
 
 -- throw is always set for this method
@@ -495,10 +512,15 @@ local function subalternative_new(grammar, src_subalternative)
         id_within_top_alternative,
         name_base = grammar.name_base
     }
+
     setmetatable(new_subalternative, {
             __index = function (table, key)
                 if key == 'type' then return 'xalt'
                 elseif key == 'rawtype' then return 'xalt'
+                elseif key == 'lhs' then return _xalt_lhs(table)
+                elseif key == 'is_top' then return not table.parent_instance
+                elseif key == 'lhs_of_top' then
+                    return _top_xalt_lhs(table)
                 elseif key == 'subname' then
                     local subname =
                     'a'
@@ -708,8 +730,6 @@ function grammar_class.alternative_new(grammar, args)
 
     local xtopalt_by_ix = grammar.xtopalt_by_ix
     xtopalt_by_ix[#xtopalt_by_ix+1] = new_alternative
-    local xsubalt_by_id = grammar.xsubalt_by_id
-    xsubalt_by_id[#xsubalt_by_id+1] = new_alternative
 
 end
 
@@ -755,15 +775,16 @@ In Marpa, "being productive" and
 --]]
 
 local function xrhs_transitive_closure(grammar, property)
-    local worklist = {}
-    local triggers = {}
+
+    local changes_made
 
     -- ok to shadow upvalue property, I think
     local function property_of_instance_element(element,
             property) -- luacheck: ignore property
 
-        print('Calling poie()', element.rawtype, element.name, property)
+        print('Calling poie()', element.rawtype, element.type, element.name, property)
         if element[property] ~= nil then
+            print('Already has', property, element[property])
             return element[property]
         end
         if element.type == 'xsym' then
@@ -776,14 +797,16 @@ local function xrhs_transitive_closure(grammar, property)
         local rh_instances = element.rh_instances
         -- assume true, unless found false
         local element_has_property = true
+        print('#rh_instances', #rh_instances)
         for rh_ix = 0,#rh_instances do
+            print('rh_ix', rh_ix)
             local child_element
             -- As a bit of a hack,
             -- An rh_ix of 0 has a special meaning:
             -- check the separator
             if rh_ix == 0 then
                 -- Check only if the separator is always used
-                -- by this sequence.  There is always an internal
+                -- by this sequence. There is always an internal
                 -- separator is min>2; and there is always a
                 -- terminating separator, if the separation
                 -- type is 'terminating'
@@ -799,15 +822,11 @@ local function xrhs_transitive_closure(grammar, property)
             -- Child element may be nil, if rh_ix==0 and we did not have
             -- or are not checking the separator
             if child_element then
-                local has_property, symbol_id = property_of_instance_element(child_element, property)
+                print("Checking", child_element.rawtype, child_element.type,
+                    child_element.name, "for", property)
+                local has_property = property_of_instance_element(child_element, property)
                 if has_property == nil then
-                    local current_triggers = triggers[symbol_id]
-                    if current_triggers then
-                        current_triggers[#current_triggers+1] = element
-                    else
-                        triggers[symbol_id] = { element }
-                    end
-                    return nil, symbol_id
+                    return nil
                 elseif has_property == false then
                     element_has_property = false
                     break
@@ -815,44 +834,40 @@ local function xrhs_transitive_closure(grammar, property)
             end
         end
         element[property] = element_has_property
+        print("Setting", element.name, "to", element_has_property, "for", property)
+        changes_made = true
         -- If instance is top level
-        if not element.parent_instance then
-            local xprec = element.xprec
-            local xrule = xprec.xrule
-            local lhs = xrule.lhs
-            local lhs_id = lhs.id
-            print("Setting", lhs.name, "to", element_has_property, "for", property)
+        if element.is_top then
+            local lhs = element.lhs_of_top
+            print("Setting", lhs.rawtype, lhs.type, lhs.name, "to", element_has_property, "for", property)
             lhs[property] = element_has_property
-            local triggered_instances = triggers[lhs_id] or {}
-            for ix = 1,#triggered_instances do
-                worklist[#worklist+1] = triggered_instances[ix]
-            end
         end
         return element_has_property
     end
 
     local xsubalt_by_id = grammar.xsubalt_by_id
 
-    print('Pass 1')
-    -- First pass populates the worklist
+    -- Make LHS symbols consist with subalternatives
     for xsubalt_id = 1,#xsubalt_by_id do
-        property_of_instance_element(xsubalt_by_id[xsubalt_id], property)
+        local xsubalt = xsubalt_by_id[xsubalt_id]
+        if xsubalt.is_top then
+            local has_property = xsubalt[property]
+            if has_property ~= nil then
+                local lhs = xsubalt.lhs_of_top
+                lhs[property] = has_property
+            end
+        end
     end
 
-    print('Pass 2')
-    -- First pass populates the worklist
-    while true do
-        local xalt_props = table.remove(worklist)
-        if not xalt_props then break end
-        property_of_instance_element(xalt_props, property)
-    end
-
-    print('Pass 3')
-    -- Final pass catches those subalternatives hidden
-    -- from the top-down logic because they were sequences
-    -- with min=0
-    for xsubalt_id = 1,#xsubalt_by_id do
-        property_of_instance_element(xsubalt_by_id[xsubalt_id], property)
+    changes_made = true
+    while changes_made do
+        print('=== Pass')
+        changes_made = false
+        for xsubalt_id = 1,#xsubalt_by_id do
+            print('xsubalt ID', xsubalt_id)
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            property_of_instance_element(xsubalt, property)
+        end
     end
 
 end
@@ -973,7 +988,7 @@ end
 --]]
 
 local function find_nullable_semantics(grammar, symbol)
-    local xrules = symbol.lhs_rules
+    local xrules = symbol.lhs_xrules
     local nullable_alternatives = {}
     local has_only_default_semantics = true
     for xrule_ix = 1, #xrules do
@@ -983,7 +998,7 @@ local function find_nullable_semantics(grammar, symbol)
             for alt_ix = 1, #alternatives do
                 local alternative = alternatives[alt_ix]
                 if alternative.nullable then
-                    local rhs = alternative.rhs
+                    local rhs = alternative.rh_instances
                     if #rhs <= 0 then
                         return nullable_semantics_create(grammar, alternative)
                     end
