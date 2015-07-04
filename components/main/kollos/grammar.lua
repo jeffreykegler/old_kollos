@@ -479,9 +479,11 @@ local function _xalt_lhs(xalt)
     -- parent_instance field is only defined
     -- when the xalt is the child of *exactly*
     -- one instance.
-    local parent = xalt.parent_instance
-    while parent do
-        parent = parent.parent_instance
+    local parent = xalt
+    while true do
+        grandparent = parent.parent_instance
+        if not grandparent then break end
+        parent = grandparent.xalt
     end
     return _top_xalt_lhs(parent)
 end
@@ -782,9 +784,9 @@ local function xrhs_transitive_closure(grammar, property)
     local function property_of_instance_element(element,
             property) -- luacheck: ignore property
 
-        print('Calling poie()', element.rawtype, element.type, element.name, property)
+        -- print('Calling poie()', element.rawtype, element.type, element.name, property)
         if element[property] ~= nil then
-            print('Already has', property, element[property])
+            -- print('Already has', property, element[property])
             return element[property]
         end
         if element.type == 'xsym' then
@@ -797,9 +799,9 @@ local function xrhs_transitive_closure(grammar, property)
         local rh_instances = element.rh_instances
         -- assume true, unless found false
         local element_has_property = true
-        print('#rh_instances', #rh_instances)
+        -- print('#rh_instances', #rh_instances)
         for rh_ix = 0,#rh_instances do
-            print('rh_ix', rh_ix)
+            -- print('rh_ix', rh_ix)
             local child_element
             -- As a bit of a hack,
             -- An rh_ix of 0 has a special meaning:
@@ -811,7 +813,7 @@ local function xrhs_transitive_closure(grammar, property)
                 -- terminating separator, if the separation
                 -- type is 'terminating'
                 if element.separation == 'terminating' or element.min>2 then
-                    print(__FILE__, __LINE__)
+                    -- print(__FILE__, __LINE__)
                     child_element = element.separator
                 end
             else
@@ -822,8 +824,8 @@ local function xrhs_transitive_closure(grammar, property)
             -- Child element may be nil, if rh_ix==0 and we did not have
             -- or are not checking the separator
             if child_element then
-                print("Checking", child_element.rawtype, child_element.type,
-                    child_element.name, "for", property)
+                -- print("Checking", child_element.rawtype, child_element.type,
+                    -- child_element.name, "for", property)
                 local has_property = property_of_instance_element(child_element, property)
                 if has_property == nil then
                     return nil
@@ -861,10 +863,8 @@ local function xrhs_transitive_closure(grammar, property)
 
     changes_made = true
     while changes_made do
-        print('=== Pass')
         changes_made = false
         for xsubalt_id = 1,#xsubalt_by_id do
-            print('xsubalt ID', xsubalt_id)
             local xsubalt = xsubalt_by_id[xsubalt_id]
             property_of_instance_element(xsubalt, property)
         end
@@ -1313,6 +1313,38 @@ function grammar_class.compile(grammar, args)
         end
     end
 
+--[[
+
+All symbols are assumed to be productive, so if any reaches an indelible
+element, then we mark it as reaching a terminal.  This means no symbol
+which derives it can be nulling.  Indelible (or terminal) elements
+include not just non-LHS symbols, but also charclasses and strings --
+
+--]]
+
+    for xsubalt_id = 1,#xsubalt_by_id do
+        local xsubalt = xsubalt_by_id[xsubalt_id]
+        local separator = xsubalt.separator
+        local lhs_reaches_terminal = false
+        if separator and not separator.nullable then
+            lhs_reaches_terminal = true
+        else
+            local rh_instances = xsubalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rhs_instance = rh_instances[rh_ix]
+                if not rhs_instance.element.nullable then
+                    lhs_reaches_terminal = true
+                    break
+                end
+            end
+        end
+        if lhs_reaches_terminal then
+            local lhs = xsubalt.lhs
+            matrix.bit_set(reach_matrix, lhs.id, terminal_sink_id)
+            lhs.productive = true
+        end
+    end
+
     matrix.transitive_closure(reach_matrix)
 
     for symbol_id = 1,#xsym_by_id do
@@ -1356,6 +1388,7 @@ function grammar_class.compile(grammar, args)
     --]]
 
     if start_symbol.nulling then
+        print(inspect(start_symbol))
         grammar:development_error(
             who
             .. "Start symbol " .. start_symbol.name .. " is nulling\n"
@@ -1374,6 +1407,7 @@ function grammar_class.compile(grammar, args)
     --]]
 
     local wrule_by_sig = {}
+    local wrule_by_id = {}
     local wsym_by_name = {}
 
     -- 2nd return value is true if this is
@@ -1472,17 +1506,24 @@ function grammar_class.compile(grammar, args)
             xalt = rule_args.xalt,
         }
         wrule_by_sig[sig] = wrule
+        wrule_by_id[#wrule_by_id+1] = wrule
+        wrule.id = #wrule_by_id
         return wrule
     end
 
-    -- Given a hacked wrule, replace the original
-    -- with the, hacked, version
-    -- It is assumed that the 'sig' field was left'
-    -- as in the original, so that it can be deleted.
+--[[
+
+Given a hacked wrule, replace the original with the hacked version. It
+The deletion logic assumes that the 'sig' and 'id' fields were left as
+in the original.
+
+--]]
+
     local function wrule_replace(hacked_wrule)
         local sig = hacked_wrule.sig
         -- Remove the old version from the data base
         wrule_by_sig[sig] = nil
+        wrule_by_id[hacked_wrule.id].deleted = true
         -- 'sig' will be overwritten
         return wrule_ensure(hacked_wrule)
     end
@@ -1510,11 +1551,13 @@ function grammar_class.compile(grammar, args)
         if #rh_instances == 0 then return end
         -- for now don't process precedences
         local work_rh_instances = {}
+       print("compiling RHS ", new_lhs.name, #rh_instances)
         for rh_ix = 1,#rh_instances do
             local x_rh_instance = rh_instances[rh_ix]
             local x_element = x_rh_instance.element
             local element_type = x_element.type
 
+           print("RHS element", rh_ix, x_element.name, x_element.nulling)
             -- Do nothing for a nulling instance
             if not x_element.nulling then
                 if element_type == 'xalt' then
@@ -1557,6 +1600,9 @@ function grammar_class.compile(grammar, args)
         -- I don't think it's possible for there to be an empty
         -- RHS, because the caller has ensured that the xalt is
         -- not nulling
+        if #work_rh_instances <= 0 then
+           error("zero length RHS " .. new_lhs.name)
+        end
         assert( #work_rh_instances > 0 ) -- TODO remove after development
         local new_wrule = wrule_ensure{
             lhs = new_lhs,
@@ -1699,17 +1745,23 @@ function grammar_class.compile(grammar, args)
         brick_wrule.brick = true
     end
 
-    for _,wrule in pairs(wrule_by_sig) do
-        local min = wrule.min
-        if min <= 0 then
-            wrule.min = 1
-            wrule_replace(wrule)
+    for rule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[rule_id]
+
+        -- As of this writing, no wrules deleted
+        -- but we will be careful
+        if not wrule.deleted then
+            local min = wrule.min
+            if min <= 0 then
+                wrule.min = 1
+                wrule_replace(wrule)
+            end
+            -- Allow only singleton RHS
+            -- Fatal error if separator is nulling
+            -- Normalize separation
+            -- If still seq, add to worklist
+            -- or else call recursive function
         end
-        -- Allow only singleton RHS
-        -- Fatal error if separator is nulling
-        -- Normalize separation
-        -- If still seq, add to worklist
-        --   or else call recursive function
     end
 
     for _,wrule in pairs(wrule_by_sig) do
