@@ -157,6 +157,7 @@ local function _symbol_new(grammar, args)
     props = {
         name = name,
         type = 'xsym',
+        rawtype = 'xsym',
         lhs_xrules = {},
         -- am not trying to be very accurate about the line
         -- it should be the line of an alternative containing that symbol
@@ -172,8 +173,10 @@ local function _symbol_new(grammar, args)
     return props
 end
 
--- create a RHS instance of type 'xstring'
--- throw is always set by the caller, which catches
+-- Create a RHS instance of type 'xstring'
+-- Should be called only inside of a call to
+-- the alternative_new() method.
+-- 'throw' is always set by the caller, which catches
 -- any error
 function grammar_class.string(grammar, string)
     if type(string) ~= 'string' then
@@ -185,10 +188,10 @@ function grammar_class.string(grammar, string)
 
     local current_xprec = grammar.current_xprec
 
-    -- used to form the name of the cc
-    local id_within_top_alternative = grammar.cc_id_within_top_alternative
+    -- used to form the name of the string
+    local id_within_top_alternative = grammar.string_id_within_top_alternative
     id_within_top_alternative = id_within_top_alternative + 1
-    grammar.cc_id_within_top_alternative = id_within_top_alternative
+    grammar.string_id_within_top_alternative = id_within_top_alternative
 
     local new_string = {
         string = string,
@@ -203,6 +206,7 @@ function grammar_class.string(grammar, string)
     setmetatable(new_string, {
             __index = function (table, key)
                 if key == 'type' then return 'xstring'
+                elseif key == 'rawtype' then return 'xstring'
                 elseif key == 'subname' then
                     local subname =
                     'str'
@@ -227,8 +231,10 @@ function grammar_class.string(grammar, string)
     return new_string
 end
 
--- create a RHS instance of type 'xcc'
--- throw is always set by the caller, which catches
+-- Create a RHS instance of type 'xcc'
+-- Should be called only inside of a call to
+-- the alternative_new() method.
+-- 'throw' is always set by the caller, which catches
 -- any error
 function grammar_class.cc(grammar, cc)
     if type(cc) ~= 'string' then
@@ -262,6 +268,7 @@ function grammar_class.cc(grammar, cc)
     setmetatable(new_cc, {
             __index = function (table, key)
                 if key == 'type' then return 'xcc'
+                elseif key == 'rawtype' then return 'xcc'
                 elseif key == 'subname' then
                     local subname =
                     'cc'
@@ -315,6 +322,7 @@ function grammar_class.rule_new(grammar, args)
     setmetatable(new_xrule, {
             __index = function (table, key)
                 if key == 'type' then return 'xrule'
+                elseif key == 'rawtype' then return 'xrule'
                     -- 'name' and 'subname' are computed "just in time"
                     -- and then memoized
                 elseif key == 'subname' then
@@ -360,6 +368,7 @@ function grammar_class.rule_new(grammar, args)
                 if key == 'type' then return 'xprec'
                     -- 'name' and 'subname' are computed "just in time"
                     -- and then memoized
+                elseif key == 'rawtype' then return 'xprec'
                 elseif key == 'subname' then
                     local subname =
                     'p'
@@ -437,6 +446,7 @@ local function xinstance_new(element, xalt, rh_ix)
     }
     setmetatable(new_instance, {
             __index = function (table, key)
+                if key == 'rawtype' then return 'xinstance' end
                 return table.element[key]
             end
         })
@@ -451,6 +461,7 @@ local function winstance_new(element, xalt, rh_ix)
     }
     setmetatable(new_instance, {
             __index = function (table, key)
+                if key == 'rawtype' then return 'xinstance' end
                 if key == 'element' then return nil end
                 return table.element[key]
             end
@@ -487,6 +498,7 @@ local function subalternative_new(grammar, src_subalternative)
     setmetatable(new_subalternative, {
             __index = function (table, key)
                 if key == 'type' then return 'xalt'
+                elseif key == 'rawtype' then return 'xalt'
                 elseif key == 'subname' then
                     local subname =
                     'a'
@@ -570,6 +582,7 @@ local function subalternative_new(grammar, src_subalternative)
         src_subalternative.action = nil
     end
 
+
     local min = src_subalternative.min
     local max = src_subalternative.max
     if min ~= nil and type(min) ~= 'number' then
@@ -597,6 +610,58 @@ local function subalternative_new(grammar, src_subalternative)
     src_subalternative.min = nil
     new_subalternative.max = max
     src_subalternative.max = nil
+
+    local is_sequence = min ~= 1 or max ~= 1
+
+    local separator_symbol
+    local separator = src_subalternative.separator
+    if separator ~= nil then
+        if not is_sequence then
+            grammar:development_error(
+                who
+                .. ': separator specified, but alternative is not sequence\n'
+            )
+        end
+        local separator_type = type(separator)
+        if separator_type ~= 'string' then
+            grammar:development_error(
+                who
+                .. ': separator is type "'
+                .. separator_type
+                .. '"; it needs to be a string'
+            )
+        end
+        separator_symbol = _symbol_new(grammar, { name = separator })
+        -- TODO: separator must be symbol
+        new_subalternative.separator = separator_symbol
+        src_subalternative.separator = nil
+    end
+
+    local separation = src_subalternative.separation
+    if separation ~= nil then
+        if not separator_symbol then
+            grammar:development_error(
+                who
+                .. ': separation style '
+                .. [["]] .. separation .. [["]]
+                .. ' specified, but no separator\n'
+            )
+        end
+        if separation == 'liberal' then -- luacheck: ignore
+        elseif separation == 'proper' then
+           separation = nil -- 'proper' is the default
+        elseif separation == 'terminating' then -- luacheck: ignore
+        else
+            grammar:development_error(
+                who
+                .. ': unknown separation style '
+                .. [["]] .. separation .. [["]]
+                .. ' specified\n'
+            )
+        end
+        new_subalternative.separation = separation
+        src_subalternative.separation = nil
+    end
 
     if min == 0 then
         if max == 0 then
@@ -696,6 +761,8 @@ local function xrhs_transitive_closure(grammar, property)
     -- ok to shadow upvalue property, I think
     local function property_of_instance_element(element,
             property) -- luacheck: ignore property
+
+        print('Calling poie()', element.rawtype, element.name, property)
         if element[property] ~= nil then
             return element[property]
         end
@@ -709,21 +776,42 @@ local function xrhs_transitive_closure(grammar, property)
         local rh_instances = element.rh_instances
         -- assume true, unless found false
         local element_has_property = true
-        for rh_ix = 1,#rh_instances do
-            local rh_instance = rh_instances[rh_ix]
-            local child_element = rh_instance.element
-            local has_property, symbol_id = property_of_instance_element(child_element, property)
-            if has_property == nil then
-                local current_triggers = triggers[symbol_id]
-                if current_triggers then
-                    current_triggers[#current_triggers+1] = child_element
-                else
-                    triggers[symbol_id] = { child_element }
+        for rh_ix = 0,#rh_instances do
+            local child_element
+            -- As a bit of a hack,
+            -- An rh_ix of 0 has a special meaning:
+            -- check the separator
+            if rh_ix == 0 then
+                -- Check only if the separator is always used
+                -- by this sequence.  There is always an internal
+                -- separator is min>2; and there is always a
+                -- terminating separator, if the separation
+                -- type is 'terminating'
+                if element.separation == 'terminating' or element.min>2 then
+                    print(__FILE__, __LINE__)
+                    child_element = element.separator
                 end
-                return nil, symbol_id
-            elseif has_property == false then
-                element_has_property = false
-                break
+            else
+                local rh_instance = rh_instances[rh_ix]
+                child_element = rh_instance.element
+            end
+
+            -- Child element may be nil, if rh_ix==0 and we did not have
+            -- or are not checking the separator
+            if child_element then
+                local has_property, symbol_id = property_of_instance_element(child_element, property)
+                if has_property == nil then
+                    local current_triggers = triggers[symbol_id]
+                    if current_triggers then
+                        current_triggers[#current_triggers+1] = element
+                    else
+                        triggers[symbol_id] = { element }
+                    end
+                    return nil, symbol_id
+                elseif has_property == false then
+                    element_has_property = false
+                    break
+                end
             end
         end
         element[property] = element_has_property
@@ -745,17 +833,21 @@ local function xrhs_transitive_closure(grammar, property)
 
     local xsubalt_by_id = grammar.xsubalt_by_id
 
+    print('Pass 1')
     -- First pass populates the worklist
     for xsubalt_id = 1,#xsubalt_by_id do
         property_of_instance_element(xsubalt_by_id[xsubalt_id], property)
     end
 
+    print('Pass 2')
+    -- First pass populates the worklist
     while true do
         local xalt_props = table.remove(worklist)
         if not xalt_props then break end
         property_of_instance_element(xalt_props, property)
     end
 
+    print('Pass 3')
     -- Final pass catches those subalternatives hidden
     -- from the top-down logic because they were sequences
     -- with min=0
@@ -1104,7 +1196,7 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    -- Ban nullable prececedenced rules.
+    -- Ban nullable precedenced rules.
     -- They are just too confusing. Tf the user
     -- *really* is sure they want it, and that she
     -- knows what she is doing, she can write it out
@@ -1138,13 +1230,11 @@ function grammar_class.compile(grammar, args)
         end
     end
 
-    -- A sequence may be nullable because
-    -- 1) min=0, or
-    -- 2) a single instance of its repetend can be nulled
-    -- We only treat 2) as an error.
-    -- The problem with a nullable repetend, is that it makes
-    -- the number of repetends in any given sequence
-    -- highly ambigiuous.
+    -- Note -- use the nullability
+    -- of the subalternative is not very useful,
+    -- even as a clue, because the subalternative
+    -- may be nullable because min=0, or
+    -- non-nullable because of the separator
     --
     -- If the user really wants sequences with nullable
     -- repetends, and knows what she is doing,
@@ -1153,21 +1243,10 @@ function grammar_class.compile(grammar, args)
     local xsubalt_by_id = grammar.xsubalt_by_id
     for subalt_id = 1,#xsubalt_by_id do
         local xsubalt = xsubalt_by_id[subalt_id]
-        -- If this is a nullable sequenced rule
-        if xsubalt.nullable and
-        (xsubalt.min ~= 1 or xsubalt.max ~= 1)
+        if xsubalt.min ~= 1 or xsubalt.max ~= 1
         then
 
-            -- If min>0, nullability must be due to
-            -- the repetend being nullable,
-            -- so report the error
-            if xsubalt.min > 0 then
-                return report_nullable_repetend(grammar, xsubalt)
-            end
-
-            -- If here, min==0,
-            -- but even so, then repetend may
-            -- be nullable. Check to see if there are any
+            -- Check to see if there are any
             -- indelible (= non-nullable) elements in the
             -- repetend
             local item_is_indelible = false
@@ -1294,6 +1373,7 @@ function grammar_class.compile(grammar, args)
                 __index = function (table, key)
                     print(key)
                     if key == 'type' then return 'wsym' end
+                    if key == 'rawtype' then return 'wsym' end
                     if key == 'xsym' then return nil end
                     local xsym = table.xsym
                     if xsym then return xsym[key] end
@@ -1332,7 +1412,7 @@ function grammar_class.compile(grammar, args)
         return new_wsym
     end
 
-    local function cloned_wsym_ensure(xsym, precedence)
+    local function cloned_wsym_ensure(xsym)
         local name = xsym.name
         local new_wsym,is_new = _wsym_ensure(name)
         if is_new then
@@ -1349,7 +1429,6 @@ function grammar_class.compile(grammar, args)
         local separator = rule_args.separator
         local separator_id = separator and separator.id or -1
         local lhs = rule_args.lhs
-        if not lhs.wid then error(lhs.name .. ' ' .. lhs.type) end
         local rh_instances = rule_args.rh_instances
         local sig_table = {
             lhs.wid,
@@ -1367,17 +1446,30 @@ function grammar_class.compile(grammar, args)
         local wrule = wrule_by_sig[sig]
         if wrule then return wrule end
         wrule = {
-            separator = separator,
-            min = min,
-            max = max,
-            lhs = lhs,
-            rh_instances = rh_instances,
-            sig = sig,
             brick = rule_args.brick,
+            lhs = lhs,
+            max = max,
+            min = min,
+            rh_instances = rh_instances,
+            separation = args.separation,
+            separator = separator,
+            sig = sig,
             xalt = rule_args.xalt,
         }
         wrule_by_sig[sig] = wrule
         return wrule
+    end
+
+    -- Given a hacked wrule, replace the original
+    -- with the, hacked, version
+    -- It is assumed that the 'sig' field was left'
+    -- as in the original, so that it can be deleted.
+    local function wrule_replace(hacked_wrule)
+        local sig = hacked_wrule.sig
+        -- Remove the old version from the data base
+        wrule_by_sig[sig] = nil
+        -- 'sig' will be overwritten
+        return wrule_ensure(hacked_wrule)
     end
 
     local function alt_to_work_data_add(xalt)
@@ -1590,6 +1682,19 @@ function grammar_class.compile(grammar, args)
         local xtopalt = xtopalt_by_ix[topalt_ix]
         local brick_wrule = alt_to_work_data_add(xtopalt)
         brick_wrule.brick = true
+    end
+
+    for _,wrule in pairs(wrule_by_sig) do
+        local min = wrule.min
+        if min <= 0 then
+            wrule.min = 1
+            wrule_replace(wrule)
+        end
+        -- Allow only singleton RHS
+        -- Fatal error if separator is nulling
+        -- Normalize separation
+        -- If still seq, add to worklist
+        --   or else call recursive function
     end
 
     for _,wrule in pairs(wrule_by_sig) do
