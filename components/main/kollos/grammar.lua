@@ -1456,9 +1456,7 @@ include not just non-LHS symbols, but also charclasses and strings --
 
     -- Create a new *internal* lhs for this
     -- alt
-    local function lh_of_wrule_new(prefix, wrule)
-        local wrule_name = wrule.name
-        local name = prefix .. '!' .. wrule_name
+    local function lh_of_wrule_new(name, wrule)
         local new_wsym,is_new = _wsym_ensure(name)
         -- TODO: remove after development
         assert(is_new)
@@ -1762,33 +1760,91 @@ in the original.
         brick_wrule.brick = true
     end
 
+    -- will be used to ensure names are unique
+    local unique_number = 0
+
     for rule_id = 1,#wrule_by_id do
         local wrule = wrule_by_id[rule_id]
+
+        -- TODO -- split rules with internal nulling
+        --     events, and convert that event to
+        --     a completion event
 
         -- As of this writing, no wrules deleted
         -- but we will be careful
         if wrule then
             local min = wrule.min
+            local separator = wrule.separator
+            if separator.nulling then
+                grammar:development_error(
+                    who
+                    .. 'Separator ' .. separator.name .. ' is nulling\n'
+                    .. ' That is not allowed\n',
+                    wrule.name_base,
+                    wrule.line
+                )
+            end
             if min <= 0 then
-                wrule.min = 1
-                wrule_replace(wrule)
+                min = 1
+                wrule.min = min
+                wrule = wrule_replace(wrule)
             end
-            local rh_instances = wrule.rh_instances
-            if #rh_instances > 1 then
-                local new_sym = lh_of_wrule_new('rh1', wrule)
-                local new_winstance = winstance_new(new_sym)
-                wrule.rh_instances = {new_winstance}
-                wrule_replace(wrule)
-                wrule_ensure{
-                   lhs = new_sym,
-                   rh_instances = rh_instances,
-                }
-                -- TODO: Allow only singleton RHS
+            local max = wrule.max
+            if min ~= 1 or max ~= 1 then
+                local rh_instances = wrule.rh_instances
+                if #rh_instances > 1 then
+                    local new_sym = lh_of_wrule_new('rh1!' .. unique_number)
+                    unique_number = unique_number + 1
+                    local new_winstance = winstance_new(new_sym)
+                    wrule.rh_instances = {new_winstance}
+                    wrule = wrule_replace(wrule)
+                    wrule_ensure{
+                        lhs = new_sym,
+                        rh_instances = rh_instances,
+                    }
+                    -- TODO: Allow only singleton RHS
+                end
+
+                -- TODO: Normalize separation
+                if wrule.separation == 'terminating' or
+                    wrule.separation == 'liberal'
+                then
+                    local middle_sym = lh_of_wrule_new('term!' .. unique_number)
+                    local middle_winstance = winstance_new(middle_sym)
+                    local terminating_sym = wrule.separator
+                    local terminating_instance = winstance_new(terminating_sym)
+                    unique_number = unique_number + 1
+                    -- The old LHS of the wrule with the actual sequence,
+                    -- which we are going to replace
+                    local previous_lhs = wrule.lhs
+                    wrule_ensure{
+                        lhs = previous_lhs,
+                        rh_instances = {
+                            middle_winstance,
+                            terminating_instance,
+                        }
+                    }
+                    wrule.lhs = middle_sym
+                    wrule = wrule_replace(wrule)
+                    -- If liberal separation, also add an
+                    -- unterminated variant
+                    if wrule.separation == 'liberal' then
+                        wrule_ensure{
+                            lhs = previous_lhs,
+                            rh_instances = {
+                                middle_winstance,
+                            }
+                        }
+                    end
+                end
+
+                -- After this point, the separation field of
+                -- wrules is meaningless: all rules with
+                -- a separator have proper separation
+
+                -- TODO: If still seq, call recursive function
+
             end
-            -- TODO: Fatal error if separator is nulling
-            -- TODO: Normalize separation
-            -- TODO: If still seq, add to worklist
-            --    or else call recursive function
         end
     end
 
