@@ -1509,14 +1509,16 @@ include not just non-LHS symbols, but also charclasses and strings --
         -- print("sig table:", inspect(sig_table))
         local sig = table.concat(sig_table, '|')
         local wrule = wrule_by_sig[sig]
+        print(__LINE__, 'args.separation', rule_args.separation)
         if wrule then return wrule end
+        print(__LINE__, 'args.separation', rule_args.separation)
         wrule = {
             brick = rule_args.brick,
             lhs = lhs,
             max = max,
             min = min,
             rh_instances = rh_instances,
-            separation = args.separation,
+            separation = rule_args.separation,
             separator = separator,
             sig = sig,
             xalt = rule_args.xalt,
@@ -1620,6 +1622,7 @@ in the original.
            error("zero length RHS " .. new_lhs.name)
         end
         assert( #work_rh_instances > 0 ) -- TODO remove after development
+        print(__LINE__, 'xalt separation', xalt.separation)
         local new_wrule = wrule_ensure{
             lhs = new_lhs,
             rh_instances = work_rh_instances,
@@ -1772,10 +1775,14 @@ in the original.
 
         -- As of this writing, no wrules deleted
         -- but we will be careful
+
         if wrule then
+
+            print(__LINE__, 'wrule separation', wrule.separation)
+
             local min = wrule.min
             local separator = wrule.separator
-            if separator.nulling then
+            if separator and separator.nulling then
                 grammar:development_error(
                     who
                     .. 'Separator ' .. separator.name .. ' is nulling\n'
@@ -1793,7 +1800,8 @@ in the original.
             if min ~= 1 or max ~= 1 then
                 local rh_instances = wrule.rh_instances
                 if #rh_instances > 1 then
-                    local new_sym = lh_of_wrule_new('rh1!' .. unique_number)
+                    local new_sym
+                        = lh_of_wrule_new('rh1!' .. unique_number, wrule)
                     unique_number = unique_number + 1
                     local new_winstance = winstance_new(new_sym)
                     wrule.rh_instances = {new_winstance}
@@ -1805,11 +1813,15 @@ in the original.
                     -- TODO: Allow only singleton RHS
                 end
 
+                print(__LINE__, 'wrule separation', wrule.separation)
                 -- TODO: Normalize separation
-                if wrule.separation == 'terminating' or
-                    wrule.separation == 'liberal'
+                local separation = wrule.separation
+                if separation == 'terminating' or
+                    separation == 'liberal'
                 then
-                    local middle_sym = lh_of_wrule_new('term!' .. unique_number)
+                    local middle_sym
+                        = lh_of_wrule_new('term!' .. unique_number, wrule)
+                    unique_number = unique_number + 1
                     local middle_winstance = winstance_new(middle_sym)
                     local terminating_sym = wrule.separator
                     local terminating_instance = winstance_new(terminating_sym)
@@ -1828,7 +1840,8 @@ in the original.
                     wrule = wrule_replace(wrule)
                     -- If liberal separation, also add an
                     -- unterminated variant
-                    if wrule.separation == 'liberal' then
+                    if separation == 'liberal' then
+                        print(__FILE__, __LINE__)
                         wrule_ensure{
                             lhs = previous_lhs,
                             rh_instances = {
