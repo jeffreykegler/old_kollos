@@ -1767,14 +1767,14 @@ in the original.
 
         -- As of this writing, no wrules deleted
         -- but we will be careful
-        if not wrule then
+        if wrule then
             local min = wrule.min
             if min <= 0 then
                 wrule.min = 1
                 wrule_replace(wrule)
             end
             local rh_instances = wrule.rh_instances
-            if rh_instances > 1 then
+            if #rh_instances > 1 then
                 local new_sym = lh_of_wrule_new('rh1', wrule)
                 local new_winstance = winstance_new(new_sym)
                 wrule.rh_instances = {new_winstance}
