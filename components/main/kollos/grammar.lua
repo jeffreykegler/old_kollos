@@ -481,7 +481,7 @@ local function _xalt_lhs(xalt)
     -- one instance.
     local parent = xalt
     while true do
-        grandparent = parent.parent_instance
+        local grandparent = parent.parent_instance
         if not grandparent then break end
         parent = grandparent.xalt
     end
@@ -655,8 +655,12 @@ local function subalternative_new(grammar, src_subalternative)
                 .. '"; it needs to be a string'
             )
         end
-        separator_symbol = _symbol_new(grammar, { name = separator })
-        -- TODO: separator must be symbol
+        local symbol_error
+        separator_symbol, symbol_error
+            = _symbol_new(grammar, { name = separator })
+        if not separator_symbol then
+            grammar:development_error(symbol_error)
+        end
         new_subalternative.separator = separator_symbol
         src_subalternative.separator = nil
     end
@@ -836,12 +840,12 @@ local function xrhs_transitive_closure(grammar, property)
             end
         end
         element[property] = element_has_property
-        print("Setting", element.name, "to", element_has_property, "for", property)
+        -- print("Setting" .. element.name .. " " .. property .. " to", element_has_property)
         changes_made = true
         -- If instance is top level
         if element.is_top then
             local lhs = element.lhs_of_top
-            print("Setting", lhs.rawtype, lhs.type, lhs.name, "to", element_has_property, "for", property)
+            print("Setting " .. lhs.name .. " " .. property .. " to ", element_has_property)
             lhs[property] = element_has_property
         end
         return element_has_property
@@ -1438,7 +1442,7 @@ include not just non-LHS symbols, but also charclasses and strings --
 
     -- Create a new *internal* lhs for this
     -- alt
-    local function _lh_wsym_ensure(alt)
+    local function lh_wsym_ensure(alt)
         local alt_name = alt.name
         local name = 'lhs!' .. alt_name
         local wsym_props,is_new = _wsym_ensure(name)
@@ -1448,6 +1452,20 @@ include not just non-LHS symbols, but also charclasses and strings --
             wsym_props.name_base = alt.name_base
         end
         return wsym_props
+    end
+
+    -- Create a new *internal* lhs for this
+    -- alt
+    local function lh_of_wrule_new(prefix, wrule)
+        local wrule_name = wrule.name
+        local name = prefix .. '!' .. wrule_name
+        local new_wsym,is_new = _wsym_ensure(name)
+        -- TODO: remove after development
+        assert(is_new)
+        new_wsym.nullable = wrule.nullable
+        new_wsym.line = wrule.line
+        new_wsym.name_base = wrule.name_base
+        return new_wsym
     end
 
     local function precedenced_wsym_ensure(base_wsym, precedence)
@@ -1523,7 +1541,7 @@ in the original.
         local sig = hacked_wrule.sig
         -- Remove the old version from the data base
         wrule_by_sig[sig] = nil
-        wrule_by_id[hacked_wrule.id].deleted = true
+        wrule_by_id[hacked_wrule.id] = false
         -- 'sig' will be overwritten
         return wrule_ensure(hacked_wrule)
     end
@@ -1535,7 +1553,7 @@ in the original.
         local new_lhs
         local precedence_level = xalt.precedence_level
         if xalt.parent_instance then
-            new_lhs = _lh_wsym_ensure(xalt)
+            new_lhs = lh_wsym_ensure(xalt)
         else
             local old_lhs = xalt.xprec.xrule.lhs
             if xalt.precedence_level then
@@ -1551,13 +1569,13 @@ in the original.
         if #rh_instances == 0 then return end
         -- for now don't process precedences
         local work_rh_instances = {}
-       print("compiling RHS ", new_lhs.name, #rh_instances)
+        -- print("compiling RHS ", new_lhs.name, #rh_instances)
         for rh_ix = 1,#rh_instances do
             local x_rh_instance = rh_instances[rh_ix]
             local x_element = x_rh_instance.element
             local element_type = x_element.type
 
-           print("RHS element", rh_ix, x_element.name, x_element.nulling)
+            -- print("RHS element", rh_ix, x_element.name, x_element.nulling)
             -- Do nothing for a nulling instance
             if not x_element.nulling then
                 if element_type == 'xalt' then
@@ -1718,7 +1736,6 @@ in the original.
                 end
             end
 
-            -- TODO: create precedenced rule "ladder"
             local next_ladder_lhs = cloned_wsym_ensure(lhs)
             do
                 -- We need a symbol for the top precedence level
@@ -1750,17 +1767,28 @@ in the original.
 
         -- As of this writing, no wrules deleted
         -- but we will be careful
-        if not wrule.deleted then
+        if not wrule then
             local min = wrule.min
             if min <= 0 then
                 wrule.min = 1
                 wrule_replace(wrule)
             end
-            -- Allow only singleton RHS
-            -- Fatal error if separator is nulling
-            -- Normalize separation
-            -- If still seq, add to worklist
-            -- or else call recursive function
+            local rh_instances = wrule.rh_instances
+            if rh_instances > 1 then
+                local new_sym = lh_of_wrule_new('rh1', wrule)
+                local new_winstance = winstance_new(new_sym)
+                wrule.rh_instances = {new_winstance}
+                wrule_replace(wrule)
+                wrule_ensure{
+                   lhs = new_sym,
+                   rh_instances = rh_instances,
+                }
+                -- TODO: Allow only singleton RHS
+            end
+            -- TODO: Fatal error if separator is nulling
+            -- TODO: Normalize separation
+            -- TODO: If still seq, add to worklist
+            --    or else call recursive function
         end
     end
 
@@ -1796,6 +1824,8 @@ in the original.
 	precedence_level = true,
         productive = true,
         rh_instances = true,
+	separation = true,
+	separator = true,
 	subname = true,
 	xprec = true,
     }
@@ -1842,6 +1872,8 @@ in the original.
         nullable = true,
         nulling = true,
         productive = true,
+	rawtype = true,
+	semantics = true,
         top_precedence_level = true,
         type = true,
     }
@@ -1863,10 +1895,12 @@ in the original.
     local winstance_field_census = {}
     local wrule_field_census_expected = {
         brick = true,
+	id = true,
         lhs = true,
-        rh_instances = true,
-        min = true,
         max = true,
+        min = true,
+        rh_instances = true,
+	separator = true,
         sig = true,
         xalt = true,
     }
@@ -1902,7 +1936,6 @@ in the original.
     -- TODO: remove after development
     local wsym_field_census = {}
     local wsym_field_census_expected = {
-         alt = true,
          id = true,
          line = true,
          name = true,
