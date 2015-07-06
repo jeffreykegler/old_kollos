@@ -39,6 +39,7 @@ l0:line_set(__LINE__)
 l0:rule_new{'top'}
 l0:alternative_new{'seq1'}
 l0:alternative_new{'seq2'}
+l0:alternative_new{'seq3'}
 l0:line_set(__LINE__)
 l0:rule_new{'seq1'}
 l0:alternative_new{'a', min=0, max =42, separator = 'comma', separation = 'liberal'}

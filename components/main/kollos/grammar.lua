@@ -691,6 +691,9 @@ local function subalternative_new(grammar, src_subalternative)
         src_subalternative.separation = nil
     end
 
+    assert(not new_subalternative.separation or
+        new_subalternative.separator)
+
     if min == 0 then
         if max == 0 then
             grammar:development_error(
@@ -817,7 +820,6 @@ local function xrhs_transitive_closure(grammar, property)
                 -- terminating separator, if the separation
                 -- type is 'terminating'
                 if element.separation == 'terminating' or element.min>2 then
-                    -- print(__FILE__, __LINE__)
                     child_element = element.separator
                 end
             else
@@ -1424,7 +1426,6 @@ include not just non-LHS symbols, but also charclasses and strings --
         }
         setmetatable(wsym_props, {
                 __index = function (table, key)
-                    print(key)
                     if key == 'type' then return 'wsym' end
                     if key == 'rawtype' then return 'wsym' end
                     if key == 'xsym' then return nil end
@@ -1509,9 +1510,8 @@ include not just non-LHS symbols, but also charclasses and strings --
         -- print("sig table:", inspect(sig_table))
         local sig = table.concat(sig_table, '|')
         local wrule = wrule_by_sig[sig]
-        print(__LINE__, 'args.separation', rule_args.separation)
         if wrule then return wrule end
-        print(__LINE__, 'args.separation', rule_args.separation)
+        assert(not rule_args.separation or separator)
         wrule = {
             brick = rule_args.brick,
             lhs = lhs,
@@ -1547,7 +1547,6 @@ in the original.
     end
 
     local function alt_to_work_data_add(xalt)
-        -- print(__FILE__, __LINE__)
         -- at top, use brick from xrule.lhs
         -- otherwise, new internal lhs
         local new_lhs
@@ -1622,14 +1621,20 @@ in the original.
            error("zero length RHS " .. new_lhs.name)
         end
         assert( #work_rh_instances > 0 ) -- TODO remove after development
-        print(__LINE__, 'xalt separation', xalt.separation)
+        local separator_xsym = xalt.separator
+        local separator_wsym
+        if separator_xsym then
+            separator_wsym = cloned_wsym_ensure(separator_xsym)
+            separator_wsym.xsym = separator_xsym
+        end
+        assert(not xalt.separation or separator_wsym)
         local new_wrule = wrule_ensure{
             lhs = new_lhs,
             rh_instances = work_rh_instances,
             xalt = xalt,
             min = xalt.min,
             max = xalt.max,
-            separator = xalt.separator,
+            separator = separator_wsym,
             separation = xalt.separation,
         }
         return new_wrule
@@ -1778,8 +1783,6 @@ in the original.
 
         if wrule then
 
-            print(__LINE__, 'wrule separation', wrule.separation)
-
             local min = wrule.min
             local separator = wrule.separator
             if separator and separator.nulling then
@@ -1813,7 +1816,6 @@ in the original.
                     -- TODO: Allow only singleton RHS
                 end
 
-                print(__LINE__, 'wrule separation', wrule.separation)
                 -- TODO: Normalize separation
                 local separation = wrule.separation
                 if separation == 'terminating' or
@@ -1823,8 +1825,8 @@ in the original.
                         = lh_of_wrule_new('term!' .. unique_number, wrule)
                     unique_number = unique_number + 1
                     local middle_winstance = winstance_new(middle_sym)
-                    local terminating_sym = wrule.separator
-                    local terminating_instance = winstance_new(terminating_sym)
+                    assert(separator)
+                    local terminating_instance = winstance_new(separator)
                     unique_number = unique_number + 1
                     -- The old LHS of the wrule with the actual sequence,
                     -- which we are going to replace
@@ -1841,7 +1843,6 @@ in the original.
                     -- If liberal separation, also add an
                     -- unterminated variant
                     if separation == 'liberal' then
-                        print(__FILE__, __LINE__)
                         wrule_ensure{
                             lhs = previous_lhs,
                             rh_instances = {
@@ -1970,6 +1971,7 @@ in the original.
         min = true,
         rh_instances = true,
 	separator = true,
+	separation = true,
         sig = true,
         xalt = true,
     }
