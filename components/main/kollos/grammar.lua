@@ -1482,6 +1482,22 @@ include not just non-LHS symbols, but also charclasses and strings --
         return new_wsym
     end
 
+    -- Create a unique new internal symbol
+    -- given the line & name_base data
+    local internal_wsym_ensure
+    do
+        local unique_number = 0
+        internal_wsym_ensure =
+            function(name_base, line)
+                local name = 'int!' .. unique_number
+                unique_number = unique_number + 1
+                local new_wsym = _wsym_ensure(name)
+                new_wsym.name_base = name_base
+                new_wsym.line = line
+                return new_wsym
+            end
+    end
+
     local function precedenced_wsym_ensure(base_wsym, precedence)
         local name = base_wsym.name .. '!prec' .. precedence
         local new_wsym,is_new = _wsym_ensure(name)
@@ -1502,6 +1518,19 @@ include not just non-LHS symbols, but also charclasses and strings --
             new_wsym.name_base = xsym.name_base
         end
         return new_wsym
+    end
+
+    local function wrule_desc(wrule)
+        local desc_table = {
+            wrule.lhs.name,
+            '::=',
+        }
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            desc_table[#desc_table+1] = rh_instance.name
+        end
+        return table.concat(desc_table, ' ')
     end
 
     local function wrule_ensure(rule_args)
@@ -1538,6 +1567,18 @@ include not just non-LHS symbols, but also charclasses and strings --
             sig = sig,
             xalt = rule_args.xalt,
         }
+        setmetatable(wrule, {
+                __index = function (table, key)
+                    if key == 'type' then return 'wrule'
+                    elseif key == 'rawtype' then return 'wrule'
+                    elseif key == 'source' then return xalt or lhs
+                    elseif key == 'line' then return table.source.line
+                    elseif key == 'name_base' then return table.source.name_base
+                    elseif key == 'nullable' then return lhs.nullable
+                    elseif key == 'desc' then return wrule_desc(table)
+                    else return end
+                end
+            })
         wrule_by_sig[sig] = wrule
         wrule_by_id[#wrule_by_id+1] = wrule
         wrule.id = #wrule_by_id
@@ -1646,11 +1687,11 @@ in the original.
         local new_wrule = wrule_ensure{
             lhs = new_lhs,
             rh_instances = work_rh_instances,
-            xalt = xalt,
             min = xalt.min,
             max = xalt.max,
             separator = separator_wsym,
             separation = xalt.separation,
+            xalt = xalt,
         }
         return new_wrule
     end
@@ -1769,7 +1810,8 @@ in the original.
                     wsym_props.xsym = lhs
                     wsym_props.precedence_level = level
                     wrule_ensure{lhs = next_ladder_lhs,
-                        rh_instances = {winstance_new(wsym_props)}}
+                        rh_instances = {winstance_new(wsym_props)},
+                        }
                     next_ladder_lhs = wsym_props
                 end
             end
@@ -1890,16 +1932,7 @@ in the original.
     end
 
     for _,wrule in pairs(wrule_by_sig) do
-        local desc_table = {
-            wrule.lhs.name,
-            '::=',
-        }
-        local rh_instances = wrule.rh_instances
-        for rh_ix = 1,#rh_instances do
-            local rh_instance = rh_instances[rh_ix]
-            desc_table[#desc_table+1] = rh_instance.name
-        end
-        print(table.concat(desc_table, ' '))
+        print(wrule.desc)
     end
 
     -- census subalt fields
@@ -2000,6 +2033,7 @@ in the original.
 	separator = true,
 	separation = true,
         sig = true,
+        source = true,
         xalt = true,
     }
     local winstance_field_census_expected = {
@@ -2008,6 +2042,12 @@ in the original.
         xalt = true,
     }
     for _,wrule in pairs(wrule_by_sig) do
+        if not wrule.name_base then
+            print("missing 'name_base' in wrule:", wrule.desc)
+        end
+        if not wrule.line then
+            print("missing 'line' in wrule:", wrule.desc)
+        end
         for field,_ in pairs(wrule) do
             if not wrule_field_census_expected[field] then
                 wrule_field_census[field] = true
