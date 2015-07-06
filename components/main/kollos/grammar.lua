@@ -2055,8 +2055,14 @@ in the original.
         end
         local rh_instances = wrule.rh_instances
         for rh_ix = 1,#rh_instances do
-            local rh_instance = rh_instances[rh_ix]
-            for field,_ in pairs(rh_instance) do
+            local winstance = rh_instances[rh_ix]
+            if not winstance.name_base then
+                print("missing 'name_base' in winstance:", winstance.name)
+            end
+            if not winstance.line then
+                print("missing 'line' in winstance:", winstance.name)
+            end
+            for field,_ in pairs(winstance) do
                 if not winstance_field_census_expected[field] then
                     winstance_field_census[field] = true
                 end
@@ -2084,6 +2090,12 @@ in the original.
          wid = true,
     }
     for _,wsym in pairs(wsym_by_name) do
+        if not wsym.name_base then
+            print("missing 'name_base' in wsym:", wsym.name)
+        end
+        if not wsym.line then
+            print("missing 'line' in wsym:", wsym.name)
+        end
         for field,_ in pairs(wsym) do
              if not wsym_field_census_expected[field] then
                  wsym_field_census[field] = true
