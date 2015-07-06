@@ -38,6 +38,21 @@ local function here() return -- luacheck: ignore here
     debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
 end
 
+local rshift = bit.rshift
+local lshift = bit.lshift
+
+-- Return highest power of 2 less than its argument
+-- Valid only for n>=2
+local function pow2(n)
+    local pow = 1
+    n = rshift(n,1)
+    while true do
+        n = rshift(n, 1)
+        if n == 0 then return pow end
+        pow = lshift(pow, 1)
+    end
+end
+
 local grammar_class = { }
 
 function grammar_class.file_set(grammar, file_name)
@@ -1818,6 +1833,14 @@ in the original.
 
                 -- TODO: Normalize separation
                 local separation = wrule.separation
+
+                -- We can reuse the same instance, because it does
+                -- not contain semantic information
+                local separator_instance
+                if (separator) then
+                    separator_instance = winstance_new(separator)
+                end
+
                 if separation == 'terminating' or
                     separation == 'liberal'
                 then
@@ -1826,7 +1849,6 @@ in the original.
                     unique_number = unique_number + 1
                     local middle_winstance = winstance_new(middle_sym)
                     assert(separator)
-                    local terminating_instance = winstance_new(separator)
                     unique_number = unique_number + 1
                     -- The old LHS of the wrule with the actual sequence,
                     -- which we are going to replace
@@ -1835,7 +1857,7 @@ in the original.
                         lhs = previous_lhs,
                         rh_instances = {
                             middle_winstance,
-                            terminating_instance,
+                            separator_instance,
                         }
                     }
                     wrule.lhs = middle_sym
@@ -1857,6 +1879,11 @@ in the original.
                 -- a separator have proper separation
 
                 -- TODO: If still seq, call recursive function
+                if separator then
+                    -- TODO
+                else
+                    -- TODO
+                end
 
             end
         end
