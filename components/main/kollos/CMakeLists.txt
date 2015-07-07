@@ -15,10 +15,11 @@ ENABLE_TESTING()
 ADD_CUSTOM_COMMAND (
   COMMENT "Writing grammar.lua"
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/grammar.lua
-  COMMAND cp
+  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
       ${CMAKE_CURRENT_SOURCE_DIR}/grammar.lua.md 
       ${CMAKE_CURRENT_BINARY_DIR}/grammar.lua
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/grammar.lua.md 
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
   VERBATIM
   )
 
