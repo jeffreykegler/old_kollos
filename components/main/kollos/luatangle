@@ -38,11 +38,51 @@ local sections = {}
 local current_section
 local current_prefix
 
+local form_section_name(line, words)
+    local section_name_table = {}
+    if words[2]:match("^!") then
+        error("Section names starting in '!' are reserved\n"
+           .. " Problem line: " .. line .. "\n"
+        )
+    end
+    for word_ix = 2,#words do
+        local word = words[word_ix]
+        section_name_table[#section_name_table+1] = words[word_ix]
+    end
+    local section_name = table.concat(section_name_table, ' ');
+end
+
 local function command_do(command)
-    local normalized_command
-      = command:sub('[%s]+$', '')
-    normalized_command = normalized_command:gsub('[%s]+', ' ')
-    if normalized_command == 'end section' then
+    local words = command:gmatch("[^%s]+")
+    if words[1] == 'section' then
+        local section_name = form_section_name(line, words)
+        current_section = {}
+        if sections[section_name] then
+            error("Section '" .. current_section.name .. "' already exists\n"
+                .. " Problem line: " .. line .. "\n"
+        )
+        end
+        sections[section_name] = current_section
+        current_section.name = section_name
+        current_section.prefix = current_prefix
+        return
+    elseif words[1] == 'section+' then
+        local section_name = form_section_name(line, words)
+        current_section = sections[section_name]
+        if not current_section then
+            error("Section '" .. current_section.name .. "' does not exist\n"
+                .. " Problem line: " .. line .. "\n"
+            )
+        end
+        current_prefix = current_section.prefix
+        return
+    end
+    if not current_section then
+        error("Section command found, but it is not in a section\n"
+            .. " Problem line: " .. line .. "\n"
+        )
+    end
+    if #words == 2 and words[1] == 'end' and words[2] = 'section' then
         current_section = nil
 	return
     end
@@ -55,7 +95,9 @@ for line in io.lines(input_file_name) do
         then
             current_section[#current_section+1] = line
             local tangle_command = line:sub(#current_prefix):match("^--[%s]+luatangle:[%s]+(.*)$")
-	    command_do(tangle_command)
+            if tangle_command then
+                command_do(tangle_command)
+            end
         elseif #line == 0 then
             current_section[#current_section+1] = line
         elseif line:match("^[^%s]") then
@@ -66,35 +108,9 @@ for line in io.lines(input_file_name) do
             )
         end
     else
-        local current_prefix, is_continuation, section_name
-        = line:match("^([%s+])--[%s]*luatangle[%s]+section([+]?)[%s]+(.*)$")
-        if current_prefix then
-            if current_prefix:match("[^% ]") then
-                error("Section '" .. current_section.name .. "' prefix must be all spaces\n"
-                    .. " Problem line: " .. line .. "\n"
-                )
-            end
-            section_name:sub('\s+$','')
-            section_name:gsub('\s+',' ')
-	    if #is_continuation > 0 then
-	      current_section = sections[section_name]
-	      if not current_section then
-                error("Section '" .. current_section.name .. "' does not exist\n"
-                    .. " Problem line: " .. line .. "\n"
-                )
-	      end
-	      current_prefix = current_section.prefix
-	    else
-	      current_section = {}
-	      if sections[section_name] then
-                error("Section '" .. current_section.name .. "' already exists\n"
-                    .. " Problem line: " .. line .. "\n"
-                )
-	      end
-	      sections[section_name] = current_section
-	      current_section.name = section_name
-	      current_section.prefix = current_prefix
-	    end
+        local tangle_command = line:sub(#current_prefix):match("^--[%s]+luatangle:[%s]+(.*)$")
+        if tangle_command then
+            command_do(tangle_command)
         end
     end
 end
