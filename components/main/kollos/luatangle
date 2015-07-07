@@ -66,9 +66,14 @@ local function form_section_name(line, words)
 end
 
 local function command_do(line)
+    -- print("line: ", line )
     local prefix,command = line:match("^(%s*)--%s+luatangle:%s+(.*)$")
     if not prefix then return end
-    local words = command:gmatch("[^%s]+")
+    local words = {}
+    for word in command:gmatch("[^%s]+") do
+        words[#words+1] = word
+    end
+    print("word 1: ", words[1])
     if words[1] == 'section' then
         local section_name = form_section_name(line, words)
         if sections[section_name] then
@@ -116,7 +121,7 @@ local function command_do(line)
             )
         end
         if outputs[section_name] then
-            error("duplicatate output command\n"
+            error("duplicate output command\n"
                 .. " Second command is: " .. line .. "\n"
             )
         end
@@ -127,6 +132,7 @@ local function command_do(line)
         else output_filename = default_output_filename
         end
         outputs[section_name] = output_filename
+        return
     end
 
     if not current_section then
@@ -138,6 +144,8 @@ local function command_do(line)
         current_section = nil
         current_subsection = nil
         return
+    else
+        error("Unknown command: " .. line .. "\n")
     end
 end
 
