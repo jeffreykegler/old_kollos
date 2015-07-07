@@ -1,4 +1,4 @@
-<--
+<!--
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2200,4 +2200,4 @@ In Marpa, "being productive" and
 
 --luatangle: output main
 
-<--  vim: expandtab shiftwidth=4: -->
+<!--  vim: expandtab shiftwidth=4: -->
