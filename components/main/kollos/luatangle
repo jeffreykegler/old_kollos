@@ -19,11 +19,22 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
-local input_file_name = arg[1]
-local ids = {}
+local input_filename = '-'
+local default_output_filename = '-'
+if #arg >= 1 then
+    input_filename = arg[1]
+end
+if #arg >= 2 then
+    default_output_filename = arg[2]
+end
+if input_filename == '-' then
+    input_filename = nil
+end
+
+local file_ids = {}
 
 for arg_ix = 2,#arg do
-    this_arg = arg[arg_ix]
+    local this_arg = arg[arg_ix]
     if not this_arg:find("=") then
         return nil, "Bad option: ", arg
     end
@@ -31,14 +42,16 @@ for arg_ix = 2,#arg do
     if not id or not val then
         return nil, "Bad option: ", this_arg
     end
-    ids[id] = val
+    file_ids[id] = val
 end
 
 local sections = {}
+local outputs = {}
 local current_section
+local current_subsection
 local current_prefix
 
-local form_section_name(line, words)
+local function form_section_name(line, words)
     local section_name_table = {}
     if words[2]:match("^!") then
         error("Section names starting in '!' are reserved\n"
@@ -47,24 +60,28 @@ local form_section_name(line, words)
     end
     for word_ix = 2,#words do
         local word = words[word_ix]
-        section_name_table[#section_name_table+1] = words[word_ix]
+        section_name_table[#section_name_table+1] = word
     end
-    local section_name = table.concat(section_name_table, ' ');
+    return table.concat(section_name_table, ' ');
 end
 
-local function command_do(command)
+local function command_do(line)
+    local prefix,command = line:match("^(%s*)--%s+luatangle:%s+(.*)$")
+    if not prefix then return end
     local words = command:gmatch("[^%s]+")
     if words[1] == 'section' then
         local section_name = form_section_name(line, words)
-        current_section = {}
         if sections[section_name] then
             error("Section '" .. current_section.name .. "' already exists\n"
                 .. " Problem line: " .. line .. "\n"
-        )
+            )
         end
+        current_subsection = {}
+        current_section = { current_subsection }
         sections[section_name] = current_section
         current_section.name = section_name
-        current_section.prefix = current_prefix
+        current_subsection.prefix = prefix
+        current_prefix = prefix
         return
     elseif words[1] == 'section+' then
         local section_name = form_section_name(line, words)
@@ -74,30 +91,62 @@ local function command_do(command)
                 .. " Problem line: " .. line .. "\n"
             )
         end
-        current_prefix = current_section.prefix
+        current_subsection = {}
+        current_subsection.prefix = prefix
+        current_prefix = prefix
+        current_section[#current_section + 1] = current_subsection
         return
+    elseif words[1] == 'output' then
+        local section_name
+        local output_fileid
+        if #words == 2 then
+            section_name = words[2]
+        elseif #words == 3 then
+            section_name = words[2]
+            output_fileid = words[3]
+        else
+            error("Malformed output command\n"
+                .. " Problem line: " .. line .. "\n"
+            )
+        end
+        local output_section = sections[section_name]
+        if not output_section then
+            error("output command to non-existent section\n"
+                .. " Problem line: " .. line .. "\n"
+            )
+        end
+        if outputs[section_name] then
+            error("duplicatate output command\n"
+                .. " Second command is: " .. line .. "\n"
+            )
+        end
+        local output_filename
+        if output_fileid then
+            output_filename
+                = file_ids[output_fileid] or output_fileid
+        else output_filename = default_output_filename
+        end
+        outputs[section_name] = output_filename
     end
+
     if not current_section then
         error("Section command found, but it is not in a section\n"
             .. " Problem line: " .. line .. "\n"
         )
     end
-    if #words == 2 and words[1] == 'end' and words[2] = 'section' then
+    if #words == 2 and words[1] == 'end' and words[2] == 'section' then
         current_section = nil
-	return
+        current_subsection = nil
+        return
     end
 end
 
-for line in io.lines(input_file_name) do
+for line in io.lines(input_filename) do
     if current_section then
-        local end_section
         if line:sub(1,#current_prefix) == current_prefix
         then
             current_section[#current_section+1] = line
-            local tangle_command = line:sub(#current_prefix):match("^--[%s]+luatangle:[%s]+(.*)$")
-            if tangle_command then
-                command_do(tangle_command)
-            end
+            command_do(line)
         elseif #line == 0 then
             current_section[#current_section+1] = line
         elseif line:match("^[^%s]") then
@@ -107,10 +156,25 @@ for line in io.lines(input_file_name) do
                 .. " Problem line: " .. line .. "\n"
             )
         end
-    else
-        local tangle_command = line:sub(#current_prefix):match("^--[%s]+luatangle:[%s]+(.*)$")
-        if tangle_command then
-            command_do(tangle_command)
+    else command_do(line) end
+end
+
+if #outputs <= 0 then
+    error("No output commands: there must be at least one\n")
+end
+
+for section_name,output_filename in pairs(outputs) do
+    local section = sections[section_name]
+    if output_filename == '-' then output_filename = nil end
+    local handle,error_message
+    handle,error_message = io.open(output_filename, 'w')
+    if not handle then
+        error(error_message)
+    end
+    for subsection_ix = 1,#section do
+        local subsection = section[subsection_ix]
+        for line_ix = 1,#subsection do
+            handle:write(subsection[line_ix], '\n')
         end
     end
 end
