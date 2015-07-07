@@ -764,46 +764,50 @@ The main code follows
 
     end
 
-    --[[
+```
 
-    The RHS transitive closure is Jeffrey's coinage, to describe
-    a kind of property useful in Marpa.
 
-    Let `P` be a symbol property.
-    We will write `P(sym)` if symbol `sym`
-    has property P.
+The RHS transitive closure is Jeffrey's coinage, to describe
+a kind of property useful in Marpa.
 
-    We say that the symbol property holds of a rule `r`,
-    or `P(r)`,
-    if `r` is of the form
-    `LHS ::= RHS`,
-    where `RHS` is is a series
-    of zero or more RHS symbols,
-    and `P(Rsym)` for every `Rsym` in `RHS`.
+Let `P` be a symbol property.
+We will write `P(sym)` if symbol `sym`
+has property P.
 
-    A property `P` is *RHS transitive* if and only if
-    when `r = LHS ::= RHS` and `P(r)`,
-    then `P(LHS)`.
+We say that the symbol property holds of a rule `r`,
+or `P(r)`,
+if `r` is of the form
+`LHS ::= RHS`,
+where `RHS` is is a series
+of zero or more RHS symbols,
+and `P(Rsym)` for every `Rsym` in `RHS`.
 
-    Note that the definition of a RHS transitive property implies that
-    every LHS of an empty rule hss that property.
-    This is because, in the case of an empty rule, it is vacuously
-    true that all the RHS symbols have the RHS transitive property.
+A property `P` is *RHS transitive* if and only if
+when `r = LHS ::= RHS` and `P(r)`,
+then `P(LHS)`.
 
-    Also note the definition only describes the transitivity of the
-    property, not which symbols have it.
-    That is, while `P` is a RHS transitive property,
-    a symbol must have property `P`
-    if it appears on the LHS
-    of a rule with property `P`.
-    the converse is not necessarily true:
-    A symbol may have property `P`
-    even if it never appears on the LHS
-    of a rule with property `P`.
+Note that the definition of a RHS transitive property implies that
+every LHS of an empty rule hss that property.
+This is because, in the case of an empty rule, it is vacuously
+true that all the RHS symbols have the RHS transitive property.
 
-    In Marpa, "being productive" and
+Also note the definition only describes the transitivity of the
+property, not which symbols have it.
+That is, while `P` is a RHS transitive property,
+a symbol must have property `P`
+if it appears on the LHS
+of a rule with property `P`.
+the converse is not necessarily true:
+A symbol may have property `P`
+even if it never appears on the LHS
+of a rule with property `P`.
+
+In Marpa, "being productive" and
     "being nullable" are RHS transitive properties
-    --]]
+
+```
+
+    -- luatangle: section+ main
 
     local function xrhs_transitive_closure(grammar, property)
 
