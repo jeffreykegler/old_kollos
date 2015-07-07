@@ -33,7 +33,7 @@ end
 
 local file_ids = {}
 
-for arg_ix = 2,#arg do
+for arg_ix = 3,#arg do
     local this_arg = arg[arg_ix]
     if not this_arg:find("=") then
         return nil, "Bad option: ", arg
@@ -65,15 +65,19 @@ local function form_section_name(line, words)
     return table.concat(section_name_table, ' ');
 end
 
+local function section_end()
+    current_section = nil
+    current_subsection = nil
+    -- I do not bother nil'ing the current_prefix
+end
+
 local function command_do(line)
-    -- print("line: ", line )
-    local prefix,command = line:match("^(%s*)--%s+luatangle:%s+(.*)$")
+    local prefix,command = line:match("^(%s*)--%s*luatangle:%s+(.*)$")
     if not prefix then return end
     local words = {}
     for word in command:gmatch("[^%s]+") do
         words[#words+1] = word
     end
-    print("word 1: ", words[1])
     if words[1] == 'section' then
         local section_name = form_section_name(line, words)
         if sections[section_name] then
@@ -130,7 +134,7 @@ local function command_do(line)
             output_filename
                 = file_ids[output_fileid] or output_fileid
         else output_filename = default_output_filename
-        end
+        end 
         outputs[section_name] = output_filename
         return
     end
@@ -141,8 +145,7 @@ local function command_do(line)
         )
     end
     if #words == 2 and words[1] == 'end' and words[2] == 'section' then
-        current_section = nil
-        current_subsection = nil
+        section_end()
         return
     else
         error("Unknown command: " .. line .. "\n")
@@ -150,41 +153,51 @@ local function command_do(line)
 end
 
 for line in io.lines(input_filename) do
-    if current_section then
-        if line:sub(1,#current_prefix) == current_prefix
+    if current_subsection then
+        local line_prefix = line:sub(1,#current_prefix)
+        if line_prefix == current_prefix
         then
-            current_section[#current_section+1] = line
             command_do(line)
-        elseif #line == 0 then
-            current_section[#current_section+1] = line
-        elseif line:match("^[^%s]") then
-            current_section = nil
-        else
-            error("Section '" .. current_section.name .. "' ends in bad line\n"
+        elseif line_prefix:match("^[^%s]") then
+            section_end()
+        elseif #line ~= 0 then
+            error("Section '" .. current_subsection.name .. "' ends in bad line\n"
                 .. " Problem line: " .. line .. "\n"
             )
         end
-    else command_do(line) end
+    else
+        command_do(line)
+    end
+    -- A command may have ended or started a subsection
+    if current_subsection then
+    current_subsection[#current_subsection+1] = line
+    end
 end
 
-if #outputs <= 0 then
-    error("No output commands: there must be at least one\n")
-end
-
+local was_output
 for section_name,output_filename in pairs(outputs) do
+    was_output = true
     local section = sections[section_name]
-    if output_filename == '-' then output_filename = nil end
-    local handle,error_message
-    handle,error_message = io.open(output_filename, 'w')
-    if not handle then
-        error(error_message)
+    local handle
+    if output_filename == '-' then
+        handle = io.output()
+    else
+        local error_message
+        handle,error_message = io.open(output_filename, 'w')
+        if not handle then error(error_message) end
     end
     for subsection_ix = 1,#section do
         local subsection = section[subsection_ix]
+        local prefix = subsection.prefix
         for line_ix = 1,#subsection do
-            handle:write(subsection[line_ix], '\n')
+            local line = subsection[line_ix]:sub(#prefix+1)
+            handle:write(line, '\n')
         end
     end
+end
+
+if not was_output then
+    error("No output commands: there must be at least one\n")
 end
 
 -- vim: expandtab shiftwidth=4:
