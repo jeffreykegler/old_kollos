@@ -19,31 +19,30 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
-local input_filename = '-'
-local default_output_filename = '-'
-if #arg >= 1 then
-    input_filename = arg[1]
-end
-if #arg >= 2 then
-    default_output_filename = arg[2]
-end
-if input_filename == '-' then
-    input_filename = nil
-end
-
 local file_ids = {}
 
-for arg_ix = 3,#arg do
+local bare_arg_count = 0
+for arg_ix = 1,#arg do
     local this_arg = arg[arg_ix]
     if not this_arg:find("=") then
-        return nil, "Bad option: ", arg
+        local bare_arg_count = bare_arg_count + 1
+        if bare_count_arg == 1 then
+            file_ids.stdin = this_arg
+        elseif bare_count_arg == 2 then
+            file_ids.stdout = this_arg
+        else
+            return nil, "Bad option: ", arg
+        end
+    else
+        local id, val = this_arg:match("^([^=]+)%=(.*)") -- no space around =
+        if not id or not val then
+            return nil, "Bad option: ", this_arg
+        end
+        file_ids[id] = val
     end
-    local id, val = this_arg:match("^([^=]+)%=(.*)") -- no space around =
-    if not id or not val then
-        return nil, "Bad option: ", this_arg
-    end
-    file_ids[id] = val
 end
+
+file_ids.stdout = file_ids.stdout or '-'
 
 local sections = {}
 local outputs = {}
@@ -51,14 +50,14 @@ local current_section
 local current_subsection
 local current_prefix
 
-local function form_section_name(line, words)
+local function form_section_name(line, words, offset)
     local section_name_table = {}
-    if words[2]:match("^!") then
+    if words[offset]:match("^!") then
         error("Section names starting in '!' are reserved\n"
            .. " Problem line: " .. line .. "\n"
         )
     end
-    for word_ix = 2,#words do
+    for word_ix = offset,#words do
         local word = words[word_ix]
         section_name_table[#section_name_table+1] = word
     end
@@ -79,7 +78,7 @@ local function command_do(line)
         words[#words+1] = word
     end
     if words[1] == 'section' then
-        local section_name = form_section_name(line, words)
+        local section_name = form_section_name(line, words, 2)
         if sections[section_name] then
             error("Section '" .. current_section.name .. "' already exists\n"
                 .. " Problem line: " .. line .. "\n"
@@ -93,7 +92,7 @@ local function command_do(line)
         current_prefix = prefix
         return
     elseif words[1] == 'section+' then
-        local section_name = form_section_name(line, words)
+        local section_name = form_section_name(line, words, 2)
         current_section = sections[section_name]
         if not current_section then
             error("Section '" .. current_section.name .. "' does not exist\n"
@@ -105,19 +104,14 @@ local function command_do(line)
         current_prefix = prefix
         current_section[#current_section + 1] = current_subsection
         return
-    elseif words[1] == 'output' then
-        local section_name
-        local output_fileid
-        if #words == 2 then
-            section_name = words[2]
-        elseif #words == 3 then
-            section_name = words[2]
-            output_fileid = words[3]
-        else
+    elseif words[1] == 'write' then
+        if #words < 3 then
             error("Malformed output command\n"
                 .. " Problem line: " .. line .. "\n"
             )
         end
+        local output_fileid = words[2]
+        local section_name = form_section_name(line, words, 3)
         local output_section = sections[section_name]
         if not output_section then
             error("output command to non-existent section\n"
@@ -130,11 +124,7 @@ local function command_do(line)
             )
         end
         local output_filename
-        if output_fileid then
-            output_filename
-                = file_ids[output_fileid] or output_fileid
-        else output_filename = default_output_filename
-        end 
+        output_filename = file_ids[output_fileid] or output_fileid
         outputs[section_name] = output_filename
         return
     end
@@ -152,7 +142,13 @@ local function command_do(line)
     end
 end
 
-for line in io.lines(input_filename) do
+local input_handle
+if file_ids.stdin then
+    local error_message
+    input_handle, error_message = io.open(file_ids.stdin)
+else input_handle = io.input() end
+
+for line in input_handle:lines() do
     if current_subsection then
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
@@ -174,9 +170,7 @@ for line in io.lines(input_filename) do
     end
 end
 
-local was_output
-for section_name,output_filename in pairs(outputs) do
-    was_output = true
+local function write_section(section_name, prefix, seen)
     local section = sections[section_name]
     local handle
     if output_filename == '-' then
@@ -194,6 +188,12 @@ for section_name,output_filename in pairs(outputs) do
             handle:write(line, '\n')
         end
     end
+end
+
+local was_output
+for section_name,output_filename in pairs(outputs) do
+    was_output = true
+    write_section(section_name, '', {})
 end
 
 if not was_output then
