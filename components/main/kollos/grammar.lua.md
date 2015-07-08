@@ -2198,6 +2198,8 @@ In Marpa, "being productive" and
 
 ```
 
---luatangle: output main
+--luatangle: write stdout main
 
-<!--  vim: expandtab shiftwidth=4: -->
+<!--
+vim: expandtab shiftwidth=4:
+-->

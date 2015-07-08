@@ -135,8 +135,10 @@ local function command_do(line)
     end
 
     if not current_section then
-        error("Section command found, but it is not in a section\n"
-            .. " Problem line: " .. line .. "\n"
+        error("Command found outside of a section\n"
+            .. "  It might be valid section command, but found outside of a section,\n"
+            .. "  or it might simply an invalid command\n"
+            .. "  Problem line: " .. line .. "\n"
         )
     end
     if #words == 2 and words[1] == 'end' and words[2] == 'section' then
