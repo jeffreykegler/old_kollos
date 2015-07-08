@@ -25,10 +25,10 @@ local bare_arg_count = 0
 for arg_ix = 1,#arg do
     local this_arg = arg[arg_ix]
     if not this_arg:find("=") then
-        local bare_arg_count = bare_arg_count + 1
-        if bare_count_arg == 1 then
+        bare_arg_count = bare_arg_count + 1
+        if bare_arg_count == 1 then
             file_ids.stdin = this_arg
-        elseif bare_count_arg == 2 then
+        elseif bare_arg_count == 2 then
             file_ids.stdout = this_arg
         else
             return nil, "Bad option: ", arg
@@ -73,6 +73,11 @@ end
 local function command_do(line)
     local prefix,command = line:match("^(%s*)--%s*luatangle:%s+(.*)$")
     if not prefix then return end
+    if prefix:match('[^\32]') then
+        error("Command prefix is not all spaces -- it must be\n"
+            .. " Problem line: " .. line .. "\n"
+        )
+    end
     local words = {}
     for word in command:gmatch("[^%s]+") do
         words[#words+1] = word
@@ -137,6 +142,9 @@ local function command_do(line)
     if #words == 2 and words[1] == 'end' and words[2] == 'section' then
         section_end()
         return
+    elseif words[1] == 'insert' then
+        -- At this point, do nothing
+        return
     else
         error("Unknown command: " .. line .. "\n")
     end
@@ -146,6 +154,7 @@ local input_handle
 if file_ids.stdin then
     local error_message
     input_handle, error_message = io.open(file_ids.stdin)
+    if not input_handle then error(error_message) end
 else input_handle = io.input() end
 
 for line in input_handle:lines() do
@@ -170,8 +179,40 @@ for line in input_handle:lines() do
     end
 end
 
-local function write_section(section_name, prefix, seen)
+local function write_section(handle, section_name, parent_prefix, seen)
+    if seen[section_name] then
+        error("Section '" .. section_name .. "' is called recursively\n"
+            .. "  That would create an infinite loop and is not allowed\n"
+        )
+    end
     local section = sections[section_name]
+    for subsection_ix = 1,#section do
+        local subsection = section[subsection_ix]
+        local subsection_prefix = subsection.prefix
+        for line_ix = 1,#subsection do
+            local line = subsection[line_ix]:sub(#subsection_prefix+1)
+            handle:write(parent_prefix .. line, '\n')
+            local insert_prefix,command = line:match("^(%s*)--%s*luatangle:%s+insert%s+(.*)$")
+            if insert_prefix then
+                local words = {}
+                for word in command:gmatch("[^%s]+") do
+                    words[#words+1] = word
+                end
+                local insert_section_name = form_section_name(line, words, 1)
+                seen[section_name] = true
+                write_section(
+                    handle, insert_section_name,
+                    parent_prefix .. insert_prefix,
+                    seen)
+                seen[section_name] = nil
+            end
+        end
+    end
+end
+
+local was_output
+for section_name,output_filename in pairs(outputs) do
+    was_output = true
     local handle
     if output_filename == '-' then
         handle = io.output()
@@ -180,20 +221,7 @@ local function write_section(section_name, prefix, seen)
         handle,error_message = io.open(output_filename, 'w')
         if not handle then error(error_message) end
     end
-    for subsection_ix = 1,#section do
-        local subsection = section[subsection_ix]
-        local prefix = subsection.prefix
-        for line_ix = 1,#subsection do
-            local line = subsection[line_ix]:sub(#prefix+1)
-            handle:write(line, '\n')
-        end
-    end
-end
-
-local was_output
-for section_name,output_filename in pairs(outputs) do
-    was_output = true
-    write_section(section_name, '', {})
+    write_section(handle, section_name, '', {})
 end
 
 if not was_output then
