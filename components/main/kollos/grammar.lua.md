@@ -23,6 +23,189 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -->
 
+= Fields
+
+For development purposes, I track the fields in the important
+tables.  It's a cheap substitute for
+the strictly typed OO Lua does not
+have, and which I don't really want in general.
+
+```
+
+        -- luatangle: section census fields
+        -- census subalt fields
+        -- TODO: remove after development
+        local xsubalt_field_census = {}
+        local xinstance_field_census = {}
+        local xsubalt_field_census_expected = {
+            action = true,
+            id = true,
+            id_within_top_alternative = true,
+            line = true,
+            max = true,
+            min = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            parent_instance = true,
+            precedence_level = true,
+            productive = true,
+            rh_instances = true,
+            separation = true,
+            separator = true,
+            subname = true,
+            xprec = true,
+        }
+        local xinstance_field_census_expected = {
+            associator = true,
+            element = true,
+            precedence_level = true,
+            rh_ix = true,
+            xalt = true,
+        }
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            for field,_ in pairs(xsubalt) do
+                 if not xsubalt_field_census_expected[field] then
+                     xsubalt_field_census[field] = true
+                 end
+            end
+            local rh_instances = xsubalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                for field,_ in pairs(rh_instance) do
+                     if not xinstance_field_census_expected[field] then
+                         xinstance_field_census[field] = true
+                     end
+                end
+            end
+        end
+        for field,_ in pairs(xsubalt_field_census) do
+             print("unexpected xsubalt field:", field)
+        end
+        for field,_ in pairs(xinstance_field_census) do
+             print("unexpected xinstance field:", field)
+        end
+
+        -- census xsym fields
+        -- TODO: remove after development
+        local xsym_field_census = {}
+        local xsym_field_census_expected = {
+            id = true,
+            lhs_xrules = true,
+            line = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            productive = true,
+            rawtype = true,
+            semantics = true,
+            top_precedence_level = true,
+            type = true,
+        }
+        for xsym_id = 1,#xsym_by_id do
+            local xsym = xsym_by_id[xsym_id]
+            for field,_ in pairs(xsym) do
+                 if not xsym_field_census_expected[field] then
+                     xsym_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(xsym_field_census) do
+             print("unexpected xsym field:", field)
+        end
+
+        -- census wrule and winstance fields
+        -- TODO: remove after development
+        local wrule_field_census = {}
+        local winstance_field_census = {}
+        local wrule_field_census_expected = {
+            brick = true,
+            id = true,
+            lhs = true,
+            max = true,
+            min = true,
+            rh_instances = true,
+            separator = true,
+            separation = true,
+            sig = true,
+            source = true,
+            xalt = true,
+        }
+        local winstance_field_census_expected = {
+            element = true,
+            rh_ix = true,
+            xalt = true,
+        }
+        for _,wrule in pairs(wrule_by_sig) do
+            if not wrule.name_base then
+                print("missing 'name_base' in wrule:", wrule.desc)
+            end
+            if not wrule.line then
+                print("missing 'line' in wrule:", wrule.desc)
+            end
+            for field,_ in pairs(wrule) do
+                if not wrule_field_census_expected[field] then
+                    wrule_field_census[field] = true
+                end
+            end
+            local rh_instances = wrule.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local winstance = rh_instances[rh_ix]
+                if not winstance.name_base then
+                    print("missing 'name_base' in winstance:", winstance.name)
+                end
+                if not winstance.line then
+                    print("missing 'line' in winstance:", winstance.name)
+                end
+                for field,_ in pairs(winstance) do
+                    if not winstance_field_census_expected[field] then
+                        winstance_field_census[field] = true
+                    end
+                end
+            end
+        end
+        for field,_ in pairs(wrule_field_census) do
+            print("unexpected wrule field:", field)
+        end
+        for field,_ in pairs(winstance_field_census) do
+            print("unexpected winstance field:", field)
+        end
+
+        -- census wsym fields
+        -- TODO: remove after development
+        local wsym_field_census = {}
+        local wsym_field_census_expected = {
+             id = true,
+             line = true,
+             name = true,
+             name_base = true,
+             nullable = true,
+             precedence_level = true,
+             xsym = true,
+             wid = true,
+        }
+        for _,wsym in pairs(wsym_by_name) do
+            if not wsym.name_base then
+                print("missing 'name_base' in wsym:", wsym.name)
+            end
+            if not wsym.line then
+                print("missing 'line' in wsym:", wsym.name)
+            end
+            for field,_ in pairs(wsym) do
+                 if not wsym_field_census_expected[field] then
+                     wsym_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(wsym_field_census) do
+             print("unexpected wsym field:", field)
+        end
+
+```
+
 = Main code
 
 The main code follows
@@ -1946,176 +2129,7 @@ In Marpa, "being productive" and
             print(wrule.desc)
         end
 
-        -- census subalt fields
-        -- TODO: remove after development
-        local xsubalt_field_census = {}
-        local xinstance_field_census = {}
-        local xsubalt_field_census_expected = {
-            action = true,
-            id = true,
-            id_within_top_alternative = true,
-            line = true,
-            max = true,
-            min = true,
-            name_base = true,
-            name = true,
-            nullable = true,
-            nulling = true,
-            parent_instance = true,
-            precedence_level = true,
-            productive = true,
-            rh_instances = true,
-            separation = true,
-            separator = true,
-            subname = true,
-            xprec = true,
-        }
-        local xinstance_field_census_expected = {
-            associator = true,
-            element = true,
-            precedence_level = true,
-            rh_ix = true,
-            xalt = true,
-        }
-        for xsubalt_id = 1,#xsubalt_by_id do
-            local xsubalt = xsubalt_by_id[xsubalt_id]
-            for field,_ in pairs(xsubalt) do
-                 if not xsubalt_field_census_expected[field] then
-                     xsubalt_field_census[field] = true
-                 end
-            end
-            local rh_instances = xsubalt.rh_instances
-            for rh_ix = 1,#rh_instances do
-                local rh_instance = rh_instances[rh_ix]
-                for field,_ in pairs(rh_instance) do
-                     if not xinstance_field_census_expected[field] then
-                         xinstance_field_census[field] = true
-                     end
-                end
-            end
-        end
-        for field,_ in pairs(xsubalt_field_census) do
-             print("unexpected xsubalt field:", field)
-        end
-        for field,_ in pairs(xinstance_field_census) do
-             print("unexpected xinstance field:", field)
-        end
-
-        -- census xsym fields
-        -- TODO: remove after development
-        local xsym_field_census = {}
-        local xsym_field_census_expected = {
-            id = true,
-            lhs_xrules = true,
-            line = true,
-            name_base = true,
-            name = true,
-            nullable = true,
-            nulling = true,
-            productive = true,
-            rawtype = true,
-            semantics = true,
-            top_precedence_level = true,
-            type = true,
-        }
-        for xsym_id = 1,#xsym_by_id do
-            local xsym = xsym_by_id[xsym_id]
-            for field,_ in pairs(xsym) do
-                 if not xsym_field_census_expected[field] then
-                     xsym_field_census[field] = true
-                 end
-            end
-        end
-        for field,_ in pairs(xsym_field_census) do
-             print("unexpected xsym field:", field)
-        end
-
-        -- census wrule and winstance fields
-        -- TODO: remove after development
-        local wrule_field_census = {}
-        local winstance_field_census = {}
-        local wrule_field_census_expected = {
-            brick = true,
-            id = true,
-            lhs = true,
-            max = true,
-            min = true,
-            rh_instances = true,
-            separator = true,
-            separation = true,
-            sig = true,
-            source = true,
-            xalt = true,
-        }
-        local winstance_field_census_expected = {
-            element = true,
-            rh_ix = true,
-            xalt = true,
-        }
-        for _,wrule in pairs(wrule_by_sig) do
-            if not wrule.name_base then
-                print("missing 'name_base' in wrule:", wrule.desc)
-            end
-            if not wrule.line then
-                print("missing 'line' in wrule:", wrule.desc)
-            end
-            for field,_ in pairs(wrule) do
-                if not wrule_field_census_expected[field] then
-                    wrule_field_census[field] = true
-                end
-            end
-            local rh_instances = wrule.rh_instances
-            for rh_ix = 1,#rh_instances do
-                local winstance = rh_instances[rh_ix]
-                if not winstance.name_base then
-                    print("missing 'name_base' in winstance:", winstance.name)
-                end
-                if not winstance.line then
-                    print("missing 'line' in winstance:", winstance.name)
-                end
-                for field,_ in pairs(winstance) do
-                    if not winstance_field_census_expected[field] then
-                        winstance_field_census[field] = true
-                    end
-                end
-            end
-        end
-        for field,_ in pairs(wrule_field_census) do
-            print("unexpected wrule field:", field)
-        end
-        for field,_ in pairs(winstance_field_census) do
-            print("unexpected winstance field:", field)
-        end
-
-        -- census wsym fields
-        -- TODO: remove after development
-        local wsym_field_census = {}
-        local wsym_field_census_expected = {
-             id = true,
-             line = true,
-             name = true,
-             name_base = true,
-             nullable = true,
-             precedence_level = true,
-             xsym = true,
-             wid = true,
-        }
-        for _,wsym in pairs(wsym_by_name) do
-            if not wsym.name_base then
-                print("missing 'name_base' in wsym:", wsym.name)
-            end
-            if not wsym.line then
-                print("missing 'line' in wsym:", wsym.name)
-            end
-            for field,_ in pairs(wsym) do
-                 if not wsym_field_census_expected[field] then
-                     wsym_field_census[field] = true
-                 end
-            end
-        end
-        for field,_ in pairs(wsym_field_census) do
-             print("unexpected wsym field:", field)
-        end
+        -- luatangle: insert census fields
 
         -- print(inspect(wsym_by_name))
         -- print(inspect(wrule_by_sig))
