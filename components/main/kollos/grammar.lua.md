@@ -483,11 +483,13 @@ This RHS symbol is called the *repetend*
 -- luatangle: section Rewrite the sequence counts
 
 if separator then
-    -- TODO
+    -- luatangle: insert Rewrite separated sequence counts
 else
-    -- TODO
+    -- luatangle: insert Rewrite unseparated sequence counts
 end
 
+-- luatangle: section Rewrite separated sequence counts
+-- luatangle: section Rewrite unseparated sequence counts
 -- luatangle: end section
 
 ```
@@ -2135,43 +2137,44 @@ In Marpa, "being productive" and
         local unique_number = 0
 
         for rule_id = 1,#wrule_by_id do
-            local wrule = wrule_by_id[rule_id]
+            local working_wrule = wrule_by_id[rule_id]
 
             -- TODO -- split rules with internal nulling
             --     events, and convert that event to
             --     a completion event
 
-            -- As of this writing, no wrules deleted
-            -- but we will be careful
+            -- As of this writing, no wrules should be
+            -- deleted at this point,
+            -- but we are being careful
 
-            if wrule then
+            if working_wrule then
 
-                local min = wrule.min
-                local separator = wrule.separator
+                local min = working_wrule.min
+                local separator = working_wrule.separator
                 if separator and separator.nulling then
                     grammar:development_error(
                         who
                         .. 'Separator ' .. separator.name .. ' is nulling\n'
                         .. ' That is not allowed\n',
-                        wrule.name_base,
-                        wrule.line
+                        working_wrule.name_base,
+                        working_wrule.line
                     )
                 end
                 if min <= 0 then
                     min = 1
-                    wrule.min = min
-                    wrule = wrule_replace(wrule)
+                    working_wrule.min = min
+                    working_wrule = wrule_replace(working_wrule)
                 end
-                local max = wrule.max
+                local max = working_wrule.max
                 if min ~= 1 or max ~= 1 then
-                    local rh_instances = wrule.rh_instances
+                    local rh_instances = working_wrule.rh_instances
                     if #rh_instances > 1 then
                         local new_sym
-                            = lh_of_wrule_new('rh1!' .. unique_number, wrule)
+                            = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
                         unique_number = unique_number + 1
                         local new_winstance = winstance_new(new_sym)
-                        wrule.rh_instances = {new_winstance}
-                        wrule = wrule_replace(wrule)
+                        working_wrule.rh_instances = {new_winstance}
+                        working_wrule = wrule_replace(working_wrule)
                         wrule_ensure{
                             lhs = new_sym,
                             rh_instances = rh_instances,
@@ -2180,7 +2183,7 @@ In Marpa, "being productive" and
                     end
 
                     -- TODO: Normalize separation
-                    local separation = wrule.separation
+                    local separation = working_wrule.separation
 
                     -- We can reuse the same instance, because it does
                     -- not contain semantic information
@@ -2193,14 +2196,14 @@ In Marpa, "being productive" and
                         separation == 'liberal'
                     then
                         local middle_sym
-                            = lh_of_wrule_new('term!' .. unique_number, wrule)
+                            = lh_of_wrule_new('term!' .. unique_number, working_wrule)
                         unique_number = unique_number + 1
                         local middle_winstance = winstance_new(middle_sym)
                         assert(separator)
                         unique_number = unique_number + 1
                         -- The old LHS of the wrule with the actual sequence,
                         -- which we are going to replace
-                        local previous_lhs = wrule.lhs
+                        local previous_lhs = working_wrule.lhs
                         wrule_ensure{
                             lhs = previous_lhs,
                             rh_instances = {
@@ -2208,8 +2211,8 @@ In Marpa, "being productive" and
                                 separator_instance,
                             }
                         }
-                        wrule.lhs = middle_sym
-                        wrule = wrule_replace(wrule)
+                        working_wrule.lhs = middle_sym
+                        working_wrule = wrule_replace(working_wrule)
                         -- If liberal separation, also add an
                         -- unterminated variant
                         if separation == 'liberal' then
@@ -2222,7 +2225,6 @@ In Marpa, "being productive" and
                         end
                     end
 
-                    -- TODO: If still seq, call recursive function
                     -- luatangle: insert Rewrite the sequence counts
 
                 end
