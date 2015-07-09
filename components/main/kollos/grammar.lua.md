@@ -481,6 +481,7 @@ This RHS symbol is called the *repetend*
 ```
     -- luatangle: section Rewrite the sequence counts
 
+    local repetend_instance = working_wrule.rh_instances[1]
     if separator then
         -- luatangle: insert Rewrite separated sequence counts
     else
@@ -493,19 +494,21 @@ This RHS symbol is called the *repetend*
 
 Performs the rewrite for a block of size `n`,
 without separation.
-`working_wrule` is the current sequence rule,
-and assumed to be available as an upvalue.
+Assumed to be available as an upvalue are
+
+* `working_wrule`, the current sequence rule.
+
+* `repetend_instance`, the instance for the repetend.
 
 ```
     -- luatangle: section Rewrite unseparated block function
     local function blk(n)
-       local repetend_instance = working_wrule.rh_instance[1]
-       if n = 1 then
+       if n == 1 then
            return {
                rh_instances = { repetend_instance }
            }
        end
-       if n = 2 then
+       if n == 2 then
            return {
                rh_instances = {
                    repetend_instance,
@@ -539,9 +542,22 @@ and assumed to be available as an upvalue.
 
 ```
     -- luatangle: section Rewrite unseparated sequence counts
+    -- luatangle: insert Rewrite unseparated block function
+
+    if min == max then
+        new_rhs = blk(min)
+        local new_wrule = internal_wrule_new(
+           'blk' .. min .. '!' .. repetend_instance.name,
+           {
+               rh_instances = new_rhs,
+               xalt = working_rule.xalt
+           }
+       )
+    end
+
     -- luatangle: end section
 
-    ```
+```
 
 ## Main code
 
