@@ -456,6 +456,42 @@ end
 
 ```
 
+## Rewrite the sequence counts
+
+This code rewrites sequences rules to
+eliminate the counts -- that is,
+so that, in effect,
+`min = 1` and `max = 1`.
+The `min` and `max` fields are not actually changed
+but will no longer be meaningful.
+
+It is assumed at this point that
+previous rewrites have eliminated `liberal`
+and `terminating` separation, so that only
+`proper` separation sequences and unseparated
+sequences remain.
+
+It is also assumed that,
+at this point,
+that `min > 0` and that the 
+sequence rules RHS is a single
+symbol.
+This RHS symbol is called the *repetend*
+
+```
+
+-- luatangle: section Rewrite the sequence counts
+
+if separator then
+    -- TODO
+else
+    -- TODO
+end
+
+-- luatangle: end section
+
+```
+
 ## Main code
 
 The main code follows
@@ -2186,16 +2222,8 @@ In Marpa, "being productive" and
                         end
                     end
 
-                    -- After this point, the separation field of
-                    -- wrules is meaningless: all rules with
-                    -- a separator have proper separation
-
                     -- TODO: If still seq, call recursive function
-                    if separator then
-                        -- TODO
-                    else
-                        -- TODO
-                    end
+                    -- luatangle: insert Rewrite the sequence counts
 
                 end
             end
