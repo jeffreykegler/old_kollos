@@ -40,7 +40,7 @@ l0:rule_new{'top'}
 l0:alternative_new{'seq1'}
 l0:line_set(__LINE__)
 l0:rule_new{'seq1'}
-l0:alternative_new{'b', 'c', max=8675309 }
+l0:alternative_new{'b', 'c', min=8675309, max=8675309 }
 l0:line_set(__LINE__)
 l0:line_set(__LINE__)
 l0:rule_new{'b'}

@@ -159,7 +159,6 @@ have, and which I don't really want in general.
             rh_instances = true,
             separator = true,
             separation = true,
-            sig = true,
             source = true,
             xalt = true,
         }
@@ -168,7 +167,8 @@ have, and which I don't really want in general.
             rh_ix = true,
             xalt = true,
         }
-        for _,wrule in pairs(wrule_by_sig) do
+        for rule_id = 1,#wrule_by_id do
+            local wrule = wrule_by_id[rule_id]
             if not wrule.name_base then
                 print("missing 'name_base' in wrule:", wrule.desc)
             end
@@ -215,7 +215,6 @@ have, and which I don't really want in general.
              precedence_level = true,
              source = true,
              xsym = true,
-             wid = true,
         }
         for _,wsym in pairs(wsym_by_name) do
             if not wsym.name_base then
@@ -270,7 +269,7 @@ local function wsym_ensure(name)
                 elseif key == 'rawtype' then return 'wsym'
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
-                elseif key == 'source' then return table.source or table.xsym
+                elseif key == 'source' then return table.xsym
                 elseif key == 'xsym' then return nil
                 else
                     local xsym = table.xsym
@@ -282,8 +281,6 @@ local function wsym_ensure(name)
     )
 
     wsym_by_name[name] = wsym_props
-    wsym_props.wid = grammar.next_wid
-    grammar.next_wid = grammar.next_wid + 1
     return wsym_props,true
 end
 
@@ -371,22 +368,6 @@ local function wrule_ensure(rule_args)
     local separator_id = separator and separator.id or -1
     local lhs = rule_args.lhs
     local rh_instances = rule_args.rh_instances
-    local sig_table = {
-        lhs.wid,
-        min,
-        max,
-        separator_id,
-    }
-    for rh_ix = 1,#rh_instances do
-        local rh_instance = rh_instances[rh_ix]
-        local wid = rh_instance.wid
-        sig_table[#sig_table+1] = wid
-    end
-    -- print("sig table:", inspect(sig_table))
-    local sig = table.concat(sig_table, '|')
-    local wrule = wrule_by_sig[sig]
-    if wrule then return wrule end
-    assert(not rule_args.separation or separator)
     wrule = {
         brick = rule_args.brick,
         lhs = lhs,
@@ -395,7 +376,6 @@ local function wrule_ensure(rule_args)
         rh_instances = rh_instances,
         separation = rule_args.separation,
         separator = separator,
-        sig = sig,
         source = rule_args.source,
         xalt = rule_args.xalt,
     }
@@ -411,13 +391,8 @@ local function wrule_ensure(rule_args)
                 else return end
             end
         })
-    wrule_by_sig[sig] = wrule
     wrule_by_id[#wrule_by_id+1] = wrule
     wrule.id = #wrule_by_id
-    assert(wrule.source) -- TODO: remove after development
-    if not wrule.name_base then
-        error(inspect(wrule))
-    end
     return wrule
 end
 
@@ -426,9 +401,6 @@ end
 ```
 
 Given a hacked wrule, replace the original with the hacked version.
-The deletion logic assumes that the 'sig' and 'id' fields were left as
-in the original.
-
 This routine exists because it is often convenient,
 instead of carefully custom-cloning a rule,
 and then deleting it.
@@ -438,35 +410,8 @@ to "hack" its fields.
 -- luatangle: section+ wsym,wrule utilities
 
 local function wrule_replace(hacked_wrule)
-    local sig = hacked_wrule.sig
-    -- Remove the old version from the data base
-    wrule_by_sig[sig] = nil
     wrule_by_id[hacked_wrule.id] = false
-    -- 'sig' will be overwritten
     return wrule_ensure(hacked_wrule)
-end
-
--- luatangle: end section
-
-```
-
-Create an "internal" wrule -- one with a special
-LHS.
-Arguments are a LHS name and a table of named
-arguments that are passed to `wrule_ensure()`.
-It is assumed that the called has ensured
-the LHS name is unique.
-
-```
-
--- luatangle: section+ wsym,wrule utilities
-
-local function internal_wrule_new(lhs_name, wrule_args)
-    local new_lhs, is_new
-    new_lhs, is_new = wsym_ensure(lhs_name)
-    new_lhs.source = wrule_args.source
-    wrule_args.lhs = new_lhs
-    return wrule_ensure(wrule_args)
 end
 
 -- luatangle: end section
@@ -533,24 +478,30 @@ Assumed to be available as an upvalue are
         end
         local n1 = pow2(n)
         local n2 = n - n1
-        local n1_wrule = internal_wrule_new(
-            'blk' .. n1 .. '!' .. repetend_instance.name,
-            {
-                rh_instances = blk_rhs(n1),
-                source = working_wrule.source
-            }
-        )
-        local n2_wrule = internal_wrule_new(
-            'blk' .. n2 .. '!' .. repetend_instance.name,
-            {
-                rh_instances = blk_rhs(n2),
-                source = working_wrule.source
-            }
-        )
-        return {
-            winstance_new(n1_wrule.lhs),
-            winstance_new(n2_wrule.lhs),
-        }
+        local is_new
+        local lhs_name1 = 'blk' .. n1 .. '!' .. repetend_instance.name
+        local lhs1, is_new = wsym_ensure(lhs_name1)
+        if is_new then
+            lhs1.source = working_wrule.source
+            wrule_ensure(
+                {
+                    lhs = lhs1,
+                    rh_instances = blk_rhs(n1),
+                }
+            )
+        end
+        local lhs_name2 = 'blk' .. n2 .. '!' .. repetend_instance.name
+        local lhs2, is_new = wsym_ensure(lhs_name2)
+        if is_new then
+            lhs2.source = working_wrule.source
+            wrule_ensure(
+                {
+                    lhs = lhs2,
+                    rh_instances = blk_rhs(n2),
+                }
+            )
+        end
+        return { winstance_new(lhs1), winstance_new(lhs2) }
     end
 
 ```
@@ -601,6 +552,7 @@ The main code follows
         while pow < n do
             pow = lshift(pow, 1)
         end
+        print('pow2', n, pow)
         return rshift(pow, 1)
     end
 
@@ -792,8 +744,6 @@ The main code follows
                     return nil
                 end
             })
-        new_string.wid = grammar.next_wid
-        grammar.next_wid = grammar.next_wid + 1
         return new_string
     end
 
@@ -854,8 +804,6 @@ The main code follows
                     return nil
                 end
             })
-        new_cc.wid = grammar.next_wid
-        grammar.next_wid = grammar.next_wid + 1
         return new_cc
 
     end
@@ -1978,7 +1926,6 @@ In Marpa, "being productive" and
             )
         end
 
-        local wrule_by_sig = {}
         local wrule_by_id = {}
         local wsym_by_name = {}
 ```
@@ -2308,14 +2255,12 @@ In Marpa, "being productive" and
             end
         end
 
-        for _,wrule in pairs(wrule_by_sig) do
-            print(wrule.desc)
+        for rule_id = 1,#wrule_by_id do
+            local wrule = wrule_by_id[rule_id]
+            if wrule then print(wrule.desc) end
         end
 
         -- luatangle: insert census fields
-
-        -- print(inspect(wsym_by_name))
-        -- print(inspect(wrule_by_sig))
 
     end
 
@@ -2336,10 +2281,6 @@ In Marpa, "being productive" and
 
             -- maps LHS id to RHS id
             xlhs_by_rhs = {},
-
-            -- track next available id of a rh object
-            -- for a work grammar
-            next_wid = 0,
         }
         setmetatable(grammar_object, {
                 __index = grammar_class,
