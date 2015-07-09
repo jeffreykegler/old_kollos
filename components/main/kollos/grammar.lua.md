@@ -235,6 +235,200 @@ have, and which I don't really want in general.
 
 ```
 
+## Utilties for wsym, wrule
+
+
+```
+
+These wsym and wrule utilities
+are internal to the `compile()` method
+because they use up-values internal
+to the `compile()` method.
+
+Having these function be internal
+to `compile()` also makes it easy for the
+"working data" to be cleaned up -- it will just be garbage collected
+when compile() returns. If these functions were top-level, the data
+would have to be top-level as well.
+
+```
+
+-- luatangle: section wsym,wrule utilities
+
+-- 2nd return value is true if this is
+-- a new symbol
+local function _wsym_ensure(name)
+    local wsym_props = wsym_by_name[name]
+    if wsym_props then return wsym_props end
+    wsym_props = {
+        name = name,
+    }
+    setmetatable(wsym_props, {
+            __index = function (table, key)
+                if key == 'type' then return 'wsym' end
+                if key == 'rawtype' then return 'wsym' end
+                if key == 'xsym' then return nil end
+                local xsym = table.xsym
+                if xsym then return xsym[key] end
+                return nil
+            end
+        })
+
+    wsym_by_name[name] = wsym_props
+    wsym_props.wid = grammar.next_wid
+    grammar.next_wid = grammar.next_wid + 1
+    return wsym_props,true
+end
+
+-- Create a new *internal* lhs for this
+-- alt
+local function lh_wsym_ensure(alt)
+    local alt_name = alt.name
+    local name = 'lhs!' .. alt_name
+    local wsym_props,is_new = _wsym_ensure(name)
+    if is_new then
+        wsym_props.nullable = alt.nullable
+        wsym_props.line = alt.line
+        wsym_props.name_base = alt.name_base
+    end
+    return wsym_props
+end
+
+-- Create a new *internal* lhs for this
+-- alt
+local function lh_of_wrule_new(name, wrule)
+    local new_wsym,is_new = _wsym_ensure(name)
+    -- TODO: remove after development
+    assert(is_new)
+    new_wsym.nullable = wrule.nullable
+    new_wsym.line = wrule.line
+    new_wsym.name_base = wrule.name_base
+    return new_wsym
+end
+
+-- Create a unique new internal symbol
+-- given the line & name_base data
+local internal_wsym_ensure
+do
+    local unique_number = 0
+    internal_wsym_ensure =
+        function(name_base, line)
+            local name = 'int!' .. unique_number
+            unique_number = unique_number + 1
+            local new_wsym = _wsym_ensure(name)
+            new_wsym.name_base = name_base
+            new_wsym.line = line
+            return new_wsym
+        end
+end
+
+local function precedenced_wsym_ensure(base_wsym, precedence)
+    local name = base_wsym.name .. '!prec' .. precedence
+    local new_wsym,is_new = _wsym_ensure(name)
+    if is_new then
+        new_wsym.nullable = false
+        new_wsym.line = base_wsym.line
+        new_wsym.name_base = base_wsym.name_base
+    end
+    return new_wsym
+end
+
+local function cloned_wsym_ensure(xsym)
+    local name = xsym.name
+    local new_wsym,is_new = _wsym_ensure(name)
+    if is_new then
+        new_wsym.nullable = xsym.nullable
+        new_wsym.line = xsym.line
+        new_wsym.name_base = xsym.name_base
+    end
+    return new_wsym
+end
+
+local function wrule_desc(wrule)
+    local desc_table = {
+        wrule.lhs.name,
+        '::=',
+    }
+    local rh_instances = wrule.rh_instances
+    for rh_ix = 1,#rh_instances do
+        local rh_instance = rh_instances[rh_ix]
+        desc_table[#desc_table+1] = rh_instance.name
+    end
+    return table.concat(desc_table, ' ')
+end
+
+local function wrule_ensure(rule_args)
+    local max = rule_args.max or 1
+    local min = rule_args.min or 1
+    local separator = rule_args.separator
+    local separator_id = separator and separator.id or -1
+    local lhs = rule_args.lhs
+    local rh_instances = rule_args.rh_instances
+    local sig_table = {
+        lhs.wid,
+        min,
+        max,
+        separator_id,
+    }
+    for rh_ix = 1,#rh_instances do
+        local rh_instance = rh_instances[rh_ix]
+        local wid = rh_instance.wid
+        sig_table[#sig_table+1] = wid
+    end
+    -- print("sig table:", inspect(sig_table))
+    local sig = table.concat(sig_table, '|')
+    local wrule = wrule_by_sig[sig]
+    if wrule then return wrule end
+    assert(not rule_args.separation or separator)
+    wrule = {
+        brick = rule_args.brick,
+        lhs = lhs,
+        max = max,
+        min = min,
+        rh_instances = rh_instances,
+        separation = rule_args.separation,
+        separator = separator,
+        sig = sig,
+        xalt = rule_args.xalt,
+    }
+    setmetatable(wrule, {
+            __index = function (table, key)
+                if key == 'type' then return 'wrule'
+                elseif key == 'rawtype' then return 'wrule'
+                elseif key == 'source' then return xalt or lhs
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'nullable' then return lhs.nullable
+                elseif key == 'desc' then return wrule_desc(table)
+                else return end
+            end
+        })
+    wrule_by_sig[sig] = wrule
+    wrule_by_id[#wrule_by_id+1] = wrule
+    wrule.id = #wrule_by_id
+    return wrule
+end
+
+```
+
+Given a hacked wrule, replace the original with the hacked version. It
+The deletion logic assumes that the 'sig' and 'id' fields were left as
+in the original.
+
+```
+-- luatangle: section+ wsym,wrule utilities
+
+local function wrule_replace(hacked_wrule)
+    local sig = hacked_wrule.sig
+    -- Remove the old version from the data base
+    wrule_by_sig[sig] = nil
+    wrule_by_id[hacked_wrule.id] = false
+    -- 'sig' will be overwritten
+    return wrule_ensure(hacked_wrule)
+end
+
+```
+
 ## Main code
 
 The main code follows
@@ -1645,195 +1839,7 @@ In Marpa, "being productive" and
         local wrule_by_sig = {}
         local wrule_by_id = {}
         local wsym_by_name = {}
-
 ```
-
-These wsym and wrule utilities
-are internal to the `compile()` method
-because they use up-values internal
-to the `compile()` method.
-
-Having these function be internal
-to `compile()` also makes it easy for the
-"working data" to be cleaned up -- it will just be garbage collected
-when compile() returns. If these functions were top-level, the data
-would have to be top-level as well.
-
-```
-
-    -- luatangle: section wsym,wrule utilities
-
-        -- 2nd return value is true if this is
-        -- a new symbol
-        local function _wsym_ensure(name)
-            local wsym_props = wsym_by_name[name]
-            if wsym_props then return wsym_props end
-            wsym_props = {
-                name = name,
-            }
-            setmetatable(wsym_props, {
-                    __index = function (table, key)
-                        if key == 'type' then return 'wsym' end
-                        if key == 'rawtype' then return 'wsym' end
-                        if key == 'xsym' then return nil end
-                        local xsym = table.xsym
-                        if xsym then return xsym[key] end
-                        return nil
-                    end
-                })
-
-            wsym_by_name[name] = wsym_props
-            wsym_props.wid = grammar.next_wid
-            grammar.next_wid = grammar.next_wid + 1
-            return wsym_props,true
-        end
-
-        -- Create a new *internal* lhs for this
-        -- alt
-        local function lh_wsym_ensure(alt)
-            local alt_name = alt.name
-            local name = 'lhs!' .. alt_name
-            local wsym_props,is_new = _wsym_ensure(name)
-            if is_new then
-                wsym_props.nullable = alt.nullable
-                wsym_props.line = alt.line
-                wsym_props.name_base = alt.name_base
-            end
-            return wsym_props
-        end
-
-        -- Create a new *internal* lhs for this
-        -- alt
-        local function lh_of_wrule_new(name, wrule)
-            local new_wsym,is_new = _wsym_ensure(name)
-            -- TODO: remove after development
-            assert(is_new)
-            new_wsym.nullable = wrule.nullable
-            new_wsym.line = wrule.line
-            new_wsym.name_base = wrule.name_base
-            return new_wsym
-        end
-
-        -- Create a unique new internal symbol
-        -- given the line & name_base data
-        local internal_wsym_ensure
-        do
-            local unique_number = 0
-            internal_wsym_ensure =
-                function(name_base, line)
-                    local name = 'int!' .. unique_number
-                    unique_number = unique_number + 1
-                    local new_wsym = _wsym_ensure(name)
-                    new_wsym.name_base = name_base
-                    new_wsym.line = line
-                    return new_wsym
-                end
-        end
-
-        local function precedenced_wsym_ensure(base_wsym, precedence)
-            local name = base_wsym.name .. '!prec' .. precedence
-            local new_wsym,is_new = _wsym_ensure(name)
-            if is_new then
-                new_wsym.nullable = false
-                new_wsym.line = base_wsym.line
-                new_wsym.name_base = base_wsym.name_base
-            end
-            return new_wsym
-        end
-
-        local function cloned_wsym_ensure(xsym)
-            local name = xsym.name
-            local new_wsym,is_new = _wsym_ensure(name)
-            if is_new then
-                new_wsym.nullable = xsym.nullable
-                new_wsym.line = xsym.line
-                new_wsym.name_base = xsym.name_base
-            end
-            return new_wsym
-        end
-
-        local function wrule_desc(wrule)
-            local desc_table = {
-                wrule.lhs.name,
-                '::=',
-            }
-            local rh_instances = wrule.rh_instances
-            for rh_ix = 1,#rh_instances do
-                local rh_instance = rh_instances[rh_ix]
-                desc_table[#desc_table+1] = rh_instance.name
-            end
-            return table.concat(desc_table, ' ')
-        end
-
-        local function wrule_ensure(rule_args)
-            local max = rule_args.max or 1
-            local min = rule_args.min or 1
-            local separator = rule_args.separator
-            local separator_id = separator and separator.id or -1
-            local lhs = rule_args.lhs
-            local rh_instances = rule_args.rh_instances
-            local sig_table = {
-                lhs.wid,
-                min,
-                max,
-                separator_id,
-            }
-            for rh_ix = 1,#rh_instances do
-                local rh_instance = rh_instances[rh_ix]
-                local wid = rh_instance.wid
-                sig_table[#sig_table+1] = wid
-            end
-            -- print("sig table:", inspect(sig_table))
-            local sig = table.concat(sig_table, '|')
-            local wrule = wrule_by_sig[sig]
-            if wrule then return wrule end
-            assert(not rule_args.separation or separator)
-            wrule = {
-                brick = rule_args.brick,
-                lhs = lhs,
-                max = max,
-                min = min,
-                rh_instances = rh_instances,
-                separation = rule_args.separation,
-                separator = separator,
-                sig = sig,
-                xalt = rule_args.xalt,
-            }
-            setmetatable(wrule, {
-                    __index = function (table, key)
-                        if key == 'type' then return 'wrule'
-                        elseif key == 'rawtype' then return 'wrule'
-                        elseif key == 'source' then return xalt or lhs
-                        elseif key == 'line' then return table.source.line
-                        elseif key == 'name_base' then return table.source.name_base
-                        elseif key == 'nullable' then return lhs.nullable
-                        elseif key == 'desc' then return wrule_desc(table)
-                        else return end
-                    end
-                })
-            wrule_by_sig[sig] = wrule
-            wrule_by_id[#wrule_by_id+1] = wrule
-            wrule.id = #wrule_by_id
-            return wrule
-        end
-
-```
-
-Given a hacked wrule, replace the original with the hacked version. It
-The deletion logic assumes that the 'sig' and 'id' fields were left as
-in the original.
-
-```
-    -- luatangle: section+ wsym,wrule utilities
-
-        local function wrule_replace(hacked_wrule)
-            local sig = hacked_wrule.sig
-            -- Remove the old version from the data base
-            wrule_by_sig[sig] = nil
-            wrule_by_id[hacked_wrule.id] = false
-            -- 'sig' will be overwritten
-            return wrule_ensure(hacked_wrule)
-        end
 
     -- luatangle: section+ main
 
