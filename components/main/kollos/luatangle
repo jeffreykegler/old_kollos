@@ -100,7 +100,7 @@ local function command_do(line)
         local section_name = form_section_name(line, words, 2)
         current_section = sections[section_name]
         if not current_section then
-            error("Section '" .. current_section.name .. "' does not exist\n"
+            error("Section '" .. section_name .. "' does not exist\n"
                 .. " Problem line: " .. line .. "\n"
             )
         end
@@ -188,6 +188,10 @@ local function write_section(handle, section_name, parent_prefix, seen)
         )
     end
     local section = sections[section_name]
+    if not section then
+        error("Section '" .. section_name .. "' is used, but it was never defined\n")
+    end
+    section.used = true
     for subsection_ix = 1,#section do
         local subsection = section[subsection_ix]
         local subsection_prefix = subsection.prefix
@@ -228,6 +232,12 @@ end
 
 if not was_output then
     error("No output commands: there must be at least one\n")
+end
+
+for section_name,section in pairs(sections) do
+    if not section.used then
+         print("Section not used: ", section_name)
+    end
 end
 
 -- vim: expandtab shiftwidth=4:

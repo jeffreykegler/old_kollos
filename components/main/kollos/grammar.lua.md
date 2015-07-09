@@ -23,9 +23,38 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -->
 
-= Fields
+# Kollos "mid-level" grammar cod3
 
-For development purposes, I track the fields in the important
+This is the code for the "middle layer" of Kollos.
+Below it is Libmarpa, a library written in
+the C language which contains the actual parse engine.
+
+The interface to this layer from above are a set of
+Lua calls, called the PLIF (Pure Lua InterFace).
+We expect to add a layer above this,
+which will parse from a DSL to the PLIF.
+
+The PLIF will be a documented interface.
+while not as convenient as a DSL,
+the PLIF can be used for programming.
+
+The mid-level implements the logic
+
+* translates precedences rules to BNF.
+
+* translates sequence rules to BNF.
+
+* performs a set of normalizations on the BNF,
+  to allow Libmarpa to be more efficient.
+
+* performs the Libmarpa calls that create a
+  Libmarpa grammar.
+
+## Fields
+
+For development purposes,
+after the working grammar is created,
+I census the fields in the important
 tables.  It's a cheap substitute for
 the strictly typed OO Lua does not
 have, and which I don't really want in general.
@@ -206,7 +235,7 @@ have, and which I don't really want in general.
 
 ```
 
-= Main code
+## Main code
 
 The main code follows
 
@@ -1613,17 +1642,26 @@ In Marpa, "being productive" and
             )
         end
 
-        --[[
-        -- I(=Jeffrey) put these "working data" functions inside the compile()
-        -- function to take advantage of upvalues. This also makes it easy for the
-        -- "working data" to be cleaned up -- it will just be garbage collected
-        -- when compile() returns. If these functions were top-level, the data
-        -- would have to be top-level as well.
-        --]]
-
         local wrule_by_sig = {}
         local wrule_by_id = {}
         local wsym_by_name = {}
+
+```
+
+These wsym and wrule utilities
+are internal to the `compile()` method
+because they use up-values internal
+to the `compile()` method.
+
+Having these function be internal
+to `compile()` also makes it easy for the
+"working data" to be cleaned up -- it will just be garbage collected
+when compile() returns. If these functions were top-level, the data
+would have to be top-level as well.
+
+```
+
+    -- luatangle: section wsym,wrule utilities
 
         -- 2nd return value is true if this is
         -- a new symbol
@@ -1779,13 +1817,14 @@ In Marpa, "being productive" and
             return wrule
         end
 
-    --[[
+```
 
-    Given a hacked wrule, replace the original with the hacked version. It
-    The deletion logic assumes that the 'sig' and 'id' fields were left as
-    in the original.
+Given a hacked wrule, replace the original with the hacked version. It
+The deletion logic assumes that the 'sig' and 'id' fields were left as
+in the original.
 
-    --]]
+```
+    -- luatangle: section+ wsym,wrule utilities
 
         local function wrule_replace(hacked_wrule)
             local sig = hacked_wrule.sig
@@ -1795,6 +1834,10 @@ In Marpa, "being productive" and
             -- 'sig' will be overwritten
             return wrule_ensure(hacked_wrule)
         end
+
+    -- luatangle: section+ main
+
+        -- luatangle: insert wsym,wrule utilities
 
         local function alt_to_work_data_add(xalt)
             -- at top, use brick from xrule.lhs
@@ -2210,9 +2253,11 @@ In Marpa, "being productive" and
     grammar_class.new = grammar_new
     return grammar_class
 
+    --luatangle: end section
+    --luatangle: write stdout main
+
 ```
 
---luatangle: write stdout main
 
 <!--
 vim: expandtab shiftwidth=4:
