@@ -6,6 +6,7 @@ file(COPY
     "lua_to_ast.pl"
     "round2.lua"
     "seq.lua"
+    "seq2.lua"
     DESTINATION
       ${CMAKE_CURRENT_BINARY_DIR}
 )
