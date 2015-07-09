@@ -409,6 +409,8 @@ local function wrule_ensure(rule_args)
     return wrule
 end
 
+-- luatangle: end section
+
 ```
 
 Given a hacked wrule, replace the original with the hacked version. It
@@ -426,6 +428,8 @@ local function wrule_replace(hacked_wrule)
     -- 'sig' will be overwritten
     return wrule_ensure(hacked_wrule)
 end
+
+-- luatangle: end section
 
 ```
 
