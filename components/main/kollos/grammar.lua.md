@@ -479,20 +479,69 @@ symbol.
 This RHS symbol is called the *repetend*
 
 ```
+    -- luatangle: section Rewrite the sequence counts
 
--- luatangle: section Rewrite the sequence counts
+    if separator then
+        -- luatangle: insert Rewrite separated sequence counts
+    else
+        -- luatangle: insert Rewrite unseparated sequence counts
+    end
 
-if separator then
-    -- luatangle: insert Rewrite separated sequence counts
-else
-    -- luatangle: insert Rewrite unseparated sequence counts
-end
-
--- luatangle: section Rewrite separated sequence counts
--- luatangle: section Rewrite unseparated sequence counts
--- luatangle: end section
+    -- luatangle: section Rewrite separated sequence counts
 
 ```
+
+Performs the rewrite for a block of size `n`,
+without separation.
+`working_wrule` is the current sequence rule,
+and assumed to be available as an upvalue.
+
+```
+    -- luatangle: section Rewrite unseparated block function
+    local function blk(n)
+       local repetend_instance = working_wrule.rh_instance[1]
+       if n = 1 then
+           return {
+               rh_instances = { repetend_instance }
+           }
+       end
+       if n = 2 then
+           return {
+               rh_instances = {
+                   repetend_instance,
+                   repetend_instance,
+               }
+           }
+       end
+       local n1 = pow2(n)
+       local n2 = n - n1
+       local n1_wrule = internal_wrule_new(
+           'blk' .. n1 .. '!' .. repetend_instance.name,
+           {
+              rh_instances = blk(n1),
+              xalt = working_wrule.xalt
+           }
+       )
+       local n2_wrule = internal_wrule_new(
+           'blk' .. n2 .. '!' .. repetend_instance.name,
+           {
+              rh_instances = blk(n2),
+              xalt = working_wrule.xalt
+           }
+       )
+       return {
+           winstance_new(n1_wrule.lhs),
+           winstance_new(n2_wrule.lhs),
+       }
+    end
+
+```
+
+```
+    -- luatangle: section Rewrite unseparated sequence counts
+    -- luatangle: end section
+
+    ```
 
 ## Main code
 
