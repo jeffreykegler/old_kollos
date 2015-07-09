@@ -213,6 +213,7 @@ have, and which I don't really want in general.
              name_base = true,
              nullable = true,
              precedence_level = true,
+             source = true,
              xsym = true,
              wid = true,
         }
@@ -265,14 +266,20 @@ local function wsym_ensure(name)
     }
     setmetatable(wsym_props, {
             __index = function (table, key)
-                if key == 'type' then return 'wsym' end
-                if key == 'rawtype' then return 'wsym' end
-                if key == 'xsym' then return nil end
-                local xsym = table.xsym
-                if xsym then return xsym[key] end
-                return nil
+                if key == 'type' then return 'wsym'
+                elseif key == 'rawtype' then return 'wsym'
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'source' then return table.source or table.xsym
+                elseif key == 'xsym' then return nil
+                else
+                    local xsym = table.xsym
+                    if xsym then return xsym[key] end
+                    return nil
+                end
             end
-        })
+        }
+    )
 
     wsym_by_name[name] = wsym_props
     wsym_props.wid = grammar.next_wid
@@ -389,6 +396,7 @@ local function wrule_ensure(rule_args)
         separation = rule_args.separation,
         separator = separator,
         sig = sig,
+        source = rule_args.source,
         xalt = rule_args.xalt,
     }
     setmetatable(wrule, {
@@ -406,6 +414,10 @@ local function wrule_ensure(rule_args)
     wrule_by_sig[sig] = wrule
     wrule_by_id[#wrule_by_id+1] = wrule
     wrule.id = #wrule_by_id
+    assert(wrule.source) -- TODO: remove after development
+    if not wrule.name_base then
+        error(inspect(wrule))
+    end
     return wrule
 end
 
@@ -416,6 +428,11 @@ end
 Given a hacked wrule, replace the original with the hacked version.
 The deletion logic assumes that the 'sig' and 'id' fields were left as
 in the original.
+
+This routine exists because it is often convenient,
+instead of carefully custom-cloning a rule,
+and then deleting it.
+to "hack" its fields.
 
 ```
 -- luatangle: section+ wsym,wrule utilities
@@ -447,6 +464,7 @@ the LHS name is unique.
 local function internal_wrule_new(lhs_name, wrule_args)
     local new_lhs, is_new
     new_lhs, is_new = wsym_ensure(lhs_name)
+    new_lhs.source = wrule_args.source
     wrule_args.lhs = new_lhs
     return wrule_ensure(wrule_args)
 end
@@ -500,42 +518,39 @@ Assumed to be available as an upvalue are
 * `repetend_instance`, the instance for the repetend.
 
 ```
+
     -- luatangle: section Rewrite unseparated block function
+
     local function blk_rhs(n)
-       if n == 1 then
-           return {
-               rh_instances = { repetend_instance }
-           }
-       end
-       if n == 2 then
-           return {
-               rh_instances = {
-                   repetend_instance,
-                   repetend_instance,
-               }
-           }
-       end
-       local n1 = pow2(n)
-       local n2 = n - n1
-       print('n, n1, n2', n, n1, n2)
-       local n1_wrule = internal_wrule_new(
-           'blk' .. n1 .. '!' .. repetend_instance.name,
-           {
-              rh_instances = blk_rhs(n1),
-              xalt = working_wrule.xalt
-           }
-       )
-       local n2_wrule = internal_wrule_new(
-           'blk' .. n2 .. '!' .. repetend_instance.name,
-           {
-              rh_instances = blk_rhs(n2),
-              xalt = working_wrule.xalt
-           }
-       )
-       return {
-           winstance_new(n1_wrule.lhs),
-           winstance_new(n2_wrule.lhs),
-       }
+        if n == 1 then
+            return { repetend_instance }
+        end
+        if n == 2 then
+            return {
+                repetend_instance,
+                repetend_instance
+            }
+        end
+        local n1 = pow2(n)
+        local n2 = n - n1
+        local n1_wrule = internal_wrule_new(
+            'blk' .. n1 .. '!' .. repetend_instance.name,
+            {
+                rh_instances = blk_rhs(n1),
+                source = working_wrule.source
+            }
+        )
+        local n2_wrule = internal_wrule_new(
+            'blk' .. n2 .. '!' .. repetend_instance.name,
+            {
+                rh_instances = blk_rhs(n2),
+                source = working_wrule.source
+            }
+        )
+        return {
+            winstance_new(n1_wrule.lhs),
+            winstance_new(n2_wrule.lhs),
+        }
     end
 
 ```
@@ -545,6 +560,7 @@ Assumed to be available as an upvalue are
     -- luatangle: insert Rewrite unseparated block function
 
     if min == max then
+        assert(working_wrule.name_base)
         working_wrule.rh_instances = blk_rhs(min)
         working_wrule = wrule_replace(working_wrule)
     end
@@ -997,6 +1013,8 @@ The main code follows
         setmetatable(new_instance, {
                 __index = function (table, key)
                     if key == 'rawtype' then return 'xinstance'
+                    elseif key == 'line' then return element.line
+                    elseif key == 'name_base' then return element.name_base
                     else return table.element[key] end
                 end
             })
@@ -1011,9 +1029,11 @@ The main code follows
         }
         setmetatable(new_instance, {
                 __index = function (table, key)
-                    if key == 'rawtype' then return 'winstance' end
-                    if key == 'element' then return nil end
-                    return table.element[key]
+                    if key == 'rawtype' then return 'winstance'
+                    elseif key == 'line' then return element.line
+                    elseif key == 'name_base' then return element.name_base
+                    elseif key == 'element' then return nil
+                    else return table.element[key] end
                 end
             })
         return new_instance
