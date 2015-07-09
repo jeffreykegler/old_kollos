@@ -447,7 +447,6 @@ the LHS name is unique.
 local function internal_wrule_new(lhs_name, wrule_args)
     local new_lhs, is_new
     new_lhs, is_new = wsym_ensure(lhs_name)
-    assert(is_new) -- TODO delete after development
     wrule_args.lhs = new_lhs
     return wrule_ensure(wrule_args)
 end
@@ -518,6 +517,7 @@ Assumed to be available as an upvalue are
        end
        local n1 = pow2(n)
        local n2 = n - n1
+       print('n, n1, n2', n, n1, n2)
        local n1_wrule = internal_wrule_new(
            'blk' .. n1 .. '!' .. repetend_instance.name,
            {
@@ -582,12 +582,10 @@ The main code follows
     -- Valid only for n>=2
     local function pow2(n)
         local pow = 1
-        n = rshift(n,1)
-        while true do
-            n = rshift(n, 1)
-            if n == 0 then return pow end
+        while pow < n do
             pow = lshift(pow, 1)
         end
+        return rshift(pow, 1)
     end
 
     local grammar_class = { }
