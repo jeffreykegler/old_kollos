@@ -502,7 +502,7 @@ Assumed to be available as an upvalue are
 
 ```
     -- luatangle: section Rewrite unseparated block function
-    local function blk(n)
+    local function blk_rhs(n)
        if n == 1 then
            return {
                rh_instances = { repetend_instance }
@@ -521,14 +521,14 @@ Assumed to be available as an upvalue are
        local n1_wrule = internal_wrule_new(
            'blk' .. n1 .. '!' .. repetend_instance.name,
            {
-              rh_instances = blk(n1),
+              rh_instances = blk_rhs(n1),
               xalt = working_wrule.xalt
            }
        )
        local n2_wrule = internal_wrule_new(
            'blk' .. n2 .. '!' .. repetend_instance.name,
            {
-              rh_instances = blk(n2),
+              rh_instances = blk_rhs(n2),
               xalt = working_wrule.xalt
            }
        )
@@ -545,14 +545,8 @@ Assumed to be available as an upvalue are
     -- luatangle: insert Rewrite unseparated block function
 
     if min == max then
-        new_rhs = blk(min)
-        local new_wrule = internal_wrule_new(
-           'blk' .. min .. '!' .. repetend_instance.name,
-           {
-               rh_instances = new_rhs,
-               xalt = working_rule.xalt
-           }
-       )
+        working_wrule.rh_instances = blk_rhs(min)
+        working_wrule = wrule_replace(working_wrule)
     end
 
     -- luatangle: end section

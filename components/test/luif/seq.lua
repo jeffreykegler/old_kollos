@@ -47,6 +47,8 @@ l0:rule_new{'seq2'}
 l0:alternative_new{'a', 'b', 'c', min=1, max = -1, separator = 'comma'}
 l0:rule_new{'seq3'}
 l0:alternative_new{'a', 'b', 'c', min=1, max = -1, separator = 'comma', separation = 'terminating'}
+l0:rule_new{'seq4'}
+l0:alternative_new{'b', 'c', min=7, max = 7 }
 l0:line_set(__LINE__)
 l0:line_set(__LINE__)
 l0:rule_new{'comma'}
