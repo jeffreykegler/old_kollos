@@ -257,7 +257,7 @@ would have to be top-level as well.
 
 -- 2nd return value is true if this is
 -- a new symbol
-local function _wsym_ensure(name)
+local function wsym_ensure(name)
     local wsym_props = wsym_by_name[name]
     if wsym_props then return wsym_props end
     wsym_props = {
@@ -285,7 +285,7 @@ end
 local function lh_wsym_ensure(alt)
     local alt_name = alt.name
     local name = 'lhs!' .. alt_name
-    local wsym_props,is_new = _wsym_ensure(name)
+    local wsym_props,is_new = wsym_ensure(name)
     if is_new then
         wsym_props.nullable = alt.nullable
         wsym_props.line = alt.line
@@ -297,7 +297,7 @@ end
 -- Create a new *internal* lhs for this
 -- alt
 local function lh_of_wrule_new(name, wrule)
-    local new_wsym,is_new = _wsym_ensure(name)
+    local new_wsym,is_new = wsym_ensure(name)
     -- TODO: remove after development
     assert(is_new)
     new_wsym.nullable = wrule.nullable
@@ -315,7 +315,7 @@ do
         function(name_base, line)
             local name = 'int!' .. unique_number
             unique_number = unique_number + 1
-            local new_wsym = _wsym_ensure(name)
+            local new_wsym = wsym_ensure(name)
             new_wsym.name_base = name_base
             new_wsym.line = line
             return new_wsym
@@ -324,7 +324,7 @@ end
 
 local function precedenced_wsym_ensure(base_wsym, precedence)
     local name = base_wsym.name .. '!prec' .. precedence
-    local new_wsym,is_new = _wsym_ensure(name)
+    local new_wsym,is_new = wsym_ensure(name)
     if is_new then
         new_wsym.nullable = false
         new_wsym.line = base_wsym.line
@@ -335,7 +335,7 @@ end
 
 local function cloned_wsym_ensure(xsym)
     local name = xsym.name
-    local new_wsym,is_new = _wsym_ensure(name)
+    local new_wsym,is_new = wsym_ensure(name)
     if is_new then
         new_wsym.nullable = xsym.nullable
         new_wsym.line = xsym.line
@@ -413,7 +413,7 @@ end
 
 ```
 
-Given a hacked wrule, replace the original with the hacked version. It
+Given a hacked wrule, replace the original with the hacked version.
 The deletion logic assumes that the 'sig' and 'id' fields were left as
 in the original.
 
@@ -427,6 +427,29 @@ local function wrule_replace(hacked_wrule)
     wrule_by_id[hacked_wrule.id] = false
     -- 'sig' will be overwritten
     return wrule_ensure(hacked_wrule)
+end
+
+-- luatangle: end section
+
+```
+
+Create an "internal" wrule -- one with a special
+LHS.
+Arguments are a LHS name and a table of named
+arguments that are passed to `wrule_ensure()`.
+It is assumed that the called has ensured
+the LHS name is unique.
+
+```
+
+-- luatangle: section+ wsym,wrule utilities
+
+local function internal_wrule_new(lhs_name, wrule_args)
+    local new_lhs, is_new
+    new_lhs, is_new = wsym_ensure(lhs_name)
+    assert(is_new) -- TODO delete after development
+    wrule_args.lhs = new_lhs
+    return wrule_ensure(wrule_args)
 end
 
 -- luatangle: end section
@@ -2049,7 +2072,7 @@ In Marpa, "being productive" and
                 do
                     -- We need a symbol for the top precedence level
                     -- in addition to the original symbol
-                    local wsym_props = _wsym_ensure(lhs.name)
+                    local wsym_props = wsym_ensure(lhs.name)
                     wsym_props.xsym = lhs
                     wsym_props.precedence_level = top_precedence_level
                     for level = top_precedence_level,0,-1 do
