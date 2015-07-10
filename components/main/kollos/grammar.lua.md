@@ -50,6 +50,52 @@ The mid-level implements the logic
 * performs the Libmarpa calls that create a
   Libmarpa grammar.
 
+## Rewriting grammars
+
+Rewriting grammars prior to parsing is a technique
+long known and discuesed.
+A major obstacle is that parsing is almost always
+a means to an end -- the application is parsing
+as a first step to applying a semantics,
+and that semantics is defined in terms of the
+original grammar.
+Many of the most tempting rewrites
+undo the
+relationship between the original grammar
+and its semantics, to the extent that
+recovering it is so costly that the
+rewrite is counter-productive.
+
+Marpa/Kollos uses only "semantics-safe" rewrites --
+rewrite which can be undone cheaply.
+This approach has been tested in Marpa::R2,
+which translates back and forth between an
+pre-rewrite grammar and
+a post-rewrite grammar.
+In Marpa::R2,
+"semantics-safe" rewrites can be undone
+cheaply not just in post-processing, but also
+"on the fly".
+
+### Semantics-safe rewriting
+
+We now proceed to define "semantics-safe".
+We consider two grammars.
+The *external* grammar is the one before
+rewriting.
+The *internal* grammar is the one after
+rewriting.
+
+A partial function,
+call it `brick()`,
+maps symbols in the internal
+grammar to the external grammar.
+Let `isym` be an internal symbol.
+`isym` is called a *brick* symbol iff
+`brick(isym)` is defined.
+`isym` is called a *mortar* symbol iff
+`isym` is not a brick symbol.
+
 ## Fields
 
 For development purposes,
