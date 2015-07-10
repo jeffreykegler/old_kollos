@@ -169,29 +169,31 @@ have, and which I don't really want in general.
         }
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
-            if not wrule.name_base then
-                print("missing 'name_base' in wrule:", wrule.desc)
-            end
-            if not wrule.line then
-                print("missing 'line' in wrule:", wrule.desc)
-            end
-            for field,_ in pairs(wrule) do
-                if not wrule_field_census_expected[field] then
-                    wrule_field_census[field] = true
+            if wrule then
+                if not wrule.name_base then
+                    print("missing 'name_base' in wrule:", wrule.desc)
                 end
-            end
-            local rh_instances = wrule.rh_instances
-            for rh_ix = 1,#rh_instances do
-                local winstance = rh_instances[rh_ix]
-                if not winstance.name_base then
-                    print("missing 'name_base' in winstance:", winstance.name)
+                if not wrule.line then
+                    print("missing 'line' in wrule:", wrule.desc)
                 end
-                if not winstance.line then
-                    print("missing 'line' in winstance:", winstance.name)
+                for field,_ in pairs(wrule) do
+                    if not wrule_field_census_expected[field] then
+                        wrule_field_census[field] = true
+                    end
                 end
-                for field,_ in pairs(winstance) do
-                    if not winstance_field_census_expected[field] then
-                        winstance_field_census[field] = true
+                local rh_instances = wrule.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local winstance = rh_instances[rh_ix]
+                    if not winstance.name_base then
+                        print("missing 'name_base' in winstance:", winstance.name)
+                    end
+                    if not winstance.line then
+                        print("missing 'line' in winstance:", winstance.name)
+                    end
+                    for field,_ in pairs(winstance) do
+                        if not winstance_field_census_expected[field] then
+                            winstance_field_census[field] = true
+                        end
                     end
                 end
             end
@@ -507,13 +509,52 @@ Assumed to be available as an upvalue are
 
 ```
 
+I call a *block* a sequence of fixed length.
+I call any other sequence a *range*.
+If a range has no maximum length, I call it *open*.
+If a range is not open, then it is *closed*.
+If, in a sequence, `min == 1`, then I say the
+sequence is *1-based*.
+
+The following code works first dividing the
+sequence into one or two 1-based sequences.
+If there is only one,
+the sequece may be a block or a range.
+If there are two, the block always comes first.
+If there is a range, it may be either open
+or closed.
+
+We start by determining what sequences we have:
+
 ```
+
     -- luatangle: section Rewrite unseparated sequence counts
+
+    local block_size
+    local range_size
+    if min == max then
+        block_size = max
+    elseif min == 1 then
+        range_size = max
+    else
+        block_size = min
+        range_size = max == -1 and -1 or max-min
+    end
+
+```
+
+```
+    -- luatangle: section+ Rewrite unseparated sequence counts
     -- luatangle: insert Rewrite unseparated block function
 
-    if min == max then
-        assert(working_wrule.name_base)
-        working_wrule.rh_instances = blk_rhs(min)
+    local new_rhs = {}
+    if block_size then
+        new_rhs[#new_rhs+1] = blk_rhs(block_size)
+    end
+
+    if #new_rhs == 1 then
+        print(__FILE__, __LINE__)
+        working_wrule.rh_instances = new_rhs[1]
         working_wrule = wrule_replace(working_wrule)
     end
 
