@@ -237,10 +237,7 @@ have, and which I don't really want in general.
 
 ```
 
-## Utilties for wsym, wrule
-
-
-```
+## Utilities for wsym, wrule
 
 These wsym and wrule utilities
 are internal to the `compile()` method
@@ -2232,19 +2229,32 @@ In Marpa, "being productive" and
                 local max = working_wrule.max
                 if min ~= 1 or max ~= 1 then
                     local rh_instances = working_wrule.rh_instances
-                    if #rh_instances > 1 then
-                        local new_sym
-                            = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
-                        unique_number = unique_number + 1
-                        local new_winstance = winstance_new(new_sym)
-                        working_wrule.rh_instances = {new_winstance}
-                        working_wrule = wrule_replace(working_wrule)
-                        wrule_ensure{
-                            lhs = new_sym,
-                            rh_instances = rh_instances,
-                        }
-                        -- TODO: Allow only singleton RHS
-                    end
+
+```
+
+Allow only singleton RHS, by creating a new rule.
+Actually,
+we do this even if the rule is already an singleton,
+in order to get an new, unique, symbol for the
+repetend.
+Each sequence has a unique semantics,
+and we will use the repetend symbol name as a
+unique ID for this sequence.
+
+```
+
+    -- luatangle: section+ main
+
+                    local new_sym
+                        = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
+                    unique_number = unique_number + 1
+                    local new_winstance = winstance_new(new_sym)
+                    working_wrule.rh_instances = {new_winstance}
+                    working_wrule = wrule_replace(working_wrule)
+                    wrule_ensure{
+                        lhs = new_sym,
+                        rh_instances = rh_instances,
+                    }
 
                     -- TODO: Normalize separation
                     local separation = working_wrule.separation
