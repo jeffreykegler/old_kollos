@@ -705,7 +705,23 @@ The RHS symbol is called the *repetend*
 
 ```
 
-Performs the rewrite for a block of size `n`,
+I call a *block* a sequence of fixed length.
+I call any other sequence a *range*.
+If a range has no maximum length, I call it *open*.
+If a range is not open, then it is *closed*.
+If, in a sequence, `min == 1`, then I say the
+sequence is *1-based*.
+
+The following code works first dividing the
+sequence into one or two 1-based sequences.
+If there is only one,
+the sequece may be a block or a range.
+If there are two, the block always comes first.
+If there is a range, it may be either open
+or closed.
+
+The next code
+performs the rewrite for a block of size `n`,
 without separation.
 Assumed to be available as an upvalue are
 
@@ -719,7 +735,6 @@ Assumed to be available as an upvalue are
 
     -- For memoizing blocks by cont
     local blocks = {}
-    local ranges = {}
 
     local function blk_lhs(n)
         local lhs = blocks[n]
@@ -756,20 +771,68 @@ Assumed to be available as an upvalue are
 
 ```
 
-I call a *block* a sequence of fixed length.
-I call any other sequence a *range*.
-If a range has no maximum length, I call it *open*.
-If a range is not open, then it is *closed*.
-If, in a sequence, `min == 1`, then I say the
-sequence is *1-based*.
+The next code
+performs the rewrite for a range of size `n`.
+Assumed to be available as an upvalue are
 
-The following code works first dividing the
-sequence into one or two 1-based sequences.
-If there is only one,
-the sequece may be a block or a range.
-If there are two, the block always comes first.
-If there is a range, it may be either open
-or closed.
+* `working_wrule`, the current sequence rule.
+
+* `repetend_instance`, the instance for the repetend.
+
+```
+
+    -- luatangle: section Rewrite range functions
+
+    -- For memoizing ranges by cont
+    local ranges = {}
+
+    local function range_lhs(n)
+        local lhs = blocks[n]
+        if lhs then return lhs end
+        local short_rhs, long_rhs
+
+        if n == 1 then
+        lhs = blk_lhs(1)
+        ranges[n] = lhs
+        return lhs
+        elseif n == 2 then
+            short_rhs = { repetend_instance }
+            long_rhs = {
+                repetend_instance,
+                repetend_instance
+            }
+        else
+            local n1 = pow2(n)
+            local n2 = n - n1
+            local range_lhs1 = range_lhs(n1)
+            local block_lhs1 = blk_lhs(n1)
+            local lhs2 = range_lhs(n2)
+            short_rhs = { winstance_new(range_lhs1) }
+            long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
+        end
+        local lhs_name = 'rng' .. n .. '!' .. repetend_instance.name
+        local is_new
+        lhs, is_new = wsym_ensure(lhs_name)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = working_wrule.source
+        wrule_ensure(
+            {
+                lhs = lhs,
+                rh_instances = short_rhs
+            }
+        )
+        wrule_ensure(
+            {
+                lhs = lhs,
+                rh_instances = long_rhs
+            }
+        )
+        ranges[n] = lhs
+        return lhs
+    end
+
+```
+
 
 We start by determining what sequences we have:
 
@@ -803,7 +866,6 @@ We start by determining what sequences we have:
     if #new_rhs == 1 then
         print(__FILE__, __LINE__)
         working_wrule.rh_instances = new_rhs
-        print(inspect(working_wrule))
         working_wrule = wrule_replace(working_wrule)
     end
 

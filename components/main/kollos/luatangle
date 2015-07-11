@@ -168,7 +168,10 @@ for line in input_handle:lines() do
         elseif line_prefix:match("^[^%s]") then
             section_end()
         elseif #line ~= 0 then
-            error("Section '" .. current_subsection.name .. "' ends in bad line\n"
+            local subsection_name = current_subsection.name
+            local subsection_name_desc
+                = subsection_name and '"' .. subsection.name .. '"' or '?'
+            error("Section " .. subsection_name_desc .. " ends in bad line\n"
                 .. " Problem line: " .. line .. "\n"
             )
         end
