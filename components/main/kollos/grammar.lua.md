@@ -324,6 +324,25 @@ semantics to be found quickly.
 Currently, working instances never change after
 creation.
 
+Separators will usually (always?) be
+a brick element.
+They do not have the
+`<xalt, rh_ix>` duple defined.
+Instead, the `xalt` is the value of
+their `separates` named field.
+
+```
+        -- luatangle: section+ census fields
+        local winstance_field_census = {}
+        local winstance_field_census_expected = {
+            element = true,
+            separates = true,
+            rh_ix = true,
+            xalt = true,
+        }
+
+```
+
 Since
 working instances do not change after creation,
 they
@@ -340,16 +359,7 @@ but it is convenient, and it
 is used in certain places
 in the working grammar.
 
-```
-        -- luatangle: section+ census fields
-        local winstance_field_census = {}
-        local winstance_field_census_expected = {
-            element = true,
-            rh_ix = true,
-            xalt = true,
-        }
-
-```
+## Some code to implement the census
 
 ```
         -- luatangle: section+ census fields
@@ -406,8 +416,7 @@ in the working grammar.
              print("unexpected xsym field:", field)
         end
 
-        -- census wrule and winstance fields
-        -- TODO: remove after development
+        -- census wrule fields
         local wrule_field_census = {}
         local wrule_field_census_expected = {
             brick = true,
@@ -696,7 +705,8 @@ It is assumed at this point that
 
 Per the above assumptions, there is exactly one
 RHS symbol.
-The RHS symbol is called the *repetend*
+The RHS symbol is called the *repetend*.
+It is the first (and only) symbol in `working_rule`.
 
 ```
     -- luatangle: section Rewrite the sequence counts
@@ -705,6 +715,19 @@ The RHS symbol is called the *repetend*
 
 ```
 
+```
+    -- luatangle: section+ Rewrite the sequence counts
+
+    local separator_instance
+    if separator then
+        separator_instance = winstance_new(separator)
+        assert( working_wrule.xalt )
+        separator_instance.separates = working_wrule.xalt
+    end
+
+```
+
+I call a *block* a sequence of fixed length.
 I call a *block* a sequence of fixed length.
 I call any other sequence a *range*.
 If a range has no maximum length, I call it *open*.
@@ -743,16 +766,23 @@ Assumed to be available as an upvalue are
         if n == 1 then
             rhs = { repetend_instance }
         elseif n == 2 then
-            rhs = {
-                repetend_instance,
-                repetend_instance
-            }
+            if separator_instance then
+                rhs = { repetend_instance, separator_instance,
+                    repetend_instance }
+            else
+                rhs = { repetend_instance, repetend_instance }
+            end
         else
             local n1 = pow2(n)
             local n2 = n - n1
             local lhs1 = blk_lhs(n1)
             local lhs2 = blk_lhs(n2)
-            rhs = { winstance_new(lhs1), winstance_new(lhs2) }
+            if separator_instance then
+                rhs = { winstance_new(lhs1), separator_instance,
+                    winstance_new(lhs2) }
+            else
+                rhs = { winstance_new(lhs1), winstance_new(lhs2) }
+            end
         end
         local lhs_name = 'blk' .. n .. '!' .. repetend_instance.name
         local is_new
@@ -799,20 +829,24 @@ Assumed to be available as an upvalue are
 
         if n == -1 then
             short_rhs = { repetend_instance }
-            long_rhs = {
-                winstance_new(lhs),
-                repetend_instance
-            }
+            if separator_instance then
+                long_rhs = { winstance_new(lhs), separator_instance,
+                    repetend_instance }
+            else
+                long_rhs = { winstance_new(lhs), repetend_instance }
+            end
         elseif n == 1 then
             lhs = blk_lhs(1)
             ranges[n] = lhs
             return lhs
         elseif n == 2 then
             short_rhs = { repetend_instance }
-            long_rhs = {
-                repetend_instance,
-                repetend_instance
-            }
+            if separator_instance then
+                long_rhs = { repetend_instance, separator_instance,
+                    repetend_instance }
+            else
+                long_rhs = { repetend_instance, repetend_instance }
+            end
         else
             local n1 = pow2(n)
             local n2 = n - n1
@@ -820,7 +854,12 @@ Assumed to be available as an upvalue are
             local block_lhs1 = blk_lhs(n1)
             local lhs2 = range_lhs(n2)
             short_rhs = { winstance_new(range_lhs1) }
-            long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
+            if separator_instance then
+                long_rhs = { winstance_new(block_lhs1), separator_instance,
+                    winstance_new(lhs2) }
+            else
+                long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
+            end
         end
         wrule_ensure(
             {
@@ -854,8 +893,8 @@ We start by determining what sequences we have:
     elseif min == 1 then
         range_size = max
     else
-        block_size = min
-        range_size = max == -1 and -1 or max-min
+        block_size = min-1
+        range_size = max == -1 and -1 or max-block_size
     end
 
 ```
@@ -873,6 +912,9 @@ We start by determining what sequences we have:
 
     if range_size then
         local range_lhs = range_lhs(range_size)
+        if #new_rhs > 0 and separator_instance then
+            new_rhs[#new_rhs+1] = separator_instance
+        end
         new_rhs[#new_rhs+1] = winstance_new(range_lhs)
     end
 

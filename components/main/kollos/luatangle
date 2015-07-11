@@ -49,6 +49,7 @@ local outputs = {}
 local current_section
 local current_subsection
 local current_prefix
+local line_number = 0
 
 local function form_section_name(line, words, offset)
     local section_name_table = {}
@@ -85,7 +86,8 @@ local function command_do(line)
     if words[1] == 'section' then
         local section_name = form_section_name(line, words, 2)
         if sections[section_name] then
-            error("Section '" .. current_section.name .. "' already exists\n"
+            error(
+                'Line ' .. line_number .. ": Section '" .. section_name .. "' already exists\n"
                 .. " Problem line: " .. line .. "\n"
             )
         end
@@ -160,6 +162,7 @@ if file_ids.stdin then
 else input_handle = io.input() end
 
 for line in input_handle:lines() do
+    line_number = line_number + 1
     if current_subsection then
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
