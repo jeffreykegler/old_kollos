@@ -841,7 +841,6 @@ The main code follows
         while pow < n do
             pow = lshift(pow, 1)
         end
-        print('pow2', n, pow)
         return rshift(pow, 1)
     end
 
@@ -1658,7 +1657,7 @@ In Marpa, "being productive" and
             -- If instance is top level
             if element.is_top then
                 local lhs = element.lhs_of_top
-                print("Setting " .. lhs.name .. " " .. property .. " to ", element_has_property)
+                -- print("Setting " .. lhs.name .. " " .. property .. " to ", element_has_property)
                 lhs[property] = element_has_property
             end
             return element_has_property
