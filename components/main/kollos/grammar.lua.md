@@ -791,10 +791,22 @@ Assumed to be available as an upvalue are
         if lhs then return lhs end
         local short_rhs, long_rhs
 
-        if n == 1 then
-        lhs = blk_lhs(1)
-        ranges[n] = lhs
-        return lhs
+        local lhs_name = 'rng' .. n .. '!' .. repetend_instance.name
+        local is_new
+        lhs, is_new = wsym_ensure(lhs_name)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = working_wrule.source
+
+        if n == -1 then
+            short_rhs = { repetend_instance }
+            long_rhs = {
+                winstance_new(lhs),
+                repetend_instance
+            }
+        elseif n == 1 then
+            lhs = blk_lhs(1)
+            ranges[n] = lhs
+            return lhs
         elseif n == 2 then
             short_rhs = { repetend_instance }
             long_rhs = {
@@ -810,11 +822,6 @@ Assumed to be available as an upvalue are
             short_rhs = { winstance_new(range_lhs1) }
             long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
         end
-        local lhs_name = 'rng' .. n .. '!' .. repetend_instance.name
-        local is_new
-        lhs, is_new = wsym_ensure(lhs_name)
-        assert(is_new) -- TODO: remove after development
-        lhs.source = working_wrule.source
         wrule_ensure(
             {
                 lhs = lhs,
@@ -856,6 +863,7 @@ We start by determining what sequences we have:
 ```
     -- luatangle: section+ Rewrite the sequence counts
     -- luatangle: insert Rewrite block function
+    -- luatangle: insert Rewrite range functions
 
     local new_rhs = {}
     if block_size then
@@ -863,11 +871,13 @@ We start by determining what sequences we have:
         new_rhs[#new_rhs+1] = winstance_new(block_lhs)
     end
 
-    if #new_rhs == 1 then
-        print(__FILE__, __LINE__)
-        working_wrule.rh_instances = new_rhs
-        working_wrule = wrule_replace(working_wrule)
+    if range_size then
+        local range_lhs = range_lhs(range_size)
+        new_rhs[#new_rhs+1] = winstance_new(range_lhs)
     end
+
+    working_wrule.rh_instances = new_rhs
+    working_wrule = wrule_replace(working_wrule)
 
 ```
 
