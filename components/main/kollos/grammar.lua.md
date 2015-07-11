@@ -188,14 +188,20 @@ iff, for every application of the rewrite,
 and for every input `i`,
 when both the external grammar
 and internal grammar is used to parse `i`,
-every parse tree produced by the internal grammar
-is brick-consistent with some
-parse tree produced by the external grammar.
 
-The previous definition might be made clearer
-by rephrasing it to cover only
-the special case where both the internal
-and external grammars are unambiguous:
+* every parse tree produced by the internal grammar
+  is brick-consistent
+  with some parse tree produced by the external grammar,
+
+* and vice versa,
+  every parse tree produced by the external grammar
+  is brick-consistent
+  with some parse tree produced by the internal grammar.
+
+The previous definition is perhaps clearer
+when rephrased so that applies only to
+the special case in which both the internal
+and external grammars are unambiguous.
 A rewrite is *semantically-safe*
 iff, for every application of the rewrite,
 and for every input `i`,
@@ -696,13 +702,6 @@ The RHS symbol is called the *repetend*
     -- luatangle: section Rewrite the sequence counts
 
     local repetend_instance = working_wrule.rh_instances[1]
-    if separator then
-        -- luatangle: insert Rewrite separated sequence counts
-    else
-        -- luatangle: insert Rewrite unseparated sequence counts
-    end
-
-    -- luatangle: section Rewrite separated sequence counts
 
 ```
 
@@ -716,44 +715,43 @@ Assumed to be available as an upvalue are
 
 ```
 
-    -- luatangle: section Rewrite unseparated block function
+    -- luatangle: section Rewrite block function
 
-    local function blk_rhs(n)
+    -- For memoizing blocks by cont
+    local blocks = {}
+    local ranges = {}
+
+    local function blk_lhs(n)
+        local lhs = blocks[n]
+        if lhs then return lhs end
+
         if n == 1 then
-            return { repetend_instance }
-        end
-        if n == 2 then
-            return {
+            rhs = { repetend_instance }
+        elseif n == 2 then
+            rhs = {
                 repetend_instance,
                 repetend_instance
             }
+        else
+            local n1 = pow2(n)
+            local n2 = n - n1
+            local lhs1 = blk_lhs(n1)
+            local lhs2 = blk_lhs(n2)
+            rhs = { winstance_new(lhs1), winstance_new(lhs2) }
         end
-        local n1 = pow2(n)
-        local n2 = n - n1
+        local lhs_name = 'blk' .. n .. '!' .. repetend_instance.name
         local is_new
-        local lhs_name1 = 'blk' .. n1 .. '!' .. repetend_instance.name
-        local lhs1, is_new = wsym_ensure(lhs_name1)
-        if is_new then
-            lhs1.source = working_wrule.source
-            wrule_ensure(
-                {
-                    lhs = lhs1,
-                    rh_instances = blk_rhs(n1),
-                }
-            )
-        end
-        local lhs_name2 = 'blk' .. n2 .. '!' .. repetend_instance.name
-        local lhs2, is_new = wsym_ensure(lhs_name2)
-        if is_new then
-            lhs2.source = working_wrule.source
-            wrule_ensure(
-                {
-                    lhs = lhs2,
-                    rh_instances = blk_rhs(n2),
-                }
-            )
-        end
-        return { winstance_new(lhs1), winstance_new(lhs2) }
+        lhs, is_new = wsym_ensure(lhs_name)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = working_wrule.source
+        wrule_ensure(
+            {
+                lhs = lhs,
+                rh_instances = rhs
+            }
+        )
+        blocks[n] = lhs
+        return lhs
     end
 
 ```
@@ -777,7 +775,7 @@ We start by determining what sequences we have:
 
 ```
 
-    -- luatangle: section Rewrite unseparated sequence counts
+    -- luatangle: section+ Rewrite the sequence counts
 
     local block_size
     local range_size
@@ -793,17 +791,19 @@ We start by determining what sequences we have:
 ```
 
 ```
-    -- luatangle: section+ Rewrite unseparated sequence counts
-    -- luatangle: insert Rewrite unseparated block function
+    -- luatangle: section+ Rewrite the sequence counts
+    -- luatangle: insert Rewrite block function
 
     local new_rhs = {}
     if block_size then
-        new_rhs[#new_rhs+1] = blk_rhs(block_size)
+        local block_lhs = blk_lhs(block_size)
+        new_rhs[#new_rhs+1] = winstance_new(block_lhs)
     end
 
     if #new_rhs == 1 then
         print(__FILE__, __LINE__)
-        working_wrule.rh_instances = new_rhs[1]
+        working_wrule.rh_instances = new_rhs
+        print(inspect(working_wrule))
         working_wrule = wrule_replace(working_wrule)
     end
 
