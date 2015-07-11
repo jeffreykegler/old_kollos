@@ -160,21 +160,26 @@ where `brick(isym) == xsym`.
 The Brick Non-terminal Condition:
 `<xsym,start,length>` is a non-terminal instance
 whose children are
-`<xsym1,start1,length1>`,
-`<xsym2,start2,length2>` ...
-`<xsym-n,start-n,length-n>`
+
+```
+    `<xsym1,start1,length1>`, `<xsym2,start2,length2>` ...  `<xsym-n,start-n,length-n>`
+```
+
 in
 `xtree` iff
 `<isym,start,length>` is a non-terminal instance in
 `itree`
 whose brick children are
-`<isym1,start1,length1>`,
-`<isym2,start2,length2>` ...
-`<isym-n,start-n,length-n>`,
+
+```
+    `<isym1,start1,length1>`, `<isym2,start2,length2>` ...  `<isym-n,start-n,length-n>`,
+```
+
 where 
-`brick(isym1) == xsym1`,
-`brick(isym2) == xsym2` ...
-`brick(isym-n) == xsym-n`.
+
+```
+    `brick(isym1) == xsym1`, `brick(isym2) == xsym2` ...  `brick(isym-n) == xsym-n`.
+```
 
 We're now in a position to define
 a semantically-safe rewrite.
