@@ -7,6 +7,7 @@ file(COPY
     "round2.lua"
     "seq.lua"
     "seq2.lua"
+    "seq3.lua"
     DESTINATION
       ${CMAKE_CURRENT_BINARY_DIR}
 )

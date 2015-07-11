@@ -787,7 +787,7 @@ Assumed to be available as an upvalue are
     local ranges = {}
 
     local function range_lhs(n)
-        local lhs = blocks[n]
+        local lhs = ranges[n]
         if lhs then return lhs end
         local short_rhs, long_rhs
 
