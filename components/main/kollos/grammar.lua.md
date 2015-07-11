@@ -96,6 +96,137 @@ Let `isym` be an internal symbol.
 `isym` is called a *mortar* symbol iff
 `isym` is not a brick symbol.
 
+In a parse tree,
+a brick symbol is a terminal iff it has no
+brick descendents.
+A brick symbol is the brick root iff it has no
+brick ancestors.
+Note that
+a brick terminal may have mortar descendants,
+and a brick root may have mortar ancestors.
+
+A brick symbol is a brick interior symbol iff
+it is not a brick root symbol
+and it is not a brick terminal symbol.
+A brick symbol is a brick non-terminal iff
+it is not a brick terminal symbol.
+A brick non-terminal may be either the brick root
+or a brick interior symbol.
+
+In a parse tree using the external grammar,
+consider the subtree formed by taking a brick
+non-terminal as the root,
+and traversing the tree left-to-tree, stopping
+at the first brick node encountered.
+In the subtree formed by such a traversal,
+a node will be a brick
+iff it is a terminal of the subtree
+or the root node of the subtree.
+We say that the terminals of this subtree
+are the *brick children* of its root.
+The order of the brick children is the order
+in which they are encountered in
+the left-to-right traversal described above.
+
+Let `i` be an input, whose `n`'th position
+we write as `i[n]`.
+In a parse tree, each node can also be seen
+as an "instance" of a symbol.
+We can write the instance as the triple
+`<sym,start,length>`,
+where `sym` is a symbol of the grammar,
+`start` is the location in `i` where the
+instance starts,
+and `length` is the instance's length.
+The first input location of the instnace will therefore
+be `i[start]` and the last location will be
+`i[start+length-1]`.
+
+Let `i` be an input,
+and `itree` be a parse tree that results
+from parsing `i` with the internal grammar.
+Let `xtree` be a parse tree that results
+from parsing `i` with the external grammar.
+We say that `itree` and `xtree` are
+*brick-consistent*,
+if two conditons hold:
+
+The Brick Terminal Condition:
+`<xsym,start,length>` is an instance in `xtree`
+iff 
+`<isym,start,length>` is an brick instance in `itree`,
+where `brick(isym) == xsym`.
+
+The Brick Non-terminal Condition:
+`<xsym,start,length>` is a non-terminal instance
+whose children are
+`<xsym1,start1,length1>`,
+`<xsym2,start2,length2>` ...
+`<xsym-n,start-n,length-n>`
+in
+`xtree` iff
+`<isym,start,length>` is a non-terminal instance in
+`itree`
+whose brick children are
+`<isym1,start1,length1>`,
+`<isym2,start2,length2>` ...
+`<isym-n,start-n,length-n>`,
+where 
+`brick(isym1) == xsym1`,
+`brick(isym2) == xsym2` ...
+`brick(isym-n) == xsym-n`.
+
+We're now in a position to define
+a semantically-safe rewrite.
+A rewrite is *semantically-safe*
+iff, for every application of the rewrite,
+and for every input `i`,
+when both the external grammar
+and internal grammar is used to parse `i`,
+every parse tree produced by the internal grammar
+is brick-consistent with some
+parse tree produced by the external grammar.
+
+The previous definition might be made clearer
+by rephrasing it to cover only
+the special case where both the internal
+and external grammars are unambiguous:
+A rewrite is *semantically-safe*
+iff, for every application of the rewrite,
+and for every input `i`,
+when both the external grammar
+and internal grammar is used to parse `i`,
+the parse tree produced by the internal grammar
+is brick-consistent with the
+parse tree produced by the external grammar.
+
+### Semantically-safe rewrite techniques
+
+Staying semantically-safe limits the kinds of rewrites
+that can be applied.
+But, with caution,
+many simple and highly useful rewrite techniques
+be used:
+
+* Rules can be split into alternatives.
+
+* Intermediate rules with mortar symbols can be added.
+
+* Rules can be split up or joined.
+
+* Multiple brick symbols can be mapped
+  to the same external
+  symbol.
+
+* In particular, rules can be binarized.
+
+In what follows,
+many of the rewrites are of non-BNF rules
+(sequences and precedenced rules) to BNF.
+Others are transformations of the BNF.
+All of these techniques find use in the
+Kollos code.
+
 ## Fields
 
 For development purposes,
@@ -111,7 +242,6 @@ have, and which I don't really want in general.
         -- census subalt fields
         -- TODO: remove after development
         local xsubalt_field_census = {}
-        local xinstance_field_census = {}
         local xsubalt_field_census_expected = {
             action = true,
             id = true,
@@ -132,6 +262,39 @@ have, and which I don't really want in general.
             subname = true,
             xprec = true,
         }
+
+
+```
+
+### Instances
+
+It is useful in Kollos to uniquely identify
+each RHS location of every rule.
+These are called *RHS instance* objects,
+or more often just *instances*.
+
+Instances serve two purposes:
+First, not every RHS item is a symbol, and
+some object is needed to identify
+these non-symbol items.
+
+Second, while semantics is defined in terms
+of rules and symbols, knowing the ID of
+a symbol
+is not always sufficient to
+know its semantics, which can vary by
+rule and even by position within rule.
+We can find the semantics by
+going back to the rule, but this will
+not always be convenient.
+Instances provide a convenient place
+to put information about
+the role a RHS item
+plays in the rule's semantics.
+
+```
+        -- luatangle: section+ census fields
+        local xinstance_field_census = {}
         local xinstance_field_census_expected = {
             associator = true,
             element = true,
@@ -139,6 +302,46 @@ have, and which I don't really want in general.
             rh_ix = true,
             xalt = true,
         }
+
+```
+
+Working instances currently contain nothing
+except their `element` (the RHS item)
+and, for brick instances,
+a `<xalt, rh_ix>` duple that allows their
+semantics to be found quickly.
+Currently, working instances never change after
+creation.
+
+Since
+working instances do not change after creation,
+they
+can be used to represent what are actually different
+instances.
+This is tempting when the instance contains only
+an `element` field, so that the instance adds 
+essentially no information to the underlying `element`.
+And the elements
+are of course reused at different RHS instances.
+
+This reuse somewhat muddies the idea of instance objects,
+but it is convenient, and it
+is used in certain places
+in the working grammar.
+
+```
+        -- luatangle: section+ census fields
+        local winstance_field_census = {}
+        local winstance_field_census_expected = {
+            element = true,
+            rh_ix = true,
+            xalt = true,
+        }
+
+```
+
+```
+        -- luatangle: section+ census fields
         for xsubalt_id = 1,#xsubalt_by_id do
             local xsubalt = xsubalt_by_id[xsubalt_id]
             for field,_ in pairs(xsubalt) do
@@ -195,7 +398,6 @@ have, and which I don't really want in general.
         -- census wrule and winstance fields
         -- TODO: remove after development
         local wrule_field_census = {}
-        local winstance_field_census = {}
         local wrule_field_census_expected = {
             brick = true,
             id = true,
@@ -208,11 +410,10 @@ have, and which I don't really want in general.
             source = true,
             xalt = true,
         }
-        local winstance_field_census_expected = {
-            element = true,
-            rh_ix = true,
-            xalt = true,
-        }
+
+        -- luatangle: section+ census fields
+
+        -- luatangle: section+ census fields
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
             if wrule then
