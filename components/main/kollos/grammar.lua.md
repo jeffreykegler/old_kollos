@@ -703,20 +703,32 @@ It is assumed at this point that
 * the sequence is non-trivial, that either
   `min ~= 1` or `max ~= 1`.
 
+## Create the repetend instance
+
 Per the above assumptions, there is exactly one
 RHS symbol.
 The RHS symbol is called the *repetend*.
 It is the first (and only) symbol in `working_rule`.
 
 ```
-    -- luatangle: section Rewrite the sequence counts
+    -- luatangle: section Create the repetend instance
 
     local repetend_instance = working_wrule.rh_instances[1]
 
 ```
 
+## Create the separator instance
+
+For separators,
+we reuse the same instance object for
+for multiple RHS instances.
+Working instances are never changed,
+and the same semantic information can be
+used in every case,
+so we can get away with this.
+
 ```
-    -- luatangle: section+ Rewrite the sequence counts
+    -- luatangle: section Create the separator instance if needed
 
     local separator_instance
     if separator then
@@ -884,7 +896,7 @@ We start by determining what sequences we have:
 
 ```
 
-    -- luatangle: section+ Rewrite the sequence counts
+    -- luatangle: section Rewrite the sequence counts
 
     local block_size
     local range_size
@@ -948,6 +960,34 @@ We start by determining what sequences we have:
             working_wrule.line
         )
     end
+
+```
+
+## Allow only singleton RHS
+
+We force a singleton RHS,
+by creating a new rule.
+Since we want a new, unique, symbol for the
+repetend,
+we do this *even* if the rule is already an singleton.
+Each sequence has a unique semantics,
+and we will use the repetend symbol name as a
+unique ID for this sequence.
+
+```
+
+    -- luatangle: section force singleton RHS in working_rule
+
+    local new_sym
+        = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
+    unique_number = unique_number + 1
+    local new_winstance = winstance_new(new_sym)
+    working_wrule.rh_instances = {new_winstance}
+    working_wrule = wrule_replace(working_wrule)
+    wrule_ensure{
+        lhs = new_sym,
+        rh_instances = rh_instances,
+    }
 
 ```
 
@@ -2611,46 +2651,17 @@ In Marpa, "being productive" and
 
                 if min <= 0 then min = 1 end
                 -- Do not need to fix working_wrule value
-                -- because we will no longer use it
+                -- of min because we will no longer use it
 
                 if min ~= 1 or max ~= 1 then
                     local rh_instances = working_wrule.rh_instances
-
-```
-
-Allow only singleton RHS, by creating a new rule.
-Actually,
-we do this even if the rule is already an singleton,
-in order to get an new, unique, symbol for the
-repetend.
-Each sequence has a unique semantics,
-and we will use the repetend symbol name as a
-unique ID for this sequence.
-
-```
-
-    -- luatangle: section+ main
-
-                    local new_sym
-                        = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
-                    unique_number = unique_number + 1
-                    local new_winstance = winstance_new(new_sym)
-                    working_wrule.rh_instances = {new_winstance}
-                    working_wrule = wrule_replace(working_wrule)
-                    wrule_ensure{
-                        lhs = new_sym,
-                        rh_instances = rh_instances,
-                    }
-
-                    -- TODO: Normalize separation
                     local separation = working_wrule.separation
 
-                    -- We can reuse the same instance, because it does
-                    -- not contain semantic information
-                    local separator_instance
-                    if (separator) then
-                        separator_instance = winstance_new(separator)
-                    end
+                    -- luatangle: insert force singleton RHS in working_rule
+                    -- luatangle: insert Create the repetend instance
+                    -- luatangle: insert Create the separator instance if needed
+
+                    -- TODO: Normalize separation
 
                     if separation == 'terminating' or
                         separation == 'liberal'
