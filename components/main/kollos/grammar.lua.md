@@ -991,6 +991,52 @@ unique ID for this sequence.
 
 ```
 
+## Normalize separation
+
+Elminate `terminating` and `liberal` separation
+by rewriting them in terms of `proper` separation.
+After this rewrite all rules will either have no
+separator, or `proper` separation.
+
+```
+
+    -- luatangle: section Normalize separation
+
+    if separation == 'terminating' or
+        separation == 'liberal'
+    then
+        local middle_sym
+            = lh_of_wrule_new('term!' .. unique_number, working_wrule)
+        unique_number = unique_number + 1
+        local middle_winstance = winstance_new(middle_sym)
+        assert(separator)
+        unique_number = unique_number + 1
+        -- The old LHS of the wrule with the actual sequence,
+        -- which we are going to replace
+        local previous_lhs = working_wrule.lhs
+        wrule_ensure{
+            lhs = previous_lhs,
+            rh_instances = {
+                middle_winstance,
+                separator_instance,
+            }
+        }
+        working_wrule.lhs = middle_sym
+        working_wrule = wrule_replace(working_wrule)
+        -- If liberal separation, also add an
+        -- unterminated variant
+        if separation == 'liberal' then
+            wrule_ensure{
+                lhs = previous_lhs,
+                rh_instances = {
+                    middle_winstance,
+                }
+            }
+        end
+    end
+
+```
+
 ## Main code
 
 The main code follows
@@ -2653,57 +2699,20 @@ In Marpa, "being productive" and
                 -- Do not need to fix working_wrule value
                 -- of min because we will no longer use it
 
+                -- Rewrite sequence rules
                 if min ~= 1 or max ~= 1 then
                     local rh_instances = working_wrule.rh_instances
                     local separation = working_wrule.separation
-
                     -- luatangle: insert force singleton RHS in working_rule
                     -- luatangle: insert Create the repetend instance
                     -- luatangle: insert Create the separator instance if needed
-
-                    -- TODO: Normalize separation
-
-                    if separation == 'terminating' or
-                        separation == 'liberal'
-                    then
-                        local middle_sym
-                            = lh_of_wrule_new('term!' .. unique_number, working_wrule)
-                        unique_number = unique_number + 1
-                        local middle_winstance = winstance_new(middle_sym)
-                        assert(separator)
-                        unique_number = unique_number + 1
-                        -- The old LHS of the wrule with the actual sequence,
-                        -- which we are going to replace
-                        local previous_lhs = working_wrule.lhs
-                        wrule_ensure{
-                            lhs = previous_lhs,
-                            rh_instances = {
-                                middle_winstance,
-                                separator_instance,
-                            }
-                        }
-                        working_wrule.lhs = middle_sym
-                        working_wrule = wrule_replace(working_wrule)
-                        -- If liberal separation, also add an
-                        -- unterminated variant
-                        if separation == 'liberal' then
-                            wrule_ensure{
-                                lhs = previous_lhs,
-                                rh_instances = {
-                                    middle_winstance,
-                                }
-                            }
-                        end
-                    end
-
+                    -- luatangle: insert Normalize separation
                     -- luatangle: insert Rewrite the sequence counts
-
                 end
             end
         end
 
-                    -- luatangle: insert Binarize the working grammar
-
+        -- luatangle: insert Binarize the working grammar
 
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
