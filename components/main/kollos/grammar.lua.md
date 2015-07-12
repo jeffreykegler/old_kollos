@@ -923,6 +923,34 @@ We start by determining what sequences we have:
 
 ```
 
+```
+
+    -- luatangle: section Binarize the working grammar
+
+    for rule_id = 1,#wrule_by_id do
+        local working_wrule = wrule_by_id[rule_id]
+        -- TODO finish this
+    end
+
+```
+
+## Disallow nulling separator
+
+```
+
+    -- luatangle: section disallow nulling separator
+    if separator and separator.nulling then
+        grammar:development_error(
+            who
+            .. 'Separator ' .. separator.name .. ' is nulling\n'
+            .. ' That is not allowed\n',
+            working_wrule.name_base,
+            working_wrule.line
+        )
+    end
+
+```
+
 ## Main code
 
 The main code follows
@@ -2565,33 +2593,26 @@ In Marpa, "being productive" and
         for rule_id = 1,#wrule_by_id do
             local working_wrule = wrule_by_id[rule_id]
 
-            -- TODO -- split rules with internal nulling
-            --     events, and convert that event to
-            --     a completion event
-
             -- As of this writing, no wrules should be
             -- deleted at this point,
             -- but we are being careful
 
             if working_wrule then
 
+                -- TODO -- split rules with internal nulling
+                --     events, and convert that event to
+                --     a completion event
+
                 local min = working_wrule.min
                 local separator = working_wrule.separator
-                if separator and separator.nulling then
-                    grammar:development_error(
-                        who
-                        .. 'Separator ' .. separator.name .. ' is nulling\n'
-                        .. ' That is not allowed\n',
-                        working_wrule.name_base,
-                        working_wrule.line
-                    )
-                end
-                if min <= 0 then
-                    min = 1
-                    working_wrule.min = min
-                    working_wrule = wrule_replace(working_wrule)
-                end
                 local max = working_wrule.max
+
+                -- luatangle: insert disallow nulling separator
+
+                if min <= 0 then min = 1 end
+                -- Do not need to fix working_wrule value
+                -- because we will no longer use it
+
                 if min ~= 1 or max ~= 1 then
                     local rh_instances = working_wrule.rh_instances
 
@@ -2669,6 +2690,9 @@ unique ID for this sequence.
                 end
             end
         end
+
+                    -- luatangle: insert Binarize the working grammar
+
 
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
