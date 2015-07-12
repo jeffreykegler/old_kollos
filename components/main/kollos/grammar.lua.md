@@ -2676,6 +2676,8 @@ In Marpa, "being productive" and
         -- will be used to ensure names are unique
         local unique_number = 0
 
+        -- We change wrule_by_id as we proceed, and
+        -- so do cannot use ipairs
         for rule_id = 1,#wrule_by_id do
             local working_wrule = wrule_by_id[rule_id]
 
