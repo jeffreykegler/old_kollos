@@ -289,80 +289,26 @@ in this context, want.
 
 ```
 
-Create a RHS instance of type 'xcc'
-Should be called only inside of a call to
+Create a RHS instance of type 'xlexeme'
+These should only be called inside of a call to
 the alternative_new() method.
 'throw' is always set by the caller, which catches
 any error.
 
 ```
 
-    -- luatangle: section xcc constructor
-
-    function grammar_class.cc(grammar, cc)
-        if type(cc) ~= 'string' then
-            grammar:development_error(
-                [[charclass in alternate is type ']]
-                .. type(cc)
-                .. [['; it must be a string]])
-        end
-        if not cc:match('^%[.+%]$') then
-            grammar:development_error(
-                [[charclass in alternate must be in square brackets]])
-        end
-
-        local current_xprec = grammar.current_xprec
-
-        -- used to form the name of the cc
-        local id_within_top_alternative = grammar.cc_id_within_top_alternative
-        id_within_top_alternative = id_within_top_alternative + 1
-        grammar.cc_id_within_top_alternative = id_within_top_alternative
-
-        local new_cc = {
-            cc = cc,
-            productive = true,
-            nullable = false,
-            id_within_top_alternative =
-            id_within_top_alternative,
-            xprec = current_xprec,
-            line = grammar.line,
-            name_base = grammar.name_base
-        }
-        setmetatable(new_cc, {
-                __index = function (table, key)
-                    if key == 'type' then return 'xcc'
-                    elseif key == 'rawtype' then return 'xcc'
-                    elseif key == 'subname' then
-                        local subname =
-                        'cc'
-                        .. table.id_within_top_alternative
-                        .. table.xprec.subname
-                        table.subname = subname
-                        return subname
-                    elseif key == 'name' then
-                        local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
-                        table.name = name
-                        return name
-                    end
-                    return nil
-                end
-            })
-        return new_cc
-
+    -- TODO move this to where we know we are 'at_bottom'
+    if type(cc) ~= 'string' then
+        grammar:development_error(
+            [[charclass in alternate is type ']]
+            .. type(cc)
+            .. [['; it must be a string]])
+    end
+    if not cc:match('^%[.+%]$') then
+        grammar:development_error(
+            [[charclass in alternate must be in square brackets]])
     end
 
-    -- luatangle: section xstring constructor
-
-    -- Create a RHS instance of type 'xstring'
-    -- Should be called only inside of a call to
-    -- the alternative_new() method.
-    -- 'throw' is always set by the caller, which catches
-    -- any error
-    function grammar_class.string(grammar, string)
         if type(string) ~= 'string' then
             grammar:development_error(
                 [[string in alternate is type ']]
@@ -370,47 +316,60 @@ any error.
                 .. [['; it must be a string]])
         end
 
+    -- luatangle: section xlexeme constructors
+
+    local function mt_lexeme(table, key)
+        if key == 'type' then return 'xlexeme'
+        elseif key == 'rawtype' then return 'xlexeme'
+        elseif key == 'subname' then
+            local lexeme_type = table.lexeme_type:gsub('[^%d%a]', '_')
+            local subname =
+                table.xprec.subname
+                .. ':' .. lexeme_type
+                .. '-' .. table.id_within_top_alternative
+            table.subname = subname
+            return subname
+        elseif key == 'name' then
+            local name =
+                table.name_base
+                .. ':'
+                .. table.line
+                .. table.subname
+            table.name = name
+            return name
+        end
+        return nil
+    end
+
+    function grammar_class.lexeme(grammar, type, ...)
         local current_xprec = grammar.current_xprec
 
-        -- used to form the name of the string
-        local id_within_top_alternative = grammar.string_id_within_top_alternative
+        -- used to form the name of the lexeme
+        local id_within_top_alternative = grammar.lexeme_id_within_top_alternative
         id_within_top_alternative = id_within_top_alternative + 1
-        grammar.string_id_within_top_alternative = id_within_top_alternative
+        grammar.lexeme_id_within_top_alternative = id_within_top_alternative
 
-        local new_string = {
-            string = string,
+        local new_lexeme = {
+            lexeme_type = type,
             productive = true,
             nullable = false,
             id_within_top_alternative =
-            id_within_top_alternative,
+                id_within_top_alternative,
             xprec = current_xprec,
             line = grammar.line,
-            name_base = grammar.name_base
+            name_base = grammar.name_base,
+            ...
         }
-        setmetatable(new_string, {
-                __index = function (table, key)
-                    if key == 'type' then return 'xstring'
-                    elseif key == 'rawtype' then return 'xstring'
-                    elseif key == 'subname' then
-                        local subname =
-                        'str'
-                        .. table.id_within_top_alternative
-                        .. table.xprec.subname
-                        table.subname = subname
-                        return subname
-                    elseif key == 'name' then
-                        local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
-                        table.name = name
-                        return name
-                    end
-                    return nil
-                end
-            })
-        return new_string
+        setmetatable(new_lexeme, { __index = mt_lexeme })
+        return new_lexeme
+    end
+
+    function grammar_class.string(grammar, value)
+        return grammar_class.lexeme(grammar, 'string', value)
+    end
+
+    function grammar_class.cc(grammar, value)
+        return grammar_class.lexeme(grammar, 'cc', value)
     end
 
 ```
@@ -1389,8 +1348,7 @@ The main code follows
         return props
     end
 
-    -- luatangle: insert xcc constructor
-    -- luatangle: insert xstring constructor
+    -- luatangle: insert xlexeme constructors
 
     function grammar_class.rule_new(grammar, args)
         local who = 'rule_new()'
@@ -1824,8 +1782,7 @@ The main code follows
         if line == nil then return line, file end
 
         grammar.alt_id_within_top_alternative = 0
-        grammar.cc_id_within_top_alternative = 0
-        grammar.string_id_within_top_alternative = 0
+        grammar.lexeme_id_within_top_alternative = 0
 
         local old_throw_value = grammar:throw_set(true)
         local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
@@ -2223,12 +2180,9 @@ In Marpa, "being productive" and
                 if type ~= alt2.type then
                     return type < alt2.type
                 end
-                if type == 'xcc' then
-                    if alt1.cc == alt2.cc then return nil end
-                    return alt1.cc < alt2.cc
-                elseif type == 'xstring' then
-                    if alt1.string == alt2.string then return nil end
-                    return alt1.string < alt2.string
+                if type == 'xlexeme' then
+                    if alt1[1] == alt2[1] then return nil end
+                    return alt1[1] < alt2[1]
                 elseif type == 'xsym' then
                     if alt1.name == alt2.name then return nil end
                     return alt1.name < alt2.name
