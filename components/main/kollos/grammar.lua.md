@@ -321,6 +321,8 @@ any error.
     local function mt_lexeme(table, key)
         if key == 'type' then return 'xlexeme'
         elseif key == 'rawtype' then return 'xlexeme'
+        elseif key == 'nullable' then return false
+        elseif key == 'productive' then return true
         elseif key == 'subname' then
             local lexeme_type = table.lexeme_type:gsub('[^%d%a]', '_')
             local subname =
@@ -341,7 +343,7 @@ any error.
         return nil
     end
 
-    function grammar_class.lexeme(grammar, type, ...)
+    function grammar_class.lexeme(grammar, type, spec)
         local current_xprec = grammar.current_xprec
 
         -- used to form the name of the lexeme
@@ -351,14 +353,12 @@ any error.
 
         local new_lexeme = {
             lexeme_type = type,
-            productive = true,
-            nullable = false,
             id_within_top_alternative =
                 id_within_top_alternative,
             xprec = current_xprec,
             line = grammar.line,
             name_base = grammar.name_base,
-            ...
+            spec = spec
         }
         setmetatable(new_lexeme, { __index = mt_lexeme })
         return new_lexeme
@@ -634,11 +634,14 @@ would have to be top-level as well.
                     elseif key == 'rawtype' then return 'wsym'
                     elseif key == 'line' then return table.source.line
                     elseif key == 'name_base' then return table.source.name_base
-                    elseif key == 'source' then return table.xsym
+                    elseif key == 'source' then return table.xsym or table.xlexeme
                     elseif key == 'xsym' then return nil
+                    elseif key == 'xlexeme' then return nil
                     else
-                        local xsym = table.xsym
-                        if xsym then return xsym[key] end
+                        local parent_object = table.xsym or table.xlexeme
+                        if parent_object then
+                            return parent_object[key]
+                        end
                         return nil
                     end
                 end
@@ -657,8 +660,7 @@ would have to be top-level as well.
         local wsym_props,is_new = wsym_ensure(name)
         if is_new then
             wsym_props.nullable = alt.nullable
-            wsym_props.line = alt.line
-            wsym_props.name_base = alt.name_base
+            wsym_props.source = alt
         end
         return wsym_props
     end
@@ -670,8 +672,7 @@ would have to be top-level as well.
         -- TODO: remove after development
         assert(is_new)
         new_wsym.nullable = wrule.nullable
-        new_wsym.line = wrule.line
-        new_wsym.name_base = wrule.name_base
+        new_wsym.source = wrule
         return new_wsym
     end
 
@@ -696,8 +697,17 @@ would have to be top-level as well.
         local new_wsym,is_new = wsym_ensure(name)
         if is_new then
             new_wsym.nullable = false
-            new_wsym.line = base_wsym.line
-            new_wsym.name_base = base_wsym.name_base
+            new_wsym.source = base_wsym
+        end
+        return new_wsym
+    end
+
+    local function wsym_from_xlexeme_new(xlexeme)
+        local name = xlexeme.name .. '-sym'
+        local xlexeme,is_new = wsym_ensure(name)
+        if is_new then
+            xlexeme.nullable = false
+            xlexeme.xlexeme = base_xlexeme
         end
         return new_wsym
     end
@@ -707,8 +717,7 @@ would have to be top-level as well.
         local new_wsym,is_new = wsym_ensure(name)
         if is_new then
             new_wsym.nullable = xsym.nullable
-            new_wsym.line = xsym.line
-            new_wsym.name_base = xsym.name_base
+            new_wsym.source = xsym
         end
         return new_wsym
     end
@@ -2181,8 +2190,8 @@ In Marpa, "being productive" and
                     return type < alt2.type
                 end
                 if type == 'xlexeme' then
-                    if alt1[1] == alt2[1] then return nil end
-                    return alt1[1] < alt2[1]
+                    if alt1.spec == alt2.spec then return nil end
+                    return alt1.spec < alt2.spec
                 elseif type == 'xsym' then
                     if alt1.name == alt2.name then return nil end
                     return alt1.name < alt2.name
@@ -2524,10 +2533,10 @@ In Marpa, "being productive" and
                             local new_work_instance = winstance_new(subalt_lhs, xalt, rh_ix)
                             work_rh_instances[#work_rh_instances+1] = new_work_instance
                         end
-                    else
+                    elseif element_type == 'xsym' then
                         local new_element
                         local level = x_rh_instance.precedence_level
-                        if element_type == 'xsym' and level ~= nil then
+                        if level ~= nil then
                             new_element =
                                 precedenced_wsym_ensure(x_element, level)
                         else
@@ -2535,6 +2544,11 @@ In Marpa, "being productive" and
                         end
                         local new_work_instance = winstance_new(new_element, xalt, rh_ix)
                         work_rh_instances[#work_rh_instances+1] = new_work_instance
+                    elseif element_type == 'xlexeme' then
+                        new_element = wsym_from_xlexeme_new(x_element)
+                        local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                        work_rh_instances[#work_rh_instances+1] = new_work_instance
+                    else assert(0) -- TODO remove after developement
                     end
                 end
 
@@ -2543,10 +2557,8 @@ In Marpa, "being productive" and
             -- I don't think it's possible for there to be an empty
             -- RHS, because the caller has ensured that the xalt is
             -- not nulling
-            if #work_rh_instances <= 0 then
-               error("zero length RHS " .. new_lhs.name)
-            end
             assert( #work_rh_instances > 0 ) -- TODO remove after development
+
             local separator_xsym = xalt.separator
             local separator_wsym
             if separator_xsym then
