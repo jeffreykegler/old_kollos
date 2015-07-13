@@ -23,7 +23,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -->
 
-# Kollos "mid-level" grammar cod3
+# Kollos "mid-level" grammar code
 
 This is the code for the "middle layer" of Kollos.
 Below it is Libmarpa, a library written in
@@ -238,14 +238,26 @@ Others are transformations of the BNF.
 All of these techniques find use in the
 Kollos code.
 
-## Fields
+## Fields and objects
+
+Selected Lua tables are regarded as "objects"
+with "fields".
+This is OO but,
+in keeping with Lua's approach,
+there is a definite emphasis on
+the pragmatic, "quick and dirty"
+over the theoretical and "clean".
 
 For development purposes,
-after the working grammar is created,
+after the working
+and internal
+grammars are created,
 I census the fields in the important
 tables.  It's a cheap substitute for
-the strictly typed OO Lua does not
-have, and which I don't really want in general.
+the strict typing I neither use or,
+in this context, want.
+
+## External fields and objects
 
 ```
 
@@ -276,6 +288,134 @@ have, and which I don't really want in general.
 
 
 ```
+
+Create a RHS instance of type 'xcc'
+Should be called only inside of a call to
+the alternative_new() method.
+'throw' is always set by the caller, which catches
+any error.
+
+```
+
+    -- luatangle: section xcc constructor
+
+    function grammar_class.cc(grammar, cc)
+        if type(cc) ~= 'string' then
+            grammar:development_error(
+                [[charclass in alternate is type ']]
+                .. type(cc)
+                .. [['; it must be a string]])
+        end
+        if not cc:match('^%[.+%]$') then
+            grammar:development_error(
+                [[charclass in alternate must be in square brackets]])
+        end
+
+        local current_xprec = grammar.current_xprec
+
+        -- used to form the name of the cc
+        local id_within_top_alternative = grammar.cc_id_within_top_alternative
+        id_within_top_alternative = id_within_top_alternative + 1
+        grammar.cc_id_within_top_alternative = id_within_top_alternative
+
+        local new_cc = {
+            cc = cc,
+            productive = true,
+            nullable = false,
+            id_within_top_alternative =
+            id_within_top_alternative,
+            xprec = current_xprec,
+            line = grammar.line,
+            name_base = grammar.name_base
+        }
+        setmetatable(new_cc, {
+                __index = function (table, key)
+                    if key == 'type' then return 'xcc'
+                    elseif key == 'rawtype' then return 'xcc'
+                    elseif key == 'subname' then
+                        local subname =
+                        'cc'
+                        .. table.id_within_top_alternative
+                        .. table.xprec.subname
+                        table.subname = subname
+                        return subname
+                    elseif key == 'name' then
+                        local name =
+                        table.name_base
+                        .. ':'
+                        .. table.line
+                        .. table.subname
+                        table.name = name
+                        return name
+                    end
+                    return nil
+                end
+            })
+        return new_cc
+
+    end
+
+    -- luatangle: section xstring constructor
+
+    -- Create a RHS instance of type 'xstring'
+    -- Should be called only inside of a call to
+    -- the alternative_new() method.
+    -- 'throw' is always set by the caller, which catches
+    -- any error
+    function grammar_class.string(grammar, string)
+        if type(string) ~= 'string' then
+            grammar:development_error(
+                [[string in alternate is type ']]
+                .. type(string)
+                .. [['; it must be a string]])
+        end
+
+        local current_xprec = grammar.current_xprec
+
+        -- used to form the name of the string
+        local id_within_top_alternative = grammar.string_id_within_top_alternative
+        id_within_top_alternative = id_within_top_alternative + 1
+        grammar.string_id_within_top_alternative = id_within_top_alternative
+
+        local new_string = {
+            string = string,
+            productive = true,
+            nullable = false,
+            id_within_top_alternative =
+            id_within_top_alternative,
+            xprec = current_xprec,
+            line = grammar.line,
+            name_base = grammar.name_base
+        }
+        setmetatable(new_string, {
+                __index = function (table, key)
+                    if key == 'type' then return 'xstring'
+                    elseif key == 'rawtype' then return 'xstring'
+                    elseif key == 'subname' then
+                        local subname =
+                        'str'
+                        .. table.id_within_top_alternative
+                        .. table.xprec.subname
+                        table.subname = subname
+                        return subname
+                    elseif key == 'name' then
+                        local name =
+                        table.name_base
+                        .. ':'
+                        .. table.line
+                        .. table.subname
+                        table.name = name
+                        return name
+                    end
+                    return nil
+                end
+            })
+        return new_string
+    end
+
+```
+
+## Working fields and objects
 
 ### Instances
 
@@ -359,7 +499,7 @@ but it is convenient, and it
 is used in certain places
 in the working grammar.
 
-## Some code to implement the census
+### Some code to implement the census
 
 ```
         -- luatangle: section+ census fields
@@ -504,7 +644,7 @@ in the working grammar.
 
 ```
 
-## Utilities for wsym, wrule
+### Utilities for wsym, wrule
 
 These wsym and wrule utilities
 are internal to the `compile()` method
@@ -664,6 +804,50 @@ would have to be top-level as well.
 
 ```
 
+## Internal fields and objects
+
+### Lexemes
+
+There is no working object for lexemes --
+the transformations are not complex enough to
+justify the overhead.
+
+Lexemes are in a sense, free form.
+Each lexeme has a "type",
+and zero or more values,
+but it up to the
+lexer to interpret what the type
+and values mean.
+
+Two type are reserved: `cc` and `string`.
+A lexer can give them any meaning it likes,
+but the standard meaning is that `cc` is a
+character class,
+and that `string` is a string -- a
+sequence of characters.
+
+Lexemes can also be open -- simply a symbol
+name, whose meaning is completely up to the lexer.
+
+When using "seamless" parsing,
+Kollos imposes specific requirements on the
+lexemes in a grammar.
+The only lexemes allowed are those of the
+two reserved types: `cc` and `string`.
+A `string` lexeme has exactly one value:
+a Lua string which is interpreted in the
+Lua standard way, as a sequence of characters.
+A `cc` lexeme also has exactly one value,
+and that value is also a string,
+but in the `cc` case the string
+must be the description of a Lua character class.
+
+## Replace a working grammar rule
+
+I didn't memoize wrules by ID anywhere,
+so this replace function seems to be unnecessary.
+It will probably be deleted.
+
 Given a hacked wrule, replace the original with the hacked version.
 This routine exists because it is often convenient,
 instead of carefully custom-cloning a rule,
@@ -671,7 +855,8 @@ and then deleting it.
 to "hack" its fields.
 
 ```
-    -- luatangle: section+ wsym,wrule utilities
+
+    [[ -- luatangle: section+ wsym,wrule utilities ]]
 
     local function wrule_replace(hacked_wrule)
         wrule_by_id[hacked_wrule.id] = false
@@ -931,7 +1116,6 @@ We start by determining what sequences we have:
     end
 
     working_wrule.rh_instances = new_rhs
-    working_wrule = wrule_replace(working_wrule)
 
 ```
 
@@ -983,7 +1167,6 @@ unique ID for this sequence.
     unique_number = unique_number + 1
     local new_winstance = winstance_new(new_sym)
     working_wrule.rh_instances = {new_winstance}
-    working_wrule = wrule_replace(working_wrule)
     wrule_ensure{
         lhs = new_sym,
         rh_instances = rh_instances,
@@ -1022,7 +1205,6 @@ separator, or `proper` separation.
             }
         }
         working_wrule.lhs = middle_sym
-        working_wrule = wrule_replace(working_wrule)
         -- If liberal separation, also add an
         -- unterminated variant
         if separation == 'liberal' then
@@ -1207,122 +1389,8 @@ The main code follows
         return props
     end
 
-    -- Create a RHS instance of type 'xstring'
-    -- Should be called only inside of a call to
-    -- the alternative_new() method.
-    -- 'throw' is always set by the caller, which catches
-    -- any error
-    function grammar_class.string(grammar, string)
-        if type(string) ~= 'string' then
-            grammar:development_error(
-                [[string in alternate is type ']]
-                .. type(string)
-                .. [['; it must be a string]])
-        end
-
-        local current_xprec = grammar.current_xprec
-
-        -- used to form the name of the string
-        local id_within_top_alternative = grammar.string_id_within_top_alternative
-        id_within_top_alternative = id_within_top_alternative + 1
-        grammar.string_id_within_top_alternative = id_within_top_alternative
-
-        local new_string = {
-            string = string,
-            productive = true,
-            nullable = false,
-            id_within_top_alternative =
-            id_within_top_alternative,
-            xprec = current_xprec,
-            line = grammar.line,
-            name_base = grammar.name_base
-        }
-        setmetatable(new_string, {
-                __index = function (table, key)
-                    if key == 'type' then return 'xstring'
-                    elseif key == 'rawtype' then return 'xstring'
-                    elseif key == 'subname' then
-                        local subname =
-                        'str'
-                        .. table.id_within_top_alternative
-                        .. table.xprec.subname
-                        table.subname = subname
-                        return subname
-                    elseif key == 'name' then
-                        local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
-                        table.name = name
-                        return name
-                    end
-                    return nil
-                end
-            })
-        return new_string
-    end
-
-    -- Create a RHS instance of type 'xcc'
-    -- Should be called only inside of a call to
-    -- the alternative_new() method.
-    -- 'throw' is always set by the caller, which catches
-    -- any error
-    function grammar_class.cc(grammar, cc)
-        if type(cc) ~= 'string' then
-            grammar:development_error(
-                [[charclass in alternate is type ']]
-                .. type(cc)
-                .. [['; it must be a string]])
-        end
-        if not cc:match('^%[.+%]$') then
-            grammar:development_error(
-                [[charclass in alternate must be in square brackets]])
-        end
-
-        local current_xprec = grammar.current_xprec
-
-        -- used to form the name of the cc
-        local id_within_top_alternative = grammar.cc_id_within_top_alternative
-        id_within_top_alternative = id_within_top_alternative + 1
-        grammar.cc_id_within_top_alternative = id_within_top_alternative
-
-        local new_cc = {
-            cc = cc,
-            productive = true,
-            nullable = false,
-            id_within_top_alternative =
-            id_within_top_alternative,
-            xprec = current_xprec,
-            line = grammar.line,
-            name_base = grammar.name_base
-        }
-        setmetatable(new_cc, {
-                __index = function (table, key)
-                    if key == 'type' then return 'xcc'
-                    elseif key == 'rawtype' then return 'xcc'
-                    elseif key == 'subname' then
-                        local subname =
-                        'cc'
-                        .. table.id_within_top_alternative
-                        .. table.xprec.subname
-                        table.subname = subname
-                        return subname
-                    elseif key == 'name' then
-                        local name =
-                        table.name_base
-                        .. ':'
-                        .. table.line
-                        .. table.subname
-                        table.name = name
-                        return name
-                    end
-                    return nil
-                end
-            })
-        return new_cc
-
-    end
+    -- luatangle: insert xcc constructor
+    -- luatangle: insert xstring constructor
 
     function grammar_class.rule_new(grammar, args)
         local who = 'rule_new()'
