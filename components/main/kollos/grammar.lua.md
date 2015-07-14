@@ -261,7 +261,7 @@ in this context, want.
 
 ```
 
-        -- luatangle: section census fields
+        -- luatangle: section Census fields
         -- census subalt fields
         -- TODO: remove after development
         local xsubalt_field_census = {}
@@ -296,25 +296,6 @@ the alternative_new() method.
 any error.
 
 ```
-
-    -- TODO move this to where we know we are 'at_bottom'
-    if type(cc) ~= 'string' then
-        grammar:development_error(
-            [[charclass in alternate is type ']]
-            .. type(cc)
-            .. [['; it must be a string]])
-    end
-    if not cc:match('^%[.+%]$') then
-        grammar:development_error(
-            [[charclass in alternate must be in square brackets]])
-    end
-
-        if type(string) ~= 'string' then
-            grammar:development_error(
-                [[string in alternate is type ']]
-                .. type(string)
-                .. [['; it must be a string]])
-        end
 
     -- luatangle: section xlexeme constructors
 
@@ -403,7 +384,7 @@ the role a RHS item
 plays in the rule's semantics.
 
 ```
-        -- luatangle: section+ census fields
+        -- luatangle: section+ Census fields
         local xinstance_field_census = {}
         local xinstance_field_census_expected = {
             associator = true,
@@ -431,7 +412,7 @@ Instead, the `xalt` is the value of
 their `separates` named field.
 
 ```
-        -- luatangle: section+ census fields
+        -- luatangle: section+ Census fields
         local winstance_field_census = {}
         local winstance_field_census_expected = {
             element = true,
@@ -461,7 +442,7 @@ in the working grammar.
 ### Some code to implement the census
 
 ```
-        -- luatangle: section+ census fields
+        -- luatangle: section+ Census fields
         for xsubalt_id = 1,#xsubalt_by_id do
             local xsubalt = xsubalt_by_id[xsubalt_id]
             for field,_ in pairs(xsubalt) do
@@ -530,9 +511,7 @@ in the working grammar.
             xalt = true,
         }
 
-        -- luatangle: section+ census fields
-
-        -- luatangle: section+ census fields
+        -- luatangle: section+ Census fields
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
             if wrule then
@@ -892,6 +871,8 @@ so we can get away with this.
 
 ```
 
+## Some sequence definitions
+
 I call a *block* a sequence of fixed length.
 I call a *block* a sequence of fixed length.
 I call any other sequence a *range*.
@@ -900,6 +881,8 @@ If a range is not open, then it is *closed*.
 If, in a sequence, `min == 1`, then I say the
 sequence is *1-based*.
 
+## Rewriting out sequences
+
 The following code works first dividing the
 sequence into one or two 1-based sequences.
 If there is only one,
@@ -907,6 +890,225 @@ the sequece may be a block or a range.
 If there are two, the block always comes first.
 If there is a range, it may be either open
 or closed.
+
+We start by determining what sequences we have:
+
+```
+
+    -- luatangle: section Rewrite the sequence counts
+
+    local block_size
+    local range_size
+    if min == max then
+        block_size = max
+    elseif min == 1 then
+        range_size = max
+    else
+        block_size = min-1
+        range_size = max == -1 and -1 or max-block_size
+    end
+
+```
+
+At this point,
+we've divided the range into at most two
+1-based blocks.
+`block_size`, if non-nil, contains the size
+of a block.
+`range_size`, if non-nil, contains the size
+of a range.
+We create a new RHS,
+composed of
+
+* the block, if it is non-nil;
+
+* a separator, if it is needed; and
+
+* the range, if it is non-nil;
+
+and we change the `working_rule` accordingly.
+
+```
+    -- luatangle: section+ Rewrite the sequence counts
+    -- luatangle: insert Function to rewrite 1-based blocks
+    -- luatangle: insert Function to rewrite 1-based ranges
+
+    local new_rhs = {}
+    if block_size then
+        local block_lhs = blk_lhs(block_size)
+        new_rhs[#new_rhs+1] = winstance_new(block_lhs)
+    end
+
+    if range_size then
+        local range_lhs = range_lhs(range_size)
+        if #new_rhs > 0 and separator_instance then
+            new_rhs[#new_rhs+1] = separator_instance
+        end
+        new_rhs[#new_rhs+1] = winstance_new(range_lhs)
+    end
+
+    working_wrule.rh_instances = new_rhs
+
+```
+
+## Disallow nulling separator
+
+```
+
+    -- luatangle: section disallow nulling separator
+    if separator and separator.nulling then
+        grammar:development_error(
+            who
+            .. 'Separator ' .. separator.name .. ' is nulling\n'
+            .. ' That is not allowed\n',
+            working_wrule.name_base,
+            working_wrule.line
+        )
+    end
+
+```
+
+## Allow only singleton RHS
+
+We force a singleton RHS,
+by creating a new rule.
+Since we want a new, unique, symbol for the
+repetend,
+we do this *even* if the rule is already an singleton.
+Each sequence has a unique semantics,
+and we will use the repetend symbol name as a
+unique ID for this sequence.
+
+```
+
+    -- luatangle: section Force singleton RHS in working_rule
+
+    local new_sym
+        = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
+    unique_number = unique_number + 1
+    local new_winstance = winstance_new(new_sym)
+    working_wrule.rh_instances = {new_winstance}
+    wrule_ensure{
+        lhs = new_sym,
+        rh_instances = rh_instances,
+    }
+
+```
+
+## Normalize separation
+
+Elminate `terminating` and `liberal` separation
+by rewriting them in terms of `proper` separation.
+After this rewrite all rules will either have no
+separator, or `proper` separation.
+
+```
+
+    -- luatangle: section Normalize separation
+
+    if separation == 'terminating' or
+        separation == 'liberal'
+    then
+        local middle_sym
+            = lh_of_wrule_new('term!' .. unique_number, working_wrule)
+        unique_number = unique_number + 1
+        local middle_winstance = winstance_new(middle_sym)
+        assert(separator)
+        unique_number = unique_number + 1
+        -- The old LHS of the wrule with the actual sequence,
+        -- which we are going to replace
+        local previous_lhs = working_wrule.lhs
+        wrule_ensure{
+            lhs = previous_lhs,
+            rh_instances = {
+                middle_winstance,
+                separator_instance,
+            }
+        }
+        working_wrule.lhs = middle_sym
+        -- If liberal separation, also add an
+        -- unterminated variant
+        if separation == 'liberal' then
+            wrule_ensure{
+                lhs = previous_lhs,
+                rh_instances = {
+                    middle_winstance,
+                }
+            }
+        end
+    end
+
+```
+
+Check the lexemes, and expand them.
+
+```
+
+    -- luatangle: section Check and expand lexemes
+    if at_bottom then
+        for rule_id = 1,#wrule_by_id do
+            local working_wrule = wrule_by_id[rule_id]
+            if working_wrule then
+                local rh_instances = working_wrule.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local rh_instance = rh_instances[rh_ix]
+                    local lexeme_type = rh_instance.lexeme_type
+
+                    if lexeme_type == 'cc' then
+                        local spec = rh_instance.spec
+                        if type(spec) ~= 'string' then
+                            grammar:development_error(
+                                [[charclass spec is type ']]
+                                .. type(spec)
+                                .. [['; the spec must be a string]],
+                                rh_instance.name_base,
+                                rh_instance.line
+                            )
+                        end
+                        if not spec:match('^%[.+%]$') then
+                            grammar:development_error(
+                                [[charclass in alternate must be in square brackets]])
+                        end
+                    elseif lexeme_type == 'string' then
+                        local spec = rh_instance.spec
+                        if type(spec) ~= 'string' then
+                            grammar:development_error(
+                                [[spec in lexeme of type 'string' is type ']]
+                                .. type(spec)
+                                .. [['; the spec must be a string]],
+                                rh_instance.name_base,
+                                rh_instance.line
+                            )
+                        end
+                    elseif lexeme_type ~= nil then
+                        grammar:development_error(
+                            [[lexeme is of type ']]
+                            .. type(spec)
+                            .. [['; in 'at bottom' grammars, the type must be ]]
+                            .. [['cc' or 'string']],
+                            rh_instance.name_base,
+                            rh_instance.line
+                        )
+                    end
+                end
+            end
+        end
+    end
+
+```
+
+```
+
+    -- luatangle: section Binarize the working grammar
+
+    for rule_id = 1,#wrule_by_id do
+        local working_wrule = wrule_by_id[rule_id]
+        -- TODO finish this
+    end
+
+```
+
+## Rewrite out the 1-based blocks
 
 The next code
 performs the rewrite for a block of size `n`,
@@ -919,7 +1121,7 @@ Assumed to be available as an upvalue are
 
 ```
 
-    -- luatangle: section Rewrite block function
+    -- luatangle: section Function to rewrite 1-based blocks
 
     -- For memoizing blocks by cont
     local blocks = {}
@@ -966,6 +1168,8 @@ Assumed to be available as an upvalue are
 
 ```
 
+## Rewrite out the 1-based ranges
+
 The next code
 performs the rewrite for a range of size `n`.
 Assumed to be available as an upvalue are
@@ -976,7 +1180,7 @@ Assumed to be available as an upvalue are
 
 ```
 
-    -- luatangle: section Rewrite range functions
+    -- luatangle: section Function to rewrite 1-based ranges
 
     -- For memoizing ranges by cont
     local ranges = {}
@@ -1040,149 +1244,6 @@ Assumed to be available as an upvalue are
         )
         ranges[n] = lhs
         return lhs
-    end
-
-```
-
-
-We start by determining what sequences we have:
-
-```
-
-    -- luatangle: section Rewrite the sequence counts
-
-    local block_size
-    local range_size
-    if min == max then
-        block_size = max
-    elseif min == 1 then
-        range_size = max
-    else
-        block_size = min-1
-        range_size = max == -1 and -1 or max-block_size
-    end
-
-```
-
-```
-    -- luatangle: section+ Rewrite the sequence counts
-    -- luatangle: insert Rewrite block function
-    -- luatangle: insert Rewrite range functions
-
-    local new_rhs = {}
-    if block_size then
-        local block_lhs = blk_lhs(block_size)
-        new_rhs[#new_rhs+1] = winstance_new(block_lhs)
-    end
-
-    if range_size then
-        local range_lhs = range_lhs(range_size)
-        if #new_rhs > 0 and separator_instance then
-            new_rhs[#new_rhs+1] = separator_instance
-        end
-        new_rhs[#new_rhs+1] = winstance_new(range_lhs)
-    end
-
-    working_wrule.rh_instances = new_rhs
-
-```
-
-```
-
-    -- luatangle: section Binarize the working grammar
-
-    for rule_id = 1,#wrule_by_id do
-        local working_wrule = wrule_by_id[rule_id]
-        -- TODO finish this
-    end
-
-```
-
-## Disallow nulling separator
-
-```
-
-    -- luatangle: section disallow nulling separator
-    if separator and separator.nulling then
-        grammar:development_error(
-            who
-            .. 'Separator ' .. separator.name .. ' is nulling\n'
-            .. ' That is not allowed\n',
-            working_wrule.name_base,
-            working_wrule.line
-        )
-    end
-
-```
-
-## Allow only singleton RHS
-
-We force a singleton RHS,
-by creating a new rule.
-Since we want a new, unique, symbol for the
-repetend,
-we do this *even* if the rule is already an singleton.
-Each sequence has a unique semantics,
-and we will use the repetend symbol name as a
-unique ID for this sequence.
-
-```
-
-    -- luatangle: section force singleton RHS in working_rule
-
-    local new_sym
-        = lh_of_wrule_new('rh1!' .. unique_number, working_wrule)
-    unique_number = unique_number + 1
-    local new_winstance = winstance_new(new_sym)
-    working_wrule.rh_instances = {new_winstance}
-    wrule_ensure{
-        lhs = new_sym,
-        rh_instances = rh_instances,
-    }
-
-```
-
-## Normalize separation
-
-Elminate `terminating` and `liberal` separation
-by rewriting them in terms of `proper` separation.
-After this rewrite all rules will either have no
-separator, or `proper` separation.
-
-```
-
-    -- luatangle: section Normalize separation
-
-    if separation == 'terminating' or
-        separation == 'liberal'
-    then
-        local middle_sym
-            = lh_of_wrule_new('term!' .. unique_number, working_wrule)
-        unique_number = unique_number + 1
-        local middle_winstance = winstance_new(middle_sym)
-        assert(separator)
-        unique_number = unique_number + 1
-        -- The old LHS of the wrule with the actual sequence,
-        -- which we are going to replace
-        local previous_lhs = working_wrule.lhs
-        wrule_ensure{
-            lhs = previous_lhs,
-            rh_instances = {
-                middle_winstance,
-                separator_instance,
-            }
-        }
-        working_wrule.lhs = middle_sym
-        -- If liberal separation, also add an
-        -- unterminated variant
-        if separation == 'liberal' then
-            wrule_ensure{
-                lhs = previous_lhs,
-                rh_instances = {
-                    middle_winstance,
-                }
-            }
-        end
     end
 
 ```
@@ -1521,6 +1582,7 @@ The main code follows
     end
 
     local function winstance_new(element, xalt, rh_ix)
+        assert(element)
         local new_instance = {
             xalt = xalt,
             rh_ix = rh_ix,
@@ -2739,7 +2801,7 @@ In Marpa, "being productive" and
                 if min ~= 1 or max ~= 1 then
                     local rh_instances = working_wrule.rh_instances
                     local separation = working_wrule.separation
-                    -- luatangle: insert force singleton RHS in working_rule
+                    -- luatangle: insert Force singleton RHS in working_rule
                     -- luatangle: insert Create the repetend instance
                     -- luatangle: insert Create the separator instance if needed
                     -- luatangle: insert Normalize separation
@@ -2748,6 +2810,7 @@ In Marpa, "being productive" and
             end
         end
 
+        -- luatangle: insert Check and expand lexemes
         -- luatangle: insert Binarize the working grammar
 
         for rule_id = 1,#wrule_by_id do
@@ -2755,7 +2818,7 @@ In Marpa, "being productive" and
             if wrule then print(wrule.desc) end
         end
 
-        -- luatangle: insert census fields
+        -- luatangle: insert Census fields
 
     end
 
