@@ -561,6 +561,7 @@ in the working grammar.
              nullable = true,
              precedence_level = true,
              source = true,
+             xlexeme = true,
              xsym = true,
         }
         for _,wsym in pairs(wsym_by_name) do
@@ -683,10 +684,10 @@ would have to be top-level as well.
 
     local function wsym_from_xlexeme_new(xlexeme)
         local name = xlexeme.name .. '-sym'
-        local xlexeme,is_new = wsym_ensure(name)
+        local new_wsym,is_new = wsym_ensure(name)
         if is_new then
-            xlexeme.nullable = false
-            xlexeme.xlexeme = base_xlexeme
+            new_wsym.nullable = false
+            new_wsym.xlexeme = xlexeme
         end
         return new_wsym
     end
