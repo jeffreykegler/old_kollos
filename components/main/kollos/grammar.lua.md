@@ -304,20 +304,14 @@ any error.
         elseif key == 'rawtype' then return 'xlexeme'
         elseif key == 'nullable' then return false
         elseif key == 'productive' then return true
-        elseif key == 'subname' then
-            local lexeme_type = table.lexeme_type:gsub('[^%d%a]', '_')
-            local subname =
-                table.xprec.subname
-                .. ':' .. lexeme_type
-                .. '-' .. table.id_within_top_alternative
-            table.subname = subname
-            return subname
         elseif key == 'name' then
+            local lexeme_type = table.lexeme_type
             local name =
                 table.name_base
                 .. ':'
                 .. table.line
-                .. table.subname
+                .. ':' .. lexeme_type
+                .. '-' .. table.id
             table.name = name
             return name
         end
@@ -325,23 +319,37 @@ any error.
     end
 
     function grammar_class.lexeme(grammar, type, spec)
-        local current_xprec = grammar.current_xprec
+
+        if type:match('[^%w]') then
+            grammar:development_error(
+                'Lexeme type "' .. type .. '" is not allowed\n'
+                .. '  It contains a non-alphanumeric character\n',
+                grammar.name_base,
+                grammar.line
+            )
+        end
+
+        local lexeme_by_spec = grammar.xlexemes_by_type[type]
+        if not lexeme_by_spec then
+            lexeme_by_spec = {}
+            grammar.xlexemes_by_type = lexeme_by_spec
+        end
+        local old_lexeme = lexeme_by_spec[spec]
+        if old_lexeme then return old_lexeme end
 
         -- used to form the name of the lexeme
-        local id_within_top_alternative = grammar.lexeme_id_within_top_alternative
-        id_within_top_alternative = id_within_top_alternative + 1
-        grammar.lexeme_id_within_top_alternative = id_within_top_alternative
+        local lexeme_id = grammar.next_lexeme_id + 1
+        grammar.next_lexeme_id = lexeme_id
 
         local new_lexeme = {
             lexeme_type = type,
-            id_within_top_alternative =
-                id_within_top_alternative,
-            xprec = current_xprec,
+            id = lexeme_id,
             line = grammar.line,
             name_base = grammar.name_base,
             spec = spec
         }
         setmetatable(new_lexeme, { __index = mt_lexeme })
+        lexeme_by_spec[spec] = new_lexeme
         return new_lexeme
     end
 
@@ -1854,7 +1862,6 @@ The main code follows
         if line == nil then return line, file end
 
         grammar.alt_id_within_top_alternative = 0
-        grammar.lexeme_id_within_top_alternative = 0
 
         local old_throw_value = grammar:throw_set(true)
         local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
@@ -2835,6 +2842,8 @@ In Marpa, "being productive" and
             xtopalt_by_ix = {},
             xsubalt_by_id = {},
 
+            xlexemes_by_type = {},
+            next_lexeme_id = 0,
             xsym_by_id = {},
             xsym_by_name = {},
 
