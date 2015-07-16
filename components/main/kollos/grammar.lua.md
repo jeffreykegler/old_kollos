@@ -331,10 +331,10 @@ any error.
             )
         end
 
-        local lexeme_by_spec = grammar.xlexemes_by_type[type]
+        local lexeme_by_spec = grammar.lexemes_by_type[type]
         if not lexeme_by_spec then
             lexeme_by_spec = {}
-            grammar.xlexemes_by_type = lexeme_by_spec
+            grammar.lexemes_by_type = lexeme_by_spec
         end
         local old_lexeme = lexeme_by_spec[spec]
         if old_lexeme then return old_lexeme end
@@ -361,6 +361,58 @@ any error.
 
     function grammar_class.cc(grammar, value)
         return grammar_class.lexeme(grammar, 'cc', value)
+    end
+
+```
+
+### Internal lexeme constructor
+
+```
+
+    -- luatangle: section ilexeme constructor
+
+    local function mt_ilexeme(table, key)
+        if key == 'type' then return 'ilexeme'
+        elseif key == 'rawtype' then return 'ilexeme'
+        elseif key == 'nullable' then return false
+        elseif key == 'productive' then return true
+        elseif key == 'name' then
+            local lexeme_type = table.lexeme_type
+            local name =
+                table.source.name_base
+                .. ':'
+                .. table.source.line
+                .. ':' .. lexeme_type
+                .. '-' .. table.id
+            table.name = name
+            return name
+        end
+        return nil
+    end
+
+    local function ilexeme_new(type, spec, source)
+
+        local lexeme_by_spec = grammar.lexemes_by_type[type]
+        if not lexeme_by_spec then
+            lexeme_by_spec = {}
+            grammar.lexemes_by_type = lexeme_by_spec
+        end
+        local old_lexeme = lexeme_by_spec[spec]
+        if old_lexeme then return old_lexeme end
+
+        -- used to form the name of the lexeme
+        local lexeme_id = grammar.next_lexeme_id + 1
+        grammar.next_lexeme_id = lexeme_id
+
+        local new_lexeme = {
+            lexeme_type = type,
+            spec = spec,
+            source = source,
+            id = lexeme_id,
+        }
+        setmetatable(new_lexeme, { __index = mt_ilexeme })
+        lexeme_by_spec[spec] = new_lexeme
+        return new_lexeme
     end
 
 ```
@@ -2522,6 +2574,7 @@ or otherwise as occasion demands.
 
         -- luatangle: insert wsym constructors
         -- luatangle: insert wrule constructor
+        -- luatangle: insert ilexeme constructor
 
         local function alt_to_work_data_add(xalt)
             -- at top, use brick from xrule.lhs
@@ -2822,7 +2875,7 @@ or otherwise as occasion demands.
             xtopalt_by_ix = {},
             xsubalt_by_id = {},
 
-            xlexemes_by_type = {},
+            lexemes_by_type = {},
             next_lexeme_id = 0,
             xsym_by_id = {},
             xsym_by_name = {},
