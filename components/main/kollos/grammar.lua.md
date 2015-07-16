@@ -239,6 +239,29 @@ Kollos code.
 
 ## External, working and internal grammars
 
+The rewrites use 3 grammars -- external (x), working (w) and internal
+(i).  Each has a one letter abbreviation, as shown.
+
+The External grammar is either entered directly via a PLIF (Pure Lua
+InterFace) or indirectly, when the LUIF (LUa InterFace) is parsed into
+PLIF form As the name suggests, it matches the external form closely.
+The external form never changes, and is to kept for use by those features
+which must work in terms of the user's original grammar.  These features
+include debugging, tracing, events and semantics.  The external rules
+and symbols are what a LUIF or PLIF user sees.
+
+To do the rewrite, I create a working grammar.  This is highly changeable,
+and the rewrites take place using it.
+
+Once the rewrites are done a Libmarpa grammar is created.  The Libmarpa
+grammar's rules and symbols are tracked in the rules and symbols of
+Kollos's internal grammar.
+
+Once the Libmarpa grammar is created, the working grammar is no longer
+needed and can be garbage collected.  The internal grammar has links back
+to the external grammar.  These links allow translation from internal
+to external, and this can be done even "on the fly".
+
 ## Lexemes
 
 The transformations are not complex enough to
