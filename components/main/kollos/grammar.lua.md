@@ -1267,6 +1267,7 @@ to it when there's a rewrite,
 or otherwise as occasion demands.
 
 ```
+
     -- luatangle: section main
 
     -- Kollos top level grammar routines
@@ -2123,6 +2124,17 @@ In Marpa, "being productive" and
         )
     end
 
+    -- luatangle: insert Grammar compile() method
+    -- luatangle: insert Grammar constructor
+
+```
+
+## Grammar compile() method
+
+```
+
+    -- luatangle: section Grammar compile() method
+
     function grammar_class.compile(grammar, args)
         local who = 'grammar.compile()'
         common_args_process(who, grammar, args)
@@ -2472,9 +2484,6 @@ In Marpa, "being productive" and
 
         local wrule_by_id = {}
         local wsym_by_name = {}
-```
-
-    -- luatangle: section+ main
 
         -- luatangle: insert wsym,wrule utilities
 
@@ -2757,6 +2766,14 @@ In Marpa, "being productive" and
 
     end
 
+```
+
+## Grammar constructor
+
+```
+
+    -- luatangle: section Grammar constructor
+
     -- this will actually become a method of the config object
     local function grammar_new(config, args) -- luacheck: ignore config
         local who = 'grammar_new()'
@@ -2782,49 +2799,61 @@ In Marpa, "being productive" and
             })
 
         if not args.file then
-            return nil, grammar_object:development_error(who .. [[ requires 'file' named argument]],
-         debug.getinfo(2,'S').source,
-         debug.getinfo(2, 'l').currentline) end
+            return nil, grammar_object:development_error(
+                who .. [[ requires 'file' named argument]],
+                debug.getinfo(2,'S').source,
+                debug.getinfo(2, 'l').currentline
+            )
+        end
 
         if not args.line then
-        return nil, grammar_object:development_error(who .. [[ requires 'line' named argument]],
-     debug.getinfo(2,'S').source,
-     debug.getinfo(2, 'l').currentline) end
+            return nil, grammar_object:development_error(
+                who .. [[ requires 'line' named argument]],
+                debug.getinfo(2,'S').source,
+                debug.getinfo(2, 'l').currentline
+            )
+        end
 
-    local line, file
-    = common_args_process('grammar_new()', grammar_object, args)
-    -- if line is nil, the "file" is actually an error object
-    if line == nil then return line, file end
+        local line, file
+        = common_args_process('grammar_new()', grammar_object, args)
+        -- if line is nil, the "file" is actually an error object
+        if line == nil then return line, file end
 
-    local name = args.name
-    if not name then
-        return nil, grammar_object:development_error([[grammar must have a name]])
-    end
-    if type(name) ~= 'string' then
-        return nil, grammar_object:development_error([[grammar 'name' must be a string]])
-    end
-    if name:find('[^a-zA-Z0-9_]') then
-        return nil, grammar_object:development_error(
-            [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
-        )
-    end
-    if name:byte(1) == '_' then
-        return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
-    end
-    args.name = nil
-    grammar_object.name = name
-    -- This is used to name child objects of the grammar
-    -- For now, it is just the name of the grammar.
-    -- Someday I may create a method that allows it to be changed.
-    grammar_object.name_base = name
+        local name = args.name
+        if not name then
+            return nil, grammar_object:development_error([[grammar must have a name]])
+        end
+        if type(name) ~= 'string' then
+            return nil, grammar_object:development_error([[grammar 'name' must be a string]])
+        end
+        if name:find('[^a-zA-Z0-9_]') then
+            return nil, grammar_object:development_error(
+                [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
+            )
+        end
+        if name:byte(1) == '_' then
+            return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
+        end
+        args.name = nil
+        grammar_object.name = name
+        -- This is used to name child objects of the grammar
+        -- For now, it is just the name of the grammar.
+        -- Someday I may create a method that allows it to be changed.
+        grammar_object.name_base = name
 
-    local field_name = next(args)
-    if field_name ~= nil then
-        return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+        local field_name = next(args)
+        if field_name ~= nil then
+            return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+        end
+
+        return grammar_object
     end
 
-    return grammar_object
-    end
+```
+
+```
+
+    -- luatangle: section+ main
 
     grammar_class.new = grammar_new
     return grammar_class
