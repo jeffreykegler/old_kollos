@@ -1500,7 +1500,15 @@ then strings are broken into character classes.
 
     for rule_id = 1,#wrule_by_id do
         local working_wrule = wrule_by_id[rule_id]
-        -- TODO finish this
+        if working_wrule then
+            local rh_instances = working_wrule.rh_instances
+            if #rh_instances > 2 then
+                -- TODO finish this
+                -- create the final rule
+                -- create the medial rules
+                -- change the original rule to the initial rule
+            end
+        end
     end
 
 ```
