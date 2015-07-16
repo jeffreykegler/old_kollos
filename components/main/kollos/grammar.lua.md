@@ -231,63 +231,65 @@ be used:
 
 * In particular, rules can be binarized.
 
-In what follows,
-many of the rewrites are of non-BNF rules
+Many of the rewrites are of non-BNF rules
 (sequences and precedenced rules) to BNF.
 Others are transformations of the BNF.
 All of these techniques find use in the
 Kollos code.
 
-## Fields and objects
+## External, working and internal grammars
 
-Selected Lua tables are regarded as "objects"
-with "fields".
-This is OO but,
-in keeping with Lua's approach,
-there is a definite emphasis on
-the pragmatic, "quick and dirty"
-over the theoretical and "clean".
+## Lexemes
 
-For development purposes,
-after the working
-and internal
-grammars are created,
-I census the fields in the important
-tables.  It's a cheap substitute for
-the strict typing I neither use or,
-in this context, want.
+The transformations are not complex enough to
+justify the overhead of having an external,
+working and internal version for each lexeme.
+An external lexeme is created for every lexeme
+in the external representation.
 
-## External fields and objects
+Some lexemes do result from transformations.
+These are created directly as internal lexemes.
+Internal lexemes do not map to external lexemes,
+they are independent.
 
-```
+Lexemes are in a sense, free form.
+Each lexeme has a "type",
+and zero or more values,
+but it up to the
+lexer to interpret what the type
+and spec means.
 
-        -- luatangle: section Census fields
-        -- census subalt fields
-        -- TODO: remove after development
-        local xsubalt_field_census = {}
-        local xsubalt_field_census_expected = {
-            action = true,
-            id = true,
-            id_within_top_alternative = true,
-            line = true,
-            max = true,
-            min = true,
-            name_base = true,
-            name = true,
-            nullable = true,
-            nulling = true,
-            parent_instance = true,
-            precedence_level = true,
-            productive = true,
-            rh_instances = true,
-            separation = true,
-            separator = true,
-            subname = true,
-            xprec = true,
-        }
+Two type are reserved: `cc` and `string`.
+A lexer can give them any meaning it likes,
+but the standard meaning is that `cc` is a
+character class,
+and that `string` is a string -- a
+sequence of characters.
 
+Lexemes can also be open -- simply a symbol
+name, whose meaning is completely up to the lexer.
 
-```
+When using "seamless" parsing,
+Kollos imposes specific requirements on the
+lexemes in a grammar.
+The only lexemes allowed are those of the
+two reserved types: `cc` and `string`.
+The spec of `string` lexeme
+is a Lua string which is interpreted in the
+Lua standard way, as a sequence of characters.
+The spec of a `cc` lexeme
+is also a Lua string,
+but in the `cc` case the string
+specifies a Lua character class.
+
+Internal and external lexemes are kept in
+a single table, referenced by
+`type` and `spec`.
+A given `type` and `spec` references at most
+one lexeme, which is either internal or
+external, not both.
+
+### External lexeme constructor
 
 Create a RHS instance of type 'xlexeme'
 These should only be called inside of a call to
@@ -360,6 +362,57 @@ any error.
     function grammar_class.cc(grammar, value)
         return grammar_class.lexeme(grammar, 'cc', value)
     end
+
+```
+
+## Fields and objects
+
+Selected Lua tables are regarded as "objects"
+with "fields".
+This is OO but,
+in keeping with Lua's approach,
+there is a definite emphasis on
+the pragmatic, "quick and dirty"
+over the theoretical and "clean".
+
+For development purposes,
+after the working
+and internal
+grammars are created,
+I census the fields in the important
+tables.  It's a cheap substitute for
+the strict typing I neither use or,
+in this context, want.
+
+## External fields and objects
+
+```
+
+        -- luatangle: section Census fields
+        -- census subalt fields
+        -- TODO: remove after development
+        local xsubalt_field_census = {}
+        local xsubalt_field_census_expected = {
+            action = true,
+            id = true,
+            id_within_top_alternative = true,
+            line = true,
+            max = true,
+            min = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            parent_instance = true,
+            precedence_level = true,
+            productive = true,
+            rh_instances = true,
+            separation = true,
+            separator = true,
+            subname = true,
+            xprec = true,
+        }
+
 
 ```
 
@@ -761,42 +814,6 @@ would have to be top-level as well.
 ```
 
 ## Internal fields and objects
-
-### Lexemes
-
-There is no working object for lexemes --
-the transformations are not complex enough to
-justify the overhead.
-
-Lexemes are in a sense, free form.
-Each lexeme has a "type",
-and zero or more values,
-but it up to the
-lexer to interpret what the type
-and values mean.
-
-Two type are reserved: `cc` and `string`.
-A lexer can give them any meaning it likes,
-but the standard meaning is that `cc` is a
-character class,
-and that `string` is a string -- a
-sequence of characters.
-
-Lexemes can also be open -- simply a symbol
-name, whose meaning is completely up to the lexer.
-
-When using "seamless" parsing,
-Kollos imposes specific requirements on the
-lexemes in a grammar.
-The only lexemes allowed are those of the
-two reserved types: `cc` and `string`.
-A `string` lexeme has exactly one value:
-a Lua string which is interpreted in the
-Lua standard way, as a sequence of characters.
-A `cc` lexeme also has exactly one value,
-and that value is also a string,
-but in the `cc` case the string
-must be the description of a Lua character class.
 
 ## Replace a working grammar rule
 
