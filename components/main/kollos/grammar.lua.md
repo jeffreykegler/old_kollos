@@ -301,7 +301,7 @@ any error.
 
     -- luatangle: section xlexeme constructors
 
-    local function mt_lexeme(table, key)
+    local function mt_xlexeme(table, key)
         if key == 'type' then return 'xlexeme'
         elseif key == 'rawtype' then return 'xlexeme'
         elseif key == 'nullable' then return false
@@ -350,7 +350,7 @@ any error.
             name_base = grammar.name_base,
             spec = spec
         }
-        setmetatable(new_lexeme, { __index = mt_lexeme })
+        setmetatable(new_lexeme, { __index = mt_xlexeme })
         lexeme_by_spec[spec] = new_lexeme
         return new_lexeme
     end
@@ -659,7 +659,7 @@ would have to be top-level as well.
 
 ```
 
-    -- luatangle: section wsym,wrule utilities
+    -- luatangle: section wsym constructors
 
     -- 2nd return value is true if this is
     -- a new symbol
@@ -763,6 +763,13 @@ would have to be top-level as well.
         return new_wsym
     end
 
+```
+
+### Working rule constructor
+
+```
+    -- luatangle: section wrule constructor
+
     local function wrule_desc(wrule)
         local desc_table = {
             wrule.lhs.name,
@@ -776,7 +783,7 @@ would have to be top-level as well.
         return table.concat(desc_table, ' ')
     end
 
-    local function wrule_ensure(rule_args)
+    local function wrule_new(rule_args)
         local max = rule_args.max or 1
         local min = rule_args.min or 1
         local separator = rule_args.separator
@@ -833,7 +840,7 @@ to "hack" its fields.
 
     local function wrule_replace(hacked_wrule)
         wrule_by_id[hacked_wrule.id] = false
-        return wrule_ensure(hacked_wrule)
+        return wrule_new(hacked_wrule)
     end
 
 ```
@@ -1261,7 +1268,7 @@ unique ID for this sequence.
     unique_number = unique_number + 1
     local new_winstance = winstance_new(new_sym)
     working_wrule.rh_instances = {new_winstance}
-    wrule_ensure{
+    wrule_new{
         lhs = new_sym,
         rh_instances = rh_instances,
     }
@@ -1291,7 +1298,7 @@ separator, or `proper` separation.
         -- The old LHS of the wrule with the actual sequence,
         -- which we are going to replace
         local previous_lhs = working_wrule.lhs
-        wrule_ensure{
+        wrule_new{
             lhs = previous_lhs,
             rh_instances = {
                 middle_winstance,
@@ -1302,7 +1309,7 @@ separator, or `proper` separation.
         -- If liberal separation, also add an
         -- unterminated variant
         if separation == 'liberal' then
-            wrule_ensure{
+            wrule_new{
                 lhs = previous_lhs,
                 rh_instances = {
                     middle_winstance,
@@ -1429,7 +1436,7 @@ Assumed to be available as an upvalue are
         lhs, is_new = wsym_ensure(lhs_name)
         assert(is_new) -- TODO: remove after development
         lhs.source = working_wrule.source
-        wrule_ensure(
+        wrule_new(
             {
                 lhs = lhs,
                 rh_instances = rhs
@@ -1503,13 +1510,13 @@ Assumed to be available as an upvalue are
                 long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
             end
         end
-        wrule_ensure(
+        wrule_new(
             {
                 lhs = lhs,
                 rh_instances = short_rhs
             }
         )
-        wrule_ensure(
+        wrule_new(
             {
                 lhs = lhs,
                 rh_instances = long_rhs
@@ -2513,7 +2520,8 @@ or otherwise as occasion demands.
         local wrule_by_id = {}
         local wsym_by_name = {}
 
-        -- luatangle: insert wsym,wrule utilities
+        -- luatangle: insert wsym constructors
+        -- luatangle: insert wrule constructor
 
         local function alt_to_work_data_add(xalt)
             -- at top, use brick from xrule.lhs
@@ -2600,7 +2608,7 @@ or otherwise as occasion demands.
                 separator_wsym.xsym = separator_xsym
             end
             assert(not xalt.separation or separator_wsym)
-            local new_wrule = wrule_ensure{
+            local new_wrule = wrule_new{
                 lhs = new_lhs,
                 rh_instances = work_rh_instances,
                 min = xalt.min,
@@ -2725,7 +2733,7 @@ or otherwise as occasion demands.
                         wsym_props = precedenced_wsym_ensure(lhs, level)
                         wsym_props.xsym = lhs
                         wsym_props.precedence_level = level
-                        wrule_ensure{lhs = next_ladder_lhs,
+                        wrule_new{lhs = next_ladder_lhs,
                             rh_instances = {winstance_new(wsym_props)},
                             }
                         next_ladder_lhs = wsym_props
