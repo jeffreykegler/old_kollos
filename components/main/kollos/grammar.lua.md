@@ -821,6 +821,253 @@ to "hack" its fields.
 
 ```
 
+## RHS transitive closure
+
+The RHS transitive closure is Jeffrey's coinage, to describe
+a kind of property useful in Marpa.
+
+Let `P` be a symbol property.
+We will write `P(sym)` if symbol `sym`
+has property P.
+
+We say that the symbol property holds of a rule `r`,
+or `P(r)`,
+if `r` is of the form
+`LHS ::= RHS`,
+where `RHS` is is a series
+of zero or more RHS symbols,
+and `P(Rsym)` for every `Rsym` in `RHS`.
+
+A property `P` is *RHS transitive* if and only if
+when `r = LHS ::= RHS` and `P(r)`,
+then `P(LHS)`.
+
+Note that the definition of a RHS transitive property implies that
+every LHS of an empty rule hss that property.
+This is because, in the case of an empty rule, it is vacuously
+true that all the RHS symbols have the RHS transitive property.
+
+Also note the definition only describes the transitivity of the
+property, not which symbols have it.
+That is, while `P` is a RHS transitive property,
+a symbol must have property `P`
+if it appears on the LHS
+of a rule with property `P`.
+the converse is not necessarily true:
+A symbol may have property `P`
+even if it never appears on the LHS
+of a rule with property `P`.
+
+In Marpa, "being productive" and
+    "being nullable" are RHS transitive properties
+
+```
+
+    -- luatangle: section RHS transitive closure function
+
+    local function xrhs_transitive_closure(grammar, property)
+
+        local changes_made
+
+        -- ok to shadow upvalue property, I think
+        local function property_of_instance_element(element,
+                property) -- luacheck: ignore property
+
+            -- print('Calling poie()', element.rawtype, element.type, element.name, property)
+            if element[property] ~= nil then
+                -- print('Already has', property, element[property])
+                return element[property]
+            end
+            if element.type == 'xsym' then
+                -- If a symbol with the property still not set,
+                -- return nil and the symbol id
+                return nil, element.id
+            end
+
+            -- If we are here, the element must be an xalt
+            local rh_instances = element.rh_instances
+            -- assume true, unless found false
+            local element_has_property = true
+            -- print('#rh_instances', #rh_instances)
+            for rh_ix = 0,#rh_instances do
+                -- print('rh_ix', rh_ix)
+                local child_element
+                -- As a bit of a hack,
+                -- An rh_ix of 0 has a special meaning:
+                -- check the separator
+                if rh_ix == 0 then
+                    -- Check only if the separator is always used
+                    -- by this sequence. There is always an internal
+                    -- separator is min>2; and there is always a
+                    -- terminating separator, if the separation
+                    -- type is 'terminating'
+                    if element.separation == 'terminating' or element.min>2 then
+                        child_element = element.separator
+                    end
+                else
+                    local rh_instance = rh_instances[rh_ix]
+                    child_element = rh_instance.element
+                end
+
+                -- Child element may be nil, if rh_ix==0 and we did not have
+                -- or are not checking the separator
+                if child_element then
+                    -- print("Checking", child_element.rawtype, child_element.type,
+                        -- child_element.name, "for", property)
+                    local has_property = property_of_instance_element(child_element, property)
+                    if has_property == nil then
+                        return nil
+                    elseif has_property == false then
+                        element_has_property = false
+                        break
+                    end
+                end
+            end
+            element[property] = element_has_property
+            -- print("Setting" .. element.name .. " " .. property .. " to", element_has_property)
+            changes_made = true
+            -- If instance is top level
+            if element.is_top then
+                local lhs = element.lhs_of_top
+                -- print("Setting " .. lhs.name .. " " .. property .. " to ", element_has_property)
+                lhs[property] = element_has_property
+            end
+            return element_has_property
+        end
+
+        local xsubalt_by_id = grammar.xsubalt_by_id
+
+        -- Make LHS symbols consist with subalternatives
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            if xsubalt.is_top then
+                local has_property = xsubalt[property]
+                if has_property ~= nil then
+                    local lhs = xsubalt.lhs_of_top
+                    lhs[property] = has_property
+                end
+            end
+        end
+
+        changes_made = true
+        while changes_made do
+            changes_made = false
+            for xsubalt_id = 1,#xsubalt_by_id do
+                local xsubalt = xsubalt_by_id[xsubalt_id]
+                property_of_instance_element(xsubalt, property)
+            end
+        end
+
+    end
+
+```
+
+## Nullable semantics
+
+```
+
+    -- luatangle: section nullable semantics functions
+
+    -- Right now empty table indicates default semantics
+    -- Maybe do something more explicit?
+    local default_nullable_semantics = { }
+
+    -- Use the alternative, which the caller has ensured is
+    -- nullable, as the source of a nullable semantics
+    local function nullable_semantics_create(alternative)
+        local action = alternative.action
+        if action then
+            return { action = action }
+        end
+        -- return default semantics
+        return default_nullable_semantics
+    end
+
+    --[[
+    -- 
+    -- Find and return the nullable semantics of <symbol>.
+    -- On error, return nil and the error object, or else
+    -- throw the error, as specified by the grammar
+    -- 
+    -- Semantics are
+    -- 
+    -- 1) Those of the only nullable alternative, when there 
+    -- is only one.
+    -- 
+    -- 2) Those of the explicit empty rule, if there is one
+    -- 
+    -- 3) The default semantics, if that is the semantics of
+    -- all the nullable alternatives
+    -- 
+    -- If none of the above are true, it is a fatal error
+    -- 
+    --]]
+
+    local function find_nullable_semantics(grammar, symbol)
+        local xrules = symbol.lhs_xrules
+        local nullable_alternatives = {}
+        local has_only_default_semantics = true
+        for xrule_ix = 1, #xrules do
+            local precedences = xrules[xrule_ix].precedences
+            for prec_ix = 1, #precedences do
+                local alternatives = precedences[prec_ix].top_alternatives
+                for alt_ix = 1, #alternatives do
+                    local alternative = alternatives[alt_ix]
+                    if alternative.nullable then
+                        local rhs = alternative.rh_instances
+                        if #rhs <= 0 then
+                            return nullable_semantics_create(grammar, alternative)
+                        end
+                        nullable_alternatives[#nullable_alternatives+1] = alternative
+                        if alternative.action then
+                            has_only_default_semantics = false
+                        end
+                    end
+                end
+            end
+        end
+        if #nullable_alternatives == 1 then
+            return nullable_semantics_create(grammar, nullable_alternatives[1])
+        end
+        if has_only_default_semantics then
+            return default_nullable_semantics
+        end
+
+        -- If here, we consider the semantics ambiguous, and report
+        -- an error
+
+        local error_table = {
+            'grammar_new():' .. 'Ambiguous nullable semantics',
+            ' That is not allowed',
+            ' An explicit empty rule is one solution ...',
+            ' The nullable semantics of an empty rule override all other choices.',
+            ' The symbol with ambiguous semantics was <' .. symbol.name .. '>',
+        }
+        error_table[#error_table+1]
+        = ' Nullable alternative #1 is ' .. nullable_alternatives[1].name
+        error_table[#error_table+1]
+        = ' Nullable alternative #2 is ' .. nullable_alternatives[2].name
+        if #nullable_alternatives > 2 then
+            error_table[#error_table+1]
+            = ' Nullable alternative #'
+            .. #nullable_alternatives
+            .. ' is '
+            .. nullable_alternatives[#nullable_alternatives].name
+        end
+
+        -- For now, report just the rule.
+        -- At some point, find one of the alternatives
+        -- which was nullable, and report that
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, '\n'),
+            nullable_alternatives[1].name_base,
+            nullable_alternatives[1].line
+        )
+    end
+
+```
+
 ## Rewrite the sequence counts
 
 This code rewrites sequences rules to
@@ -1886,244 +2133,8 @@ or otherwise as occasion demands.
 
     end
 
-```
-
-
-The RHS transitive closure is Jeffrey's coinage, to describe
-a kind of property useful in Marpa.
-
-Let `P` be a symbol property.
-We will write `P(sym)` if symbol `sym`
-has property P.
-
-We say that the symbol property holds of a rule `r`,
-or `P(r)`,
-if `r` is of the form
-`LHS ::= RHS`,
-where `RHS` is is a series
-of zero or more RHS symbols,
-and `P(Rsym)` for every `Rsym` in `RHS`.
-
-A property `P` is *RHS transitive* if and only if
-when `r = LHS ::= RHS` and `P(r)`,
-then `P(LHS)`.
-
-Note that the definition of a RHS transitive property implies that
-every LHS of an empty rule hss that property.
-This is because, in the case of an empty rule, it is vacuously
-true that all the RHS symbols have the RHS transitive property.
-
-Also note the definition only describes the transitivity of the
-property, not which symbols have it.
-That is, while `P` is a RHS transitive property,
-a symbol must have property `P`
-if it appears on the LHS
-of a rule with property `P`.
-the converse is not necessarily true:
-A symbol may have property `P`
-even if it never appears on the LHS
-of a rule with property `P`.
-
-In Marpa, "being productive" and
-    "being nullable" are RHS transitive properties
-
-```
-
-    -- luatangle: section+ main
-
-    local function xrhs_transitive_closure(grammar, property)
-
-        local changes_made
-
-        -- ok to shadow upvalue property, I think
-        local function property_of_instance_element(element,
-                property) -- luacheck: ignore property
-
-            -- print('Calling poie()', element.rawtype, element.type, element.name, property)
-            if element[property] ~= nil then
-                -- print('Already has', property, element[property])
-                return element[property]
-            end
-            if element.type == 'xsym' then
-                -- If a symbol with the property still not set,
-                -- return nil and the symbol id
-                return nil, element.id
-            end
-
-            -- If we are here, the element must be an xalt
-            local rh_instances = element.rh_instances
-            -- assume true, unless found false
-            local element_has_property = true
-            -- print('#rh_instances', #rh_instances)
-            for rh_ix = 0,#rh_instances do
-                -- print('rh_ix', rh_ix)
-                local child_element
-                -- As a bit of a hack,
-                -- An rh_ix of 0 has a special meaning:
-                -- check the separator
-                if rh_ix == 0 then
-                    -- Check only if the separator is always used
-                    -- by this sequence. There is always an internal
-                    -- separator is min>2; and there is always a
-                    -- terminating separator, if the separation
-                    -- type is 'terminating'
-                    if element.separation == 'terminating' or element.min>2 then
-                        child_element = element.separator
-                    end
-                else
-                    local rh_instance = rh_instances[rh_ix]
-                    child_element = rh_instance.element
-                end
-
-                -- Child element may be nil, if rh_ix==0 and we did not have
-                -- or are not checking the separator
-                if child_element then
-                    -- print("Checking", child_element.rawtype, child_element.type,
-                        -- child_element.name, "for", property)
-                    local has_property = property_of_instance_element(child_element, property)
-                    if has_property == nil then
-                        return nil
-                    elseif has_property == false then
-                        element_has_property = false
-                        break
-                    end
-                end
-            end
-            element[property] = element_has_property
-            -- print("Setting" .. element.name .. " " .. property .. " to", element_has_property)
-            changes_made = true
-            -- If instance is top level
-            if element.is_top then
-                local lhs = element.lhs_of_top
-                -- print("Setting " .. lhs.name .. " " .. property .. " to ", element_has_property)
-                lhs[property] = element_has_property
-            end
-            return element_has_property
-        end
-
-        local xsubalt_by_id = grammar.xsubalt_by_id
-
-        -- Make LHS symbols consist with subalternatives
-        for xsubalt_id = 1,#xsubalt_by_id do
-            local xsubalt = xsubalt_by_id[xsubalt_id]
-            if xsubalt.is_top then
-                local has_property = xsubalt[property]
-                if has_property ~= nil then
-                    local lhs = xsubalt.lhs_of_top
-                    lhs[property] = has_property
-                end
-            end
-        end
-
-        changes_made = true
-        while changes_made do
-            changes_made = false
-            for xsubalt_id = 1,#xsubalt_by_id do
-                local xsubalt = xsubalt_by_id[xsubalt_id]
-                property_of_instance_element(xsubalt, property)
-            end
-        end
-
-    end
-
-    -- Right now empty table indicates default semantics
-    -- Maybe do something more explicit?
-    local default_nullable_semantics = { }
-
-    -- Use the alternative, which the caller has ensured is
-    -- nullable, as the source of a nullable semantics
-    local function nullable_semantics_create(alternative)
-        local action = alternative.action
-        if action then
-            return { action = action }
-        end
-        -- return default semantics
-        return default_nullable_semantics
-    end
-
-    --[[
-    -- 
-    -- Find and return the nullable semantics of <symbol>.
-    -- On error, return nil and the error object, or else
-    -- throw the error, as specified by the grammar
-    -- 
-    -- Semantics are
-    -- 
-    -- 1) Those of the only nullable alternative, when there 
-    -- is only one.
-    -- 
-    -- 2) Those of the explicit empty rule, if there is one
-    -- 
-    -- 3) The default semantics, if that is the semantics of
-    -- all the nullable alternatives
-    -- 
-    -- If none of the above are true, it is a fatal error
-    -- 
-    --]]
-
-    local function find_nullable_semantics(grammar, symbol)
-        local xrules = symbol.lhs_xrules
-        local nullable_alternatives = {}
-        local has_only_default_semantics = true
-        for xrule_ix = 1, #xrules do
-            local precedences = xrules[xrule_ix].precedences
-            for prec_ix = 1, #precedences do
-                local alternatives = precedences[prec_ix].top_alternatives
-                for alt_ix = 1, #alternatives do
-                    local alternative = alternatives[alt_ix]
-                    if alternative.nullable then
-                        local rhs = alternative.rh_instances
-                        if #rhs <= 0 then
-                            return nullable_semantics_create(grammar, alternative)
-                        end
-                        nullable_alternatives[#nullable_alternatives+1] = alternative
-                        if alternative.action then
-                            has_only_default_semantics = false
-                        end
-                    end
-                end
-            end
-        end
-        if #nullable_alternatives == 1 then
-            return nullable_semantics_create(grammar, nullable_alternatives[1])
-        end
-        if has_only_default_semantics then
-            return default_nullable_semantics
-        end
-
-        -- If here, we consider the semantics ambiguous, and report
-        -- an error
-
-        local error_table = {
-            'grammar_new():' .. 'Ambiguous nullable semantics',
-            ' That is not allowed',
-            ' An explicit empty rule is one solution ...',
-            ' The nullable semantics of an empty rule override all other choices.',
-            ' The symbol with ambiguous semantics was <' .. symbol.name .. '>',
-        }
-        error_table[#error_table+1]
-        = ' Nullable alternative #1 is ' .. nullable_alternatives[1].name
-        error_table[#error_table+1]
-        = ' Nullable alternative #2 is ' .. nullable_alternatives[2].name
-        if #nullable_alternatives > 2 then
-            error_table[#error_table+1]
-            = ' Nullable alternative #'
-            .. #nullable_alternatives
-            .. ' is '
-            .. nullable_alternatives[#nullable_alternatives].name
-        end
-
-        -- For now, report just the rule.
-        -- At some point, find one of the alternatives
-        -- which was nullable, and report that
-        return nil,
-        grammar:development_error(
-            table.concat(error_table, '\n'),
-            nullable_alternatives[1].name_base,
-            nullable_alternatives[1].line
-        )
-    end
-
+    -- luatangle: insert RHS transitive closure function
+    -- luatangle: insert nullable semantics functions
     -- luatangle: insert Grammar compile() method
     -- luatangle: insert Grammar constructor
 
