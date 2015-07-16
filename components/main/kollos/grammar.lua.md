@@ -1257,9 +1257,14 @@ Assumed to be available as an upvalue are
 
 ```
 
-## Main code
+## Unclassified code
 
-The main code follows
+I changed to literate programming
+in mid-project, and am "making my
+code literate" as I go.
+For earlier code, this means I get
+to it when there's a rewrite,
+or otherwise as occasion demands.
 
 ```
     -- luatangle: section main
@@ -2020,86 +2025,6 @@ In Marpa, "being productive" and
 
     end
 
-    local function report_nullable_precedenced_xrule(grammar, xrule)
-        local precedences = xrule.precedences
-        local nullable_alternatives = {}
-        for prec_ix = 1, #precedences do
-            local xprec = precedences[prec_ix]
-            local alternatives = xprec.top_alternatives
-            for alt_ix = 1, #alternatives do
-                local alternative = alternatives[alt_ix]
-                nullable_alternatives[#nullable_alternatives+1] = alternative
-                if #nullable_alternatives >= 3 then break end
-            end
-            if #nullable_alternatives >= 3 then break end
-        end
-        local error_table = {
-            'grammar_new():' .. 'precedenced rule is nullable',
-            ' That is not allowed',
-            [[ The rule is ]] .. xrule.name
-        }
-        for ix = 1, #nullable_alternatives do
-            error_table[#error_table+1]
-            = ' Alternative ' .. nullable_alternatives[ix].name .. " is nullable"
-        end
-
-        -- For now, report just the rule.
-        -- At some point, find one of the alternatives
-        -- which was nullable, and report that
-        return nil,
-        grammar:development_error(
-            table.concat(error_table, '\n'),
-            xrule.name_base,
-            xrule.line
-        )
-    end
-
-    local function report_nullable_repetend(grammar, xsubalt)
-        local error_table = {
-            'grammar.compile():' .. 'sequence repetend is nullable',
-            ' That is not allowed',
-            [[ The sequence is ]] .. xsubalt.name
-        }
-
-        return nil,
-        grammar:development_error(
-            table.concat(error_table, '\n'),
-            xsubalt.name_base,
-            xsubalt.line
-        )
-    end
-
-    local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
-
-        local error_table = {
-            'grammar.compile():' .. 'precedenced rule shares LHS with another rule',
-            ' That is not allowed: a precedenced rule must have a dedicated LHS',
-            [[ The precedenced rule is ]] .. precedenced_xrule.name,
-            [[ The LHS is ]] .. lhs.name,
-            [[ This LHS is shared with the rule ]] .. lhs.name,
-        }
-
-        -- just show at most 3 other rules
-        local xrules = lhs.xrules
-        local shown_count = 0
-        while shown_count >= 3 do
-            local other_xrule = xrules[shown_count+1]
-            if other_xrule == nil then break end
-            if other_xrule ~= precedenced_xrule then
-                error_table[#error_table+1] =
-                [[ This LHS is shared with the rule ]] .. other_xrule.name
-                shown_count = shown_count + 1
-            end
-        end
-
-        return nil,
-        grammar:development_error(
-            table.concat(error_table, '\n'),
-            precedenced_xrule.name_base,
-            precedenced_xrule.line
-        )
-    end
-
     -- Right now empty table indicates default semantics
     -- Maybe do something more explicit?
     local default_nullable_semantics = { }
@@ -2244,6 +2169,8 @@ In Marpa, "being productive" and
         end
 
         local xtopalt_by_ix = grammar.xtopalt_by_ix
+
+        -- luatangle: insert Error routines internal to compile()
 
         -- Check for duplicate topalt's
         -- ignore min,max,action, etc.
@@ -2906,6 +2833,93 @@ In Marpa, "being productive" and
 
 ```
 
+## Error routines
+
+```
+
+    -- luatangle: section Error routines internal to compile()
+
+    local function report_nullable_precedenced_xrule(grammar, xrule)
+        local precedences = xrule.precedences
+        local nullable_alternatives = {}
+        for prec_ix = 1, #precedences do
+            local xprec = precedences[prec_ix]
+            local alternatives = xprec.top_alternatives
+            for alt_ix = 1, #alternatives do
+                local alternative = alternatives[alt_ix]
+                nullable_alternatives[#nullable_alternatives+1] = alternative
+                if #nullable_alternatives >= 3 then break end
+            end
+            if #nullable_alternatives >= 3 then break end
+        end
+        local error_table = {
+            'grammar_new():' .. 'precedenced rule is nullable',
+            ' That is not allowed',
+            [[ The rule is ]] .. xrule.name
+        }
+        for ix = 1, #nullable_alternatives do
+            error_table[#error_table+1]
+            = ' Alternative ' .. nullable_alternatives[ix].name .. " is nullable"
+        end
+
+        -- For now, report just the rule.
+        -- At some point, find one of the alternatives
+        -- which was nullable, and report that
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, '\n'),
+            xrule.name_base,
+            xrule.line
+        )
+    end
+
+    local function report_nullable_repetend(grammar, xsubalt)
+        local error_table = {
+            'grammar.compile():' .. 'sequence repetend is nullable',
+            ' That is not allowed',
+            [[ The sequence is ]] .. xsubalt.name
+        }
+
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, '\n'),
+            xsubalt.name_base,
+            xsubalt.line
+        )
+    end
+
+    local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
+
+        local error_table = {
+            'grammar.compile():' .. 'precedenced rule shares LHS with another rule',
+            ' That is not allowed: a precedenced rule must have a dedicated LHS',
+            [[ The precedenced rule is ]] .. precedenced_xrule.name,
+            [[ The LHS is ]] .. lhs.name,
+            [[ This LHS is shared with the rule ]] .. lhs.name,
+        }
+
+        -- just show at most 3 other rules
+        local xrules = lhs.xrules
+        local shown_count = 0
+        while shown_count >= 3 do
+            local other_xrule = xrules[shown_count+1]
+            if other_xrule == nil then break end
+            if other_xrule ~= precedenced_xrule then
+                error_table[#error_table+1] =
+                [[ This LHS is shared with the rule ]] .. other_xrule.name
+                shown_count = shown_count + 1
+            end
+        end
+
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, '\n'),
+            precedenced_xrule.name_base,
+            precedenced_xrule.line
+        )
+    end
+
+```
 
 <!--
 vim: expandtab shiftwidth=4:
