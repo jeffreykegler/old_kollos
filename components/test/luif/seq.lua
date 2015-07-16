@@ -40,6 +40,7 @@ l0:rule_new{'top'}
 l0:alternative_new{'seq1'}
 l0:alternative_new{'seq2'}
 l0:alternative_new{'seq3'}
+l0:alternative_new{'seq4'}
 l0:line_set(__LINE__)
 l0:rule_new{'seq1'}
 l0:alternative_new{'a', min=0, max =42, separator = 'comma', separation = 'liberal'}
@@ -48,7 +49,7 @@ l0:alternative_new{'a', 'b', 'c', min=1, max = -1, separator = 'comma'}
 l0:rule_new{'seq3'}
 l0:alternative_new{'a', 'b', 'c', min=1, max = -1, separator = 'comma', separation = 'terminating'}
 l0:rule_new{'seq4'}
-l0:alternative_new{'b', 'c', min=7, max = 7 }
+l0:alternative_new{'word', min = 3, max = 3 }
 l0:line_set(__LINE__)
 l0:line_set(__LINE__)
 l0:rule_new{'comma'}
@@ -59,8 +60,8 @@ l0:rule_new{'b'}
 l0:alternative_new{l0:string'b'}
 l0:rule_new{'c'}
 l0:alternative_new{l0:string'c'}
+l0:rule_new{'word'}
+l0:alternative_new{l0:string'a_long_word'}
 l0:compile{ seamless = 'top', line = __LINE__}
-
--- print(inspect(l0))
 
 -- vim: expandtab shiftwidth=4:

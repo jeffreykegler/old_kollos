@@ -397,14 +397,16 @@ any error.
     local function mt_ilexeme(table, key)
         if key == 'type' then return 'ilexeme'
         elseif key == 'rawtype' then return 'ilexeme'
+        elseif key == 'name_base' then return table.source.name_base
+        elseif key == 'line' then return table.source.line
         elseif key == 'nullable' then return false
         elseif key == 'productive' then return true
         elseif key == 'name' then
             local lexeme_type = table.lexeme_type
             local name =
-                table.source.name_base
+                table.name_base
                 .. ':'
-                .. table.source.line
+                .. table.line
                 .. ':' .. lexeme_type
                 .. '-' .. table.id
             table.name = name
@@ -551,11 +553,36 @@ their `separates` named field.
         -- luatangle: section+ Census fields
         local winstance_field_census = {}
         local winstance_field_census_expected = {
+            brick = true,
             element = true,
             separates = true,
             rh_ix = true,
             xalt = true,
         }
+
+        for rule_id = 1,#wrule_by_id do
+            local wrule = wrule_by_id[rule_id]
+            if wrule then
+                local rh_instances = wrule.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local winstance = rh_instances[rh_ix]
+                    if not winstance.name_base then
+                        print("missing 'name_base' in winstance:", winstance.name)
+                    end
+                    if not winstance.line then
+                        print("missing 'line' in winstance:", winstance.name)
+                    end
+                    for field,_ in pairs(winstance) do
+                        if not winstance_field_census_expected[field] then
+                            winstance_field_census[field] = true
+                        end
+                    end
+                end
+            end
+        end
+        for field,_ in pairs(winstance_field_census) do
+            print("unexpected winstance field:", field)
+        end
 
 ```
 
@@ -662,28 +689,10 @@ in the working grammar.
                         wrule_field_census[field] = true
                     end
                 end
-                local rh_instances = wrule.rh_instances
-                for rh_ix = 1,#rh_instances do
-                    local winstance = rh_instances[rh_ix]
-                    if not winstance.name_base then
-                        print("missing 'name_base' in winstance:", winstance.name)
-                    end
-                    if not winstance.line then
-                        print("missing 'line' in winstance:", winstance.name)
-                    end
-                    for field,_ in pairs(winstance) do
-                        if not winstance_field_census_expected[field] then
-                            winstance_field_census[field] = true
-                        end
-                    end
-                end
             end
         end
         for field,_ in pairs(wrule_field_census) do
             print("unexpected wrule field:", field)
-        end
-        for field,_ in pairs(winstance_field_census) do
-            print("unexpected winstance field:", field)
         end
 
         -- census wsym fields
@@ -1220,7 +1229,6 @@ so we can get away with this.
     local separator_instance
     if separator then
         separator_instance = winstance_new(separator)
-        assert( working_wrule.xalt )
         separator_instance.separates = working_wrule.xalt
     end
 
@@ -1368,7 +1376,6 @@ separator, or `proper` separation.
             = lh_of_wrule_new('term!' .. unique_number, working_wrule)
         unique_number = unique_number + 1
         local middle_winstance = winstance_new(middle_sym)
-        assert(separator)
         unique_number = unique_number + 1
         -- The old LHS of the wrule with the actual sequence,
         -- which we are going to replace
@@ -1395,7 +1402,7 @@ separator, or `proper` separation.
 
 ```
 
-Check the lexemes, and expand them.
+## Check and expand lexemes
 
 ```
 
@@ -1424,6 +1431,7 @@ Check the lexemes, and expand them.
                             grammar:development_error(
                                 [[charclass in alternate must be in square brackets]])
                         end
+                        rh_instance.brick = 'terminal'
                     elseif lexeme_type == 'string' then
                         local spec = rh_instance.spec
                         if type(spec) ~= 'string' then
@@ -1435,6 +1443,8 @@ Check the lexemes, and expand them.
                                 rh_instance.line
                             )
                         end
+                        rh_instance.brick = 'terminal'
+                        -- luatangle: insert expand string into internal 'cc' lexemes
                     elseif lexeme_type ~= nil then
                         grammar:development_error(
                             [[lexeme is of type ']]
@@ -1449,6 +1459,38 @@ Check the lexemes, and expand them.
             end
         end
     end
+
+```
+
+### Expand a string into chararacter classes
+
+If the grammar is an `at_bottom` grammar
+(one which reads and interprets its own characters
+instead of passing this on to a lower layer),
+then strings are broken into character classes.
+
+```
+    -- luatangle: section expand string into internal 'cc' lexemes
+    local string_rhs = {}
+    local string_lhs = rh_instance.element
+    for string_ix = 1,#spec do
+         local char = spec:sub(string_ix,string_ix)
+         local cc_spec
+         if char:match('[%w]') then
+             cc_spec = '[' .. char .. ']'
+         else
+             cc_spec = string.format('[\\%d]', char:byte())
+         end
+         local ilexeme = ilexeme_new('cc', cc_spec, string_lhs)
+         local new_instance = winstance_new(ilexeme)
+         string_rhs[#string_rhs+1] = new_instance
+    end
+    wrule_new(
+        {
+            lhs = string_lhs,
+            rh_instances = string_rhs
+        }
+    )
 
 ```
 
