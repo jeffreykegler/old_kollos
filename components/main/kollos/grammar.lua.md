@@ -1502,14 +1502,17 @@ then strings are broken into character classes.
         local working_wrule = wrule_by_id[rule_id]
         if working_wrule then
             local rh_instances = working_wrule.rh_instances
-            if #rh_instances > 2 then
+            local original_rule_length = #rh_instances
+            local final_wrule
+            local rule_source = working_wrule.source
+            if original_rule_length > 2 then
                 local last_lhs
-                local rule_source = working_wrule.source
-                assert(rule_source)
                 -- luatangle: insert Binarize: Create the final rule
                 -- luatangle: insert Binarize: Create the medial rules
                 -- luatangle: insert Binarize: Replace original rule with initial rule
+            else final_wrule = working_wrule
             end
+            -- luatangle: insert Binarize: Final rule hack
         end
     end
 
@@ -1520,7 +1523,7 @@ then strings are broken into character classes.
 ```
     -- luatangle: section Binarize: Create the final rule
     do
-        local pos = #rh_instances - 1
+        local pos = original_rule_length - 1
         local is_new
         last_lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
         assert(is_new) -- TODO: remove after development
@@ -1529,7 +1532,7 @@ then strings are broken into character classes.
         local instance2 = rh_instances[pos+1]
         local rhs = { instance1, instance2 }
         last_lhs.nullable = instance1.nullable and instance2.nullable
-        wrule_new(
+        final_wrule = wrule_new(
             {
                 lhs = last_lhs,
                 rh_instances = rhs
@@ -1550,7 +1553,7 @@ was created.
 ```
 
     -- luatangle: section Binarize: Create the medial rules
-    for pos = #rh_instances - 2, 2, -1 do
+    for pos = original_rule_length - 2, 2, -1 do
         local lhs, is_new
         lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
         assert(is_new) -- TODO: remove after development
@@ -1579,6 +1582,65 @@ was created.
         local instance1 = rh_instances[1]
         local instance2 = winstance_new(last_lhs)
         working_wrule.rh_instances = { instance1, instance2 }
+    end
+
+```
+
+### Binarize: Final rule hack
+
+This hack covers a special case.
+It is required because, for every symbol, we need
+to determine its place in an external rule, in order
+to apply the semantics.
+The `xalt` and `rh_ix` fields in the winstances do
+this in most cases.
+
+But what if a binarized rule contains two instances
+of the same nullable symbol.
+When we do the rewrite for nullables, we eliminate
+first one, then the other.
+But that results in two rules which are identical
+from the Libmarpa point of view.
+(Libmarpa does not see winstances.)
+
+Various hacks will solve this -- for example we
+could allow ambiguous winstances, so that having
+only one rule is fine.
+That way the two cases -- nulling the first
+instance and nulling the second instance --
+look different from the Libmarpa point of view.
+
+`final_wrule` was set previously
+We apply the hack only if `final_wrule` is nullable
+and has two symbols on its RHS.
+
+```
+
+    -- luatangle: section Binarize: Final rule hack
+
+    if final_wrule.nullable then
+        local rh_instances = final_wrule.rh_instances
+        if #rh_instances >= 2 then
+            -- the new LHS is "at" the final symbol of the original rule
+            -- We will not have used this position in any of the LHS
+            -- symbol names above
+            new_lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. original_rule_length)
+            assert(is_new) -- TODO remove after development
+            new_lhs.source = rule_source
+            new_lhs.nullable = true
+            local instance1 = rh_instances[1]
+            local instance2 = rh_instances[2]
+            -- Create a new final rule for the binarization
+            wrule_new(
+                {
+                    lhs = new_lhs,
+                    rh_instances = { instance2 }
+                }
+            )
+            -- Replace the RHS in the existing "final rule",
+            --   which will not longer be final
+            final_wrule.rh_instances = { instance1, winstance_new(new_lhs) }
+        end
     end
 
 ```
@@ -2559,7 +2621,7 @@ or otherwise as occasion demands.
             end
         end
 
-        -- Note -- use the nullability
+        -- Note -- using the nullability
         -- of the subalternative is not very useful,
         -- even as a clue, because the subalternative
         -- may be nullable because min=0, or
