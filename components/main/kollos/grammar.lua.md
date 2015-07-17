@@ -1503,12 +1503,82 @@ then strings are broken into character classes.
         if working_wrule then
             local rh_instances = working_wrule.rh_instances
             if #rh_instances > 2 then
-                -- TODO finish this
-                -- create the final rule
-                -- create the medial rules
-                -- change the original rule to the initial rule
+                local last_lhs
+                local rule_source = working_wrule.source
+                assert(rule_source)
+                -- luatangle: insert Binarize: Create the final rule
+                -- luatangle: insert Binarize: Create the medial rules
+                -- luatangle: insert Binarize: Replace original rule with initial rule
             end
         end
+    end
+
+```
+
+### Binarize: Create the final rule
+
+```
+    -- luatangle: section Binarize: Create the final rule
+    do
+        local pos = #rh_instances - 1
+        local is_new
+        last_lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
+        assert(is_new) -- TODO: remove after development
+        last_lhs.source = rule_source
+        local instance1 = rh_instances[pos]
+        local instance2 = rh_instances[pos+1]
+        local rhs = { instance1, instance2 }
+        last_lhs.nullable = instance1.nullable and instance2.nullable
+        wrule_new(
+            {
+                lhs = last_lhs,
+                rh_instances = rhs
+            }
+        )
+    end
+
+```
+
+### Binarize: Create the medial rules
+
+There will not be any medial rules
+unless `#rh_instances >= 4`.
+On the first pass, `last_lhs` was set 
+when the "final" rule of the binarization
+was created.
+
+```
+
+    -- luatangle: section Binarize: Create the medial rules
+    for pos = #rh_instances - 2, 2, -1 do
+        local lhs, is_new
+        lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = rule_source
+        local instance1 = rh_instances[pos]
+        local instance2 = winstance_new(last_lhs)
+        local rhs = { instance1, instance2 }
+        lhs.nullable = instance1.nullable and instance2.nullable
+        wrule_new(
+            {
+                lhs = lhs,
+                rh_instances = rhs
+            }
+        )
+        last_lhs = lhs
+    end
+
+```
+
+### Binarize: Replace original rule with initial rule
+
+```
+
+    -- luatangle: section Binarize: Replace original rule with initial rule
+    do
+        local instance1 = rh_instances[1]
+        local instance2 = winstance_new(last_lhs)
+        working_wrule.rh_instances = { instance1, instance2 }
     end
 
 ```
