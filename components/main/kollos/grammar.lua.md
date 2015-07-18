@@ -493,9 +493,120 @@ in this context, want.
 
 ```
 
-## Working fields and objects
+## Rules
 
-### Instances
+```
+    -- luatangle: section+ Census fields
+
+    local wrule_field_census = {}
+    local wrule_field_census_expected = {
+        brick = true,
+        id = true,
+        lhs = true,
+        max = true,
+        min = true,
+        nullable = true,
+        rh_instances = true,
+        separator = true,
+        separation = true,
+        source = true,
+        xalt = true,
+    }
+
+    for rule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[rule_id]
+        if wrule then
+            if not wrule.name_base then
+                print("missing 'name_base' in wrule:", wrule.desc)
+            end
+            if not wrule.line then
+                print("missing 'line' in wrule:", wrule.desc)
+            end
+            local nullable_per_rhs = nullable_per_rhs(wrule)
+            local nullable_per_property = wrule.nullable
+            if nullable_per_rhs ~= nullable_per_property then
+                print("Nullable discrepancy in wrule, rhs vs. direct: ",
+                    nullable_per_rhs,
+                    nullable_per_property, wrule.desc)
+            end
+            for field,_ in pairs(wrule) do
+                if not wrule_field_census_expected[field] then
+                    wrule_field_census[field] = true
+                end
+            end
+        end
+    end
+    for field,_ in pairs(wrule_field_census) do
+        print("unexpected wrule field:", field)
+    end
+
+```
+
+### Working rule constructor
+
+```
+    -- luatangle: section wrule constructor
+
+    local function wrule_desc(wrule)
+        local desc_table = {
+            wrule.lhs.name,
+            '::=',
+        }
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            desc_table[#desc_table+1] = rh_instance.name
+        end
+        return table.concat(desc_table, ' ')
+    end
+
+    local function nullable_per_rhs(wrule)
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            if not rh_instance.nullable then return end
+        end
+        return true
+    end
+
+    local function wrule_new(rule_args)
+        local max = rule_args.max or 1
+        local min = rule_args.min or 1
+        local separator = rule_args.separator
+        local separator_id = separator and separator.id or -1
+        local lhs = rule_args.lhs
+        local rh_instances = rule_args.rh_instances
+        wrule = {
+            brick = rule_args.brick,
+            lhs = lhs,
+            max = max,
+            min = min,
+            nullable = rule_args.nullable,
+            rh_instances = rh_instances,
+            separation = rule_args.separation,
+            separator = separator,
+            source = rule_args.source,
+            xalt = rule_args.xalt,
+        }
+        setmetatable(wrule, {
+                __index = function (table, key)
+                    if key == 'type' then return 'wrule'
+                    elseif key == 'rawtype' then return 'wrule'
+                    elseif key == 'source' then return xalt or lhs
+                    elseif key == 'line' then return table.source.line
+                    elseif key == 'name_base' then return table.source.name_base
+                    elseif key == 'desc' then return wrule_desc(table)
+                    else return end
+                end
+            })
+        wrule_by_id[#wrule_by_id+1] = wrule
+        wrule.id = #wrule_by_id
+        return wrule
+    end
+
+```
+
+## Instances
 
 It is useful in Kollos to uniquely identify
 each RHS location of every rule.
@@ -602,7 +713,7 @@ but it is convenient, and it
 is used in certain places
 in the working grammar.
 
-### Some code to implement the census
+## Unclassified census code
 
 ```
         -- luatangle: section+ Census fields
@@ -659,43 +770,7 @@ in the working grammar.
              print("unexpected xsym field:", field)
         end
 
-        -- census wrule fields
-        local wrule_field_census = {}
-        local wrule_field_census_expected = {
-            brick = true,
-            id = true,
-            lhs = true,
-            max = true,
-            min = true,
-            rh_instances = true,
-            separator = true,
-            separation = true,
-            source = true,
-            xalt = true,
-        }
-
         -- luatangle: section+ Census fields
-        for rule_id = 1,#wrule_by_id do
-            local wrule = wrule_by_id[rule_id]
-            if wrule then
-                if not wrule.name_base then
-                    print("missing 'name_base' in wrule:", wrule.desc)
-                end
-                if not wrule.line then
-                    print("missing 'line' in wrule:", wrule.desc)
-                end
-                for field,_ in pairs(wrule) do
-                    if not wrule_field_census_expected[field] then
-                        wrule_field_census[field] = true
-                    end
-                end
-            end
-        end
-        for field,_ in pairs(wrule_field_census) do
-            print("unexpected wrule field:", field)
-        end
-
-        -- census wsym fields
         -- TODO: remove after development
         local wsym_field_census = {}
         local wsym_field_census_expected = {
@@ -830,63 +905,6 @@ would have to be top-level as well.
     end
 
 ```
-
-### Working rule constructor
-
-```
-    -- luatangle: section wrule constructor
-
-    local function wrule_desc(wrule)
-        local desc_table = {
-            wrule.lhs.name,
-            '::=',
-        }
-        local rh_instances = wrule.rh_instances
-        for rh_ix = 1,#rh_instances do
-            local rh_instance = rh_instances[rh_ix]
-            desc_table[#desc_table+1] = rh_instance.name
-        end
-        return table.concat(desc_table, ' ')
-    end
-
-    local function wrule_new(rule_args)
-        local max = rule_args.max or 1
-        local min = rule_args.min or 1
-        local separator = rule_args.separator
-        local separator_id = separator and separator.id or -1
-        local lhs = rule_args.lhs
-        local rh_instances = rule_args.rh_instances
-        wrule = {
-            brick = rule_args.brick,
-            lhs = lhs,
-            max = max,
-            min = min,
-            rh_instances = rh_instances,
-            separation = rule_args.separation,
-            separator = separator,
-            source = rule_args.source,
-            xalt = rule_args.xalt,
-        }
-        setmetatable(wrule, {
-                __index = function (table, key)
-                    if key == 'type' then return 'wrule'
-                    elseif key == 'rawtype' then return 'wrule'
-                    elseif key == 'source' then return xalt or lhs
-                    elseif key == 'line' then return table.source.line
-                    elseif key == 'name_base' then return table.source.name_base
-                    elseif key == 'nullable' then return lhs.nullable
-                    elseif key == 'desc' then return wrule_desc(table)
-                    else return end
-                end
-            })
-        wrule_by_id[#wrule_by_id+1] = wrule
-        wrule.id = #wrule_by_id
-        return wrule
-    end
-
-```
-
-## Internal fields and objects
 
 ## Replace a working grammar rule
 
@@ -1513,11 +1531,14 @@ then strings are broken into character classes.
         local instance1 = rh_instances[pos]
         local instance2 = rh_instances[pos+1]
         local rhs = { instance1, instance2 }
-        last_lhs.nullable = instance1.nullable and instance2.nullable
+        if instance1.nullable and instance2.nullable then
+            last_lhs.nullable = true
+        end
         final_wrule = wrule_new(
             {
                 lhs = last_lhs,
-                rh_instances = rhs
+                rh_instances = rhs,
+                nullable = last_lhs.nullable
             }
         )
     end
@@ -1543,11 +1564,14 @@ was created.
         local instance1 = rh_instances[pos]
         local instance2 = winstance_new(last_lhs)
         local rhs = { instance1, instance2 }
-        lhs.nullable = instance1.nullable and instance2.nullable
+        if instance1.nullable and instance2.nullable then
+            lhs.nullable = true
+        end
         wrule_new(
             {
                 lhs = lhs,
-                rh_instances = rhs
+                rh_instances = rhs,
+                nullable = lhs.nullable
             }
         )
         last_lhs = lhs
@@ -1616,7 +1640,8 @@ and has two symbols on its RHS.
             wrule_new(
                 {
                     lhs = new_lhs,
-                    rh_instances = { instance2 }
+                    rh_instances = { instance2 },
+                    nullable = true
                 }
             )
             -- Replace the RHS in the existing "final rule",
@@ -2883,6 +2908,7 @@ or otherwise as occasion demands.
                 rh_instances = work_rh_instances,
                 min = xalt.min,
                 max = xalt.max,
+                nullable = xalt.nullable and true or nil,
                 separator = separator_wsym,
                 separation = xalt.separation,
                 xalt = xalt,
@@ -3046,9 +3072,12 @@ or otherwise as occasion demands.
 
                 -- luatangle: insert disallow nulling separator
 
-                if min <= 0 then min = 1 end
-                -- Do not need to fix working_wrule value
-                -- of min because we will no longer use it
+                if min <= 0 then
+                    min = 1
+                    working_wrule.nullable = nil
+                end
+                -- Do not need to fix working_wrule.min
+                -- because we will no longer use it
 
                 -- Rewrite sequence rules
                 if min ~= 1 or max ~= 1 then
