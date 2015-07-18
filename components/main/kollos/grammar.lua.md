@@ -2908,7 +2908,7 @@ or otherwise as occasion demands.
                 rh_instances = work_rh_instances,
                 min = xalt.min,
                 max = xalt.max,
-                nullable = xalt.nullable and true or nil,
+                nullable = xalt.nullable or nil,
                 separator = separator_wsym,
                 separation = xalt.separation,
                 xalt = xalt,
