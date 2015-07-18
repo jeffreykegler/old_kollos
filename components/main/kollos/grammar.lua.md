@@ -700,9 +700,7 @@ in the working grammar.
         local wsym_field_census = {}
         local wsym_field_census_expected = {
              id = true,
-             line = true,
              name = true,
-             name_base = true,
              nullable = true,
              precedence_level = true,
              source = true,
@@ -799,22 +797,6 @@ would have to be top-level as well.
         new_wsym.nullable = wrule.nullable
         new_wsym.source = wrule
         return new_wsym
-    end
-
-    -- Create a unique new internal symbol
-    -- given the line & name_base data
-    local internal_wsym_ensure
-    do
-        local unique_number = 0
-        internal_wsym_ensure =
-            function(name_base, line)
-                local name = 'int!' .. unique_number
-                unique_number = unique_number + 1
-                local new_wsym = wsym_ensure(name)
-                new_wsym.name_base = name_base
-                new_wsym.line = line
-                return new_wsym
-            end
     end
 
     local function precedenced_wsym_ensure(base_wsym, precedence)
@@ -1645,6 +1627,35 @@ and has two symbols on its RHS.
 
 ```
 
+## Create the internal grammar
+
+```
+
+    -- luatangle: section Create the internal grammar
+    local isym_by_name = {}
+    local g = wrap.grammar()
+    for rule_id = 1,#wrule_by_id do
+        local working_wrule = wrule_by_id[rule_id]
+        -- TODO: Not sure that I ever delete a rule, but
+        -- just in case.
+        if working_wrule then
+            local rh_instances = working_wrule.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                local symbol_name = rh_instance.name
+                if not isym_by_name[symbol_name] then
+                    local new_isym = {
+                        name = symbol_name,
+                    }
+                    new_isym.id = g:symbol_new()
+                end
+            end
+        end
+    end
+
+
+```
+
 ## Rewrite out the 1-based blocks
 
 The next code
@@ -1805,6 +1816,7 @@ or otherwise as occasion demands.
     -- luacheck: globals __FILE__ __LINE__
 
     local inspect = require "kollos.inspect" -- luacheck: ignore
+    local wrap = require "kollos.wrap"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
     local matrix = require "kollos.matrix"
@@ -3004,7 +3016,10 @@ or otherwise as occasion demands.
         for topalt_ix = 1,#xtopalt_by_ix do
             local xtopalt = xtopalt_by_ix[topalt_ix]
             local brick_wrule = alt_to_work_data_add(xtopalt)
-            brick_wrule.brick = true
+            -- Empty rules do not return a wrule
+            if brick_wrule then
+                brick_wrule.brick = true
+            end
         end
 
         -- will be used to ensure names are unique
@@ -3050,6 +3065,7 @@ or otherwise as occasion demands.
 
         -- luatangle: insert Check and expand lexemes
         -- luatangle: insert Binarize the working grammar
+        -- luatangle: insert Create the internal grammar
 
         for rule_id = 1,#wrule_by_id do
             local wrule = wrule_by_id[rule_id]
