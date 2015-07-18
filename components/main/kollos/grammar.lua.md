@@ -1618,9 +1618,11 @@ and has two symbols on its RHS.
 
     -- luatangle: section Binarize: Final rule hack
 
-    if final_wrule.nullable then
-        local rh_instances = final_wrule.rh_instances
-        if #rh_instances >= 2 then
+    local rh_instances = final_wrule.rh_instances
+    if #rh_instances >= 2 then
+        local instance1 = rh_instances[1]
+        local instance2 = rh_instances[2]
+        if instance1.nullable and instance2.nullable then
             -- the new LHS is "at" the final symbol of the original rule
             -- We will not have used this position in any of the LHS
             -- symbol names above
@@ -1628,8 +1630,6 @@ and has two symbols on its RHS.
             assert(is_new) -- TODO remove after development
             new_lhs.source = rule_source
             new_lhs.nullable = true
-            local instance1 = rh_instances[1]
-            local instance2 = rh_instances[2]
             -- Create a new final rule for the binarization
             wrule_new(
                 {
@@ -1638,7 +1638,7 @@ and has two symbols on its RHS.
                 }
             )
             -- Replace the RHS in the existing "final rule",
-            --   which will not longer be final
+            -- which will not longer be final
             final_wrule.rh_instances = { instance1, winstance_new(new_lhs) }
         end
     end
