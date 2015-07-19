@@ -750,6 +750,8 @@ in the working grammar.
 
 ## Symbols
 
+### Census of external symbols
+
 ```
 
         -- luatangle: section+ Census fields
@@ -781,7 +783,72 @@ in the working grammar.
         for field,_ in pairs(xsym_field_census) do
              print("unexpected xsym field:", field)
         end
+```
 
+### External symbol constructor
+
+An *internal* method for
+creating *external* symbols.
+
+```
+
+    -- luatangle: section xsym constructor
+
+    local function xsym_new(grammar, args)
+        local name = args.name
+        if not name then
+            return nil, [[symbol must have a name]]
+        end
+        if type(name) ~= 'string' then
+            return nil, [[symbol 'name' is type ']]
+            .. type(name)
+            .. [['; it must be a string]]
+        end
+        -- decimal 055 is hyphen (or minus sign)
+        -- strip initial angle bracket and whitespace
+        name = name:gsub('^[<]%s*', '')
+        -- strip find angle bracket and whitespace
+        name = name:gsub('%s*[>]$', '')
+
+        local charclass = '[^a-zA-Z0-9_%s\055]'
+        if name:find(charclass) then
+            return nil, [[symbol 'name' characters must be in ]] .. charclass
+        end
+
+        -- normalize internal whitespace
+        name = name:gsub('%s+', ' ')
+        if name:sub(1, 1):find('[_\055]') then
+            return nil, [[symbol 'name' first character may not be '-' or '_']]
+        end
+
+        local xsym_by_name = grammar.xsym_by_name
+        local props = xsym_by_name[name]
+        if props then return props end
+
+        props = {
+            name = name,
+            type = 'xsym',
+            rawtype = 'xsym',
+            lhs_xrules = {},
+            -- am not trying to be very accurate about the line
+            -- it should be the line of an alternative containing that symbol
+            name_base = grammar.name_base,
+            line = grammar.line,
+        }
+        xsym_by_name[name] = props
+
+        local xsym_by_id = grammar.xsym_by_id
+        xsym_by_id[#xsym_by_id+1] = props
+        props.id = #xsym_by_id
+
+        return props
+    end
+
+```
+
+### Census of working symbols
+
+```
         -- luatangle: section+ Census fields
         -- TODO: remove after development
         local wsym_field_census = {}
@@ -813,7 +880,7 @@ in the working grammar.
 
 ```
 
-### Symbol constructors
+### Working symbol constructors
 
 These wsym functions
 are internal to the `compile()` method
@@ -1946,98 +2013,7 @@ or otherwise as occasion demands.
         return error_object
     end
 
-    -- process the named arguments common to most grammar methods
-    -- these are line, file and throw
-    local function common_args_process(who, grammar, args)
-        if type(args) ~= 'table' then
-            return nil, grammar:development_error(who .. [[ must be called with a table of named arguments]])
-        end
-
-        local file = args.file
-        if file == nil then
-            file = grammar.file
-        end
-        if type(file) ~= 'string' then
-            return nil,
-            grammar:development_error(
-                who .. [[ 'file' named argument is ']]
-                .. type(file)
-                .. [['; it should be 'string']]
-            )
-        end
-        grammar.file = file
-        args.file = nil
-
-        local line = args.line
-        if line == nil then
-            if type(grammar.line) ~= 'number' then
-                return nil,
-                grammar:development_error(
-                    who .. [[ line is not numeric for grammar ']]
-                    .. grammar.name
-                    .. [['; a numeric line number is required]]
-                )
-            end
-            line = grammar.line + 1
-        end
-        grammar.line = line
-        args.line = nil
-
-        return line, file
-    end
-
-    -- the *internal* version of the method for
-    -- creating *external* symbols.
-    local function _symbol_new(grammar, args)
-        local name = args.name
-        if not name then
-            return nil, [[symbol must have a name]]
-        end
-        if type(name) ~= 'string' then
-            return nil, [[symbol 'name' is type ']]
-            .. type(name)
-            .. [['; it must be a string]]
-        end
-        -- decimal 055 is hyphen (or minus sign)
-        -- strip initial angle bracket and whitespace
-        name = name:gsub('^[<]%s*', '')
-        -- strip find angle bracket and whitespace
-        name = name:gsub('%s*[>]$', '')
-
-        local charclass = '[^a-zA-Z0-9_%s\055]'
-        if name:find(charclass) then
-            return nil, [[symbol 'name' characters must be in ]] .. charclass
-        end
-
-        -- normalize internal whitespace
-        name = name:gsub('%s+', ' ')
-        if name:sub(1, 1):find('[_\055]') then
-            return nil, [[symbol 'name' first character may not be '-' or '_']]
-        end
-
-        local xsym_by_name = grammar.xsym_by_name
-        local props = xsym_by_name[name]
-        if props then return props end
-
-        props = {
-            name = name,
-            type = 'xsym',
-            rawtype = 'xsym',
-            lhs_xrules = {},
-            -- am not trying to be very accurate about the line
-            -- it should be the line of an alternative containing that symbol
-            name_base = grammar.name_base,
-            line = grammar.line,
-        }
-        xsym_by_name[name] = props
-
-        local xsym_by_id = grammar.xsym_by_id
-        xsym_by_id[#xsym_by_id+1] = props
-        props.id = #xsym_by_id
-
-        return props
-    end
-
+    -- luatangle: insert xsym constructor
     -- luatangle: insert xlexeme constructors
 
     function grammar_class.rule_new(grammar, args)
@@ -2095,7 +2071,7 @@ or otherwise as occasion demands.
         xrule_by_id[new_xrule_id] = new_xrule
         new_xrule.id = new_xrule_id
 
-        local symbol_props, symbol_error = _symbol_new(grammar, { name = lhs })
+        local symbol_props, symbol_error = xsym_new(grammar, { name = lhs })
         if not symbol_props then
             return nil, grammar:development_error(symbol_error)
         end
@@ -2146,7 +2122,8 @@ or otherwise as occasion demands.
 
     function grammar_class.precedence_new(grammar, args)
         local who = 'precedence_new()'
-        local line, file = common_args_process(who, grammar, args)
+        -- luatangle: insert Common PLIF argument processing
+
         -- if line is nil, the "file" is actually an error object
         if line == nil then return line, file end
 
@@ -2222,6 +2199,24 @@ or otherwise as occasion demands.
         return new_instance
     end
 
+    -- luatangle: insert RHS transitive closure function
+    -- luatangle: insert nullable semantics functions
+    -- luatangle: insert subalternative_new() internal method
+    -- luatangle: insert Grammar alternative_new() method
+    -- luatangle: insert Grammar compile() method
+    -- luatangle: insert Grammar constructor
+
+```
+
+## Grammar subalternative_new() method
+
+Throw is always set for this method.
+The error is caught by the caller and re-thrown or not,
+as needed.
+
+```
+    -- luatangle: section subalternative_new() internal method
+
     local function _top_xalt_lhs(top_xalt)
         local xprec = top_xalt.xprec
         local xrule = xprec.xrule
@@ -2241,23 +2236,6 @@ or otherwise as occasion demands.
         return _top_xalt_lhs(parent)
     end
 
-    -- luatangle: insert RHS transitive closure function
-    -- luatangle: insert nullable semantics functions
-    -- luatangle: insert subalternative_new() internal method
-    -- luatangle: insert Grammar alternative_new() method
-    -- luatangle: insert Grammar compile() method
-    -- luatangle: insert Grammar constructor
-
-```
-
-## Grammar subalternative_new() method
-
-Throw is always set for this method.
-The error is caught by the caller and re-thrown or not,
-as needed.
-
-```
-    -- luatangle: section subalternative_new() internal method
     local function subalternative_new(grammar, src_subalternative)
 
         -- use name of caller
@@ -2343,7 +2321,7 @@ as needed.
             else
                 local error_string
                 local new_rhs_sym
-                new_rhs_sym, error_string = _symbol_new(grammar, { name = src_rh_instance })
+                new_rhs_sym, error_string = xsym_new(grammar, { name = src_rh_instance })
                 if not new_rhs_sym then
                     -- using return statements even for thrown errors is the
                     -- standard idiom, but in this case, I think it is clearer
@@ -2424,7 +2402,7 @@ as needed.
             end
             local symbol_error
             separator_symbol, symbol_error
-                = _symbol_new(grammar, { name = separator })
+                = xsym_new(grammar, { name = separator })
             if not separator_symbol then
                 grammar:development_error(symbol_error)
             end
@@ -2491,7 +2469,8 @@ as needed.
 
     function grammar_class.alternative_new(grammar, args)
         local who = 'alternative_new()'
-        local line, file = common_args_process(who, grammar, args)
+        -- luatangle: insert Common PLIF argument processing
+
         -- if line is nil, the "file" is actually an error object
         if line == nil then return line, file end
 
@@ -2523,7 +2502,8 @@ as needed.
 
     function grammar_class.compile(grammar, args)
         local who = 'grammar.compile()'
-        common_args_process(who, grammar, args)
+        -- luatangle: insert Common PLIF argument processing
+
         local at_top = false
         local at_bottom = false
         local start_symbol
@@ -3173,7 +3153,7 @@ as needed.
     -- this will actually become a method of the config object
     local function grammar_new(config, args) -- luacheck: ignore config
         local who = 'grammar_new()'
-        local grammar_object = {
+        local grammar = {
             throw = true,
             name = '[NEW]',
             name_base = '[NEW]',
@@ -3190,12 +3170,12 @@ as needed.
             -- maps LHS id to RHS id
             xlhs_by_rhs = {},
         }
-        setmetatable(grammar_object, {
+        setmetatable(grammar, {
                 __index = grammar_class,
             })
 
         if not args.file then
-            return nil, grammar_object:development_error(
+            return nil, grammar:development_error(
                 who .. [[ requires 'file' named argument]],
                 debug.getinfo(2,'S').source,
                 debug.getinfo(2, 'l').currentline
@@ -3203,46 +3183,47 @@ as needed.
         end
 
         if not args.line then
-            return nil, grammar_object:development_error(
+            return nil, grammar:development_error(
                 who .. [[ requires 'line' named argument]],
                 debug.getinfo(2,'S').source,
                 debug.getinfo(2, 'l').currentline
             )
         end
 
-        local line, file
-        = common_args_process('grammar_new()', grammar_object, args)
+        local who = 'grammar_new()'
+        -- luatangle: insert Common PLIF argument processing
+
         -- if line is nil, the "file" is actually an error object
         if line == nil then return line, file end
 
         local name = args.name
         if not name then
-            return nil, grammar_object:development_error([[grammar must have a name]])
+            return nil, grammar:development_error([[grammar must have a name]])
         end
         if type(name) ~= 'string' then
-            return nil, grammar_object:development_error([[grammar 'name' must be a string]])
+            return nil, grammar:development_error([[grammar 'name' must be a string]])
         end
         if name:find('[^a-zA-Z0-9_]') then
-            return nil, grammar_object:development_error(
+            return nil, grammar:development_error(
                 [[grammar 'name' characters must be ASCII-7 alphanumeric plus '_']]
             )
         end
         if name:byte(1) == '_' then
-            return nil, grammar_object:development_error([[grammar 'name' first character may not be '_']])
+            return nil, grammar:development_error([[grammar 'name' first character may not be '_']])
         end
         args.name = nil
-        grammar_object.name = name
+        grammar.name = name
         -- This is used to name child objects of the grammar
         -- For now, it is just the name of the grammar.
         -- Someday I may create a method that allows it to be changed.
-        grammar_object.name_base = name
+        grammar.name_base = name
 
         local field_name = next(args)
         if field_name ~= nil then
-            return nil, grammar_object:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+            return nil, grammar:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
         end
 
-        return grammar_object
+        return grammar
     end
 
 ```
