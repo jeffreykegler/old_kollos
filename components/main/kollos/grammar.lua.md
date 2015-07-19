@@ -442,7 +442,7 @@ any error.
 
 ```
 
-## Fields and objects
+## The censuses
 
 Selected Lua tables are regarded as "objects"
 with "fields".
@@ -461,42 +461,10 @@ tables.  It's a cheap substitute for
 the strict typing I neither use or,
 in this context, want.
 
-## External fields and objects
-
-```
-
-        -- luatangle: section Census fields
-        -- census subalt fields
-        -- TODO: remove after development
-        local xsubalt_field_census = {}
-        local xsubalt_field_census_expected = {
-            action = true,
-            id = true,
-            id_within_top_alternative = true,
-            line = true,
-            max = true,
-            min = true,
-            name_base = true,
-            name = true,
-            nullable = true,
-            nulling = true,
-            parent_instance = true,
-            precedence_level = true,
-            productive = true,
-            rh_instances = true,
-            separation = true,
-            separator = true,
-            subname = true,
-            xprec = true,
-        }
-
-
-```
-
 ## Rules
 
 ```
-    -- luatangle: section+ Census fields
+    -- luatangle: section Census fields
 
     local wrule_field_census = {}
     local wrule_field_census_expected = {
@@ -606,6 +574,57 @@ in this context, want.
 
 ```
 
+## External subalternatives
+
+External rules are complicated.
+An `xrule` contains one or more precedence
+levels, called `xprec`'s.
+An `xprec` contains one or more alternatives,
+and these alternatives may contain others.
+The "subalternative" object is used both for
+all alternatives -- both top-level and those below.
+
+```
+
+        -- luatangle: section+ Census fields
+        -- census subalt fields
+        -- TODO: remove after development
+        local xsubalt_field_census = {}
+        local xsubalt_field_census_expected = {
+            action = true,
+            id = true,
+            id_within_top_alternative = true,
+            line = true,
+            max = true,
+            min = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            parent_instance = true,
+            precedence_level = true,
+            productive = true,
+            rh_instances = true,
+            separation = true,
+            separator = true,
+            subname = true,
+            xprec = true,
+        }
+
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            for field,_ in pairs(xsubalt) do
+                 if not xsubalt_field_census_expected[field] then
+                     xsubalt_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(xsubalt_field_census) do
+             print("unexpected xsubalt field:", field)
+        end
+
+```
+
 ## Instances
 
 It is useful in Kollos to uniquely identify
@@ -642,6 +661,22 @@ plays in the rule's semantics.
             rh_ix = true,
             xalt = true,
         }
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            local rh_instances = xsubalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                for field,_ in pairs(rh_instance) do
+                     if not xinstance_field_census_expected[field] then
+                         xinstance_field_census[field] = true
+                     end
+                end
+            end
+        end
+        for field,_ in pairs(xinstance_field_census) do
+             print("unexpected xinstance field:", field)
+        end
+
 
 ```
 
@@ -713,34 +748,11 @@ but it is convenient, and it
 is used in certain places
 in the working grammar.
 
-## Unclassified census code
+## Symbols
 
 ```
-        -- luatangle: section+ Census fields
-        for xsubalt_id = 1,#xsubalt_by_id do
-            local xsubalt = xsubalt_by_id[xsubalt_id]
-            for field,_ in pairs(xsubalt) do
-                 if not xsubalt_field_census_expected[field] then
-                     xsubalt_field_census[field] = true
-                 end
-            end
-            local rh_instances = xsubalt.rh_instances
-            for rh_ix = 1,#rh_instances do
-                local rh_instance = rh_instances[rh_ix]
-                for field,_ in pairs(rh_instance) do
-                     if not xinstance_field_census_expected[field] then
-                         xinstance_field_census[field] = true
-                     end
-                end
-            end
-        end
-        for field,_ in pairs(xsubalt_field_census) do
-             print("unexpected xsubalt field:", field)
-        end
-        for field,_ in pairs(xinstance_field_census) do
-             print("unexpected xinstance field:", field)
-        end
 
+        -- luatangle: section+ Census fields
         -- census xsym fields
         -- TODO: remove after development
         local xsym_field_census = {}
@@ -801,9 +813,9 @@ in the working grammar.
 
 ```
 
-### Utilities for wsym, wrule
+### Symbol constructors
 
-These wsym and wrule utilities
+These wsym functions
 are internal to the `compile()` method
 because they use up-values internal
 to the `compile()` method.
@@ -902,29 +914,6 @@ would have to be top-level as well.
             new_wsym.source = xsym
         end
         return new_wsym
-    end
-
-```
-
-## Replace a working grammar rule
-
-I didn't memoize wrules by ID anywhere,
-so this replace function seems to be unnecessary.
-It will probably be deleted.
-
-Given a hacked wrule, replace the original with the hacked version.
-This routine exists because it is often convenient,
-instead of carefully custom-cloning a rule,
-and then deleting it.
-to "hack" its fields.
-
-```
-
-    [[ -- luatangle: section+ wsym,wrule utilities ]]
-
-    local function wrule_replace(hacked_wrule)
-        wrule_by_id[hacked_wrule.id] = false
-        return wrule_new(hacked_wrule)
     end
 
 ```
@@ -1821,6 +1810,57 @@ Assumed to be available as an upvalue are
 
 ```
 
+## Documented interfaces
+
+Many of the documented interfaces share
+the `line`, `file` and `throw` named argument,
+and therefore also
+some of the argument processing.
+This code is in-lined in several places.
+It expects the `who`, `grammar`, and `args`
+variables to be set,
+and it sets the `line` and `file` variables.
+
+```
+
+    -- luatangle: section Common PLIF argument processing
+
+    if type(args) ~= 'table' then
+        return nil, grammar:development_error(who .. [[ must be called with a table of named arguments]])
+    end
+
+    local file = args.file
+    if file == nil then
+        file = grammar.file
+    end
+    if type(file) ~= 'string' then
+        return nil,
+        grammar:development_error(
+            who .. [[ 'file' named argument is ']]
+            .. type(file)
+            .. [['; it should be 'string']]
+        )
+    end
+    grammar.file = file
+    args.file = nil
+
+    local line = args.line
+    if line == nil then
+        if type(grammar.line) ~= 'number' then
+            return nil,
+            grammar:development_error(
+                who .. [[ line is not numeric for grammar ']]
+                .. grammar.name
+                .. [['; a numeric line number is required]]
+            )
+        end
+        line = grammar.line + 1
+    end
+    grammar.line = line
+    args.line = nil
+
+```
+
 ## Unclassified code
 
 I changed to literate programming
@@ -2001,8 +2041,10 @@ or otherwise as occasion demands.
     -- luatangle: insert xlexeme constructors
 
     function grammar_class.rule_new(grammar, args)
+
         local who = 'rule_new()'
-        local line, file = common_args_process(who, grammar, args)
+        -- luatangle: insert Common PLIF argument processing
+
         -- if line is nil, the "file" is actually an error object
         if line == nil then return line, file end
 
@@ -2199,9 +2241,23 @@ or otherwise as occasion demands.
         return _top_xalt_lhs(parent)
     end
 
-    -- throw is always set for this method
-    -- the error is caught by the caller and re-thrown or not,
-    -- as needed
+    -- luatangle: insert RHS transitive closure function
+    -- luatangle: insert nullable semantics functions
+    -- luatangle: insert subalternative_new() internal method
+    -- luatangle: insert Grammar alternative_new() method
+    -- luatangle: insert Grammar compile() method
+    -- luatangle: insert Grammar constructor
+
+```
+
+## Grammar subalternative_new() method
+
+Throw is always set for this method.
+The error is caught by the caller and re-thrown or not,
+as needed.
+
+```
+    -- luatangle: section subalternative_new() internal method
     local function subalternative_new(grammar, src_subalternative)
 
         -- use name of caller
@@ -2426,6 +2482,13 @@ or otherwise as occasion demands.
 
     end
 
+```
+
+## Grammar alternative_new() method
+
+```
+    -- luatangle: section Grammar alternative_new() method
+
     function grammar_class.alternative_new(grammar, args)
         local who = 'alternative_new()'
         local line, file = common_args_process(who, grammar, args)
@@ -2451,17 +2514,11 @@ or otherwise as occasion demands.
 
     end
 
-    -- luatangle: insert RHS transitive closure function
-    -- luatangle: insert nullable semantics functions
-    -- luatangle: insert Grammar compile() method
-    -- luatangle: insert Grammar constructor
-
 ```
 
 ## Grammar compile() method
 
 ```
-
     -- luatangle: section Grammar compile() method
 
     function grammar_class.compile(grammar, args)
