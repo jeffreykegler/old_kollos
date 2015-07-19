@@ -49,7 +49,7 @@ new_test:
 	  prove -v --exec 'build/lua/src/lua' build/test/luif/*.lua
 
 htm/grammar.lua.htm: components/main/kollos/grammar.lua.md
-	pandoc components/main/kollos/grammar.lua.md > htm/grammar.lua.htm
+	pandoc -s --toc components/main/kollos/grammar.lua.md > htm/grammar.lua.htm
 
 htm: htm/grammar.lua.htm
 

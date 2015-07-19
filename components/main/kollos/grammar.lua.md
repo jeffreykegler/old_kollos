@@ -985,6 +985,119 @@ would have to be top-level as well.
 
 ```
 
+### Internal symbol fields
+
+`id` is the Libmarpa external ID.
+`name` is a unique name.
+
+`precedence_level` is kept over from
+the working symbol, because
+external symbols don't have precedence
+and it may be useful to know it.
+
+`source` is a source for `line`
+and `name_base` debugging information.
+
+`brick_type` is `terminal` or `nonterminal`
+or nil indicating, respectively,
+that the isym is a brick terminal,
+a brick nonterminal,
+or a mortar symbol.
+For a brick,
+`xsym` is the corresponding external
+symbol, and
+`xlexeme` the corresponding external
+lexeme.
+At most one of `xsym` and `xlexeme`
+will be non-nil.
+
+### Census of internal symbols
+
+```
+    -- luatangle: section+ Census fields
+    -- TODO: remove after development
+    local isym_field_census = {}
+    local isym_field_census_expected = {
+        -- The libmarpa external ID
+        brick_type = true,
+        id = true,
+        name = true,
+        precedence_level = true,
+        source = true,
+        xlexeme = true,
+        xsym = true,
+    }
+    for _,isym in pairs(isym_by_name) do
+        if not isym.name_base then
+            print("missing 'name_base' in isym:", isym.name)
+        end
+        if not isym.line then
+            print("missing 'line' in isym:", isym.name)
+        end
+        for field,_ in pairs(isym) do
+            if not isym_field_census_expected[field] then
+                isym_field_census[field] = true
+            end
+        end
+    end
+    for field,_ in pairs(isym_field_census) do
+        print("unexpected isym field:", field)
+    end
+
+```
+
+### Working symbol constructor
+
+These isym functions
+are internal to the `compile()` method
+because they use up-values internal
+to the `compile()` method.
+
+Having these function be internal
+to `compile()` also makes it easy for the
+"working data" to be cleaned up -- it will just be garbage collected
+when compile() returns. If these functions were top-level, the data
+would have to be top-level as well.
+
+```
+
+    -- luatangle: section isym constructor
+
+    -- 2nd return value is true if this is
+    -- a new symbol
+    local function isym_ensure(name)
+        local isym_props = isym_by_name[name]
+        if isym_props then return isym_props end
+        isym_props = {
+            name = name,
+        }
+        setmetatable(isym_props, {
+                __index = function (table, key)
+                    if key == 'type' then return 'isym'
+                    elseif key == 'rawtype' then return 'isym'
+                    elseif key == 'line' then return table.source.line
+                    elseif key == 'name_base' then return table.source.name_base
+                    elseif key == 'source' then return table.xsym or table.xlexeme
+                    elseif key == 'xsym' then return nil
+                    elseif key == 'xlexeme' then return nil
+                    else
+                        local parent_object = table.xsym or table.xlexeme
+                        if parent_object then
+                            return parent_object[key]
+                        end
+                        return nil
+                    end
+                end
+            }
+        )
+
+        isym_by_name[name] = isym_props
+        return isym_props,true
+    end
+
+
+```
+
 ## RHS transitive closure
 
 The RHS transitive closure is Jeffrey's coinage, to describe
@@ -1713,6 +1826,9 @@ and has two symbols on its RHS.
 ```
 
     -- luatangle: section Create the internal grammar
+
+    -- luatangle: insert isym constructor
+
     local isym_by_name = {}
     local g = wrap.grammar()
     for rule_id = 1,#wrule_by_id do
@@ -1733,7 +1849,6 @@ and has two symbols on its RHS.
             end
         end
     end
-
 
 ```
 
