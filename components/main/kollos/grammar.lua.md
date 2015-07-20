@@ -853,11 +853,13 @@ creating *external* symbols.
         -- TODO: remove after development
         local wsym_field_census = {}
         local wsym_field_census_expected = {
+             brick_type = true,
              id = true,
              name = true,
              nullable = true,
              precedence_level = true,
              source = true,
+             terminal = true,
              xlexeme = true,
              xsym = true,
         }
@@ -1072,21 +1074,21 @@ would have to be top-level as well.
             name = name,
         }
         setmetatable(isym_props, {
-                __index = function (table, key)
-                    if key == 'type' then return 'isym'
-                    elseif key == 'rawtype' then return 'isym'
-                    elseif key == 'line' then return table.source.line
-                    elseif key == 'name_base' then return table.source.name_base
-                    elseif key == 'source' then return table.xsym or table.xlexeme
-                    elseif key == 'xsym' then return nil
-                    elseif key == 'xlexeme' then return nil
-                    else
-                        local parent_object = table.xsym or table.xlexeme
-                        if parent_object then
-                            return parent_object[key]
-                        end
-                        return nil
+            __index = function (table, key)
+                if key == 'type' then return 'isym'
+                elseif key == 'rawtype' then return 'isym'
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'source' then return table.xsym or table.xlexeme
+                elseif key == 'xsym' then return nil
+                elseif key == 'xlexeme' then return nil
+                else
+                    local parent_object = table.xsym or table.xlexeme
+                    if parent_object then
+                        return parent_object[key]
                     end
+                    return nil
+                end
                 end
             }
         )
