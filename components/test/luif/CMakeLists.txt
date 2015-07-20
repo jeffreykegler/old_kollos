@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0.2)
 project(test_luif C CXX)
 
 file(COPY
-    "aaaa.pl"
+    "aaaa.lua"
     "lua_to_ast.pl"
     "round2.lua"
     "seq.lua"
