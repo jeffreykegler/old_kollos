@@ -415,9 +415,9 @@ any error.
         return nil
     end
 
-    local function ilexeme_new(type, spec, source)
+    local function i_cc_lexeme_new(spec, source)
 
-        local lexeme_by_spec = grammar.lexemes_by_type[type]
+        local lexeme_by_spec = grammar.lexemes_by_type.cc
         if not lexeme_by_spec then
             lexeme_by_spec = {}
             grammar.lexemes_by_type = lexeme_by_spec
@@ -430,7 +430,7 @@ any error.
         grammar.next_lexeme_id = lexeme_id
 
         local new_lexeme = {
-            lexeme_type = type,
+            lexeme_type = 'cc',
             spec = spec,
             source = source,
             id = lexeme_id,
@@ -574,6 +574,120 @@ in this context, want.
 
 ```
 
+## Create a wrule from an xalt
+
+```
+
+    -- luatangle: section declare wrule_from_xalt_new()
+
+    local function wrule_from_xalt_new(xalt, hidden)
+        -- at top, use brick from xrule.lhs
+        -- otherwise, new internal lhs
+        local new_lhs
+        local precedence_level = xalt.precedence_level
+        if xalt.parent_instance then
+            new_lhs = lh_wsym_ensure(xalt)
+        else
+            local old_lhs = xalt.xprec.xrule.lhs
+            if xalt.precedence_level then
+                new_lhs =
+                precedenced_wsym_ensure(old_lhs, precedence_level)
+            else
+                new_lhs = cloned_wsym_ensure(old_lhs)
+            end
+        end
+
+        local rh_instances = xalt.rh_instances
+        -- just skip empty alternatives
+        if #rh_instances == 0 then return end
+        -- for now don't process precedences
+        local work_rh_instances = {}
+        -- print("compiling RHS ", new_lhs.name, #rh_instances)
+        for rh_ix = 1,#rh_instances do
+            local x_rh_instance = rh_instances[rh_ix]
+            local x_element = x_rh_instance.element
+            local element_type = x_element.type
+
+            -- print("RHS element", rh_ix, x_element.name, x_element.nulling)
+            -- Do nothing for a nulling instance
+            if not x_element.nulling then
+                if element_type == 'xalt' then
+                    -- This is always a wsym, because an xsym
+                    -- LHS occurs only for a top level alternative,
+                    -- and, if we are here, we are dealing with
+                    -- a subalternative
+
+                    -- Skip a nulling rh instance.
+                    -- While the xalt cannot be nulling, a subalt
+                    -- can be.
+
+                    -- Because of these skips, a working rule may have
+                    -- a right side shorter than the external alternative
+                    -- from which it is derived.
+                    -- But it will *never* be zero length, because the caller
+                    -- made sure the external alternative is not nulling
+                    if not x_rh_instance.nulling then
+                        local subalt_wrule = wrule_from_xalt_new(x_element, true)
+                        local subalt_lhs = subalt_wrule.lhs
+                        local new_work_instance = winstance_new(
+                            subalt_lhs,
+                            hidden and xalt or nil,
+                            hidden and rh_ix or nil)
+                        work_rh_instances[#work_rh_instances+1] = new_work_instance
+                    end
+                elseif element_type == 'xsym' then
+                    local new_element
+                    local level = x_rh_instance.precedence_level
+                    if level ~= nil then
+                        new_element =
+                            precedenced_wsym_ensure(x_element, level)
+                    else
+                        new_element = cloned_wsym_ensure(x_element)
+                    end
+                    local new_work_instance = winstance_new(
+                        new_element,
+                        hidden and xalt or nil,
+                        hidden and rh_ix or nil)
+                    work_rh_instances[#work_rh_instances+1] = new_work_instance
+                elseif element_type == 'xlexeme' then
+                    new_element = wsym_from_xlexeme_new(x_element)
+                    local new_work_instance = winstance_new(
+                        new_element,
+                        hidden and xalt or nil,
+                        hidden and rh_ix or nil)
+                    work_rh_instances[#work_rh_instances+1] = new_work_instance
+                else assert(0) -- TODO remove after developement
+                end
+            end
+
+        end
+
+        -- I don't think it's possible for there to be an empty
+        -- RHS, because the caller has ensured that the xalt is
+        -- not nulling
+        assert( #work_rh_instances > 0 ) -- TODO remove after development
+
+        local separator_xsym = xalt.separator
+        local separator_wsym
+        if separator_xsym then
+            separator_wsym = cloned_wsym_ensure(separator_xsym)
+        end
+        assert(not xalt.separation or separator_wsym)
+        local new_wrule = wrule_new{
+            lhs = new_lhs,
+            rh_instances = work_rh_instances,
+            min = xalt.min,
+            max = xalt.max,
+            nullable = xalt.nullable or nil,
+            separator = separator_wsym,
+            separation = xalt.separation,
+            xalt = xalt,
+        }
+        return new_wrule
+    end
+
+```
+
 ## External subalternatives
 
 External rules are complicated.
@@ -699,7 +813,6 @@ their `separates` named field.
         -- luatangle: section+ Census fields
         local winstance_field_census = {}
         local winstance_field_census_expected = {
-            brick = true,
             element = true,
             separates = true,
             rh_ix = true,
@@ -717,6 +830,13 @@ their `separates` named field.
                     end
                     if not winstance.line then
                         print("missing 'line' in winstance:", winstance.name)
+                    end
+                    if winstance.rh_ix and not winstance.semantics then
+                        -- print(inspect(winstance))
+                        print("instance has rh_ix but no semantics:", winstance.name)
+                    end
+                    if winstance.xalt and not winstance.semantics then
+                        print("instance has xalt but no semantics:", winstance.name)
                     end
                     for field,_ in pairs(winstance) do
                         if not winstance_field_census_expected[field] then
@@ -853,7 +973,7 @@ creating *external* symbols.
         -- TODO: remove after development
         local wsym_field_census = {}
         local wsym_field_census_expected = {
-             brick_type = true,
+             semantics = true,
              id = true,
              name = true,
              nullable = true,
@@ -861,6 +981,7 @@ creating *external* symbols.
              source = true,
              terminal = true,
              xlexeme = true,
+             xnull = true,
              xsym = true,
         }
         for _,wsym in pairs(wsym_by_name) do
@@ -869,6 +990,35 @@ creating *external* symbols.
             end
             if not wsym.line then
                 print("missing 'line' in wsym:", wsym.name)
+            end
+            local semantics_specifiers = {}
+            if wsym.xlexeme then
+                semantics_specifiers[#semantics_specifiers+1]
+                    = 'xlexeme=' .. wsym.xlexeme.name
+            end
+            local semantics = wsym.semantics
+            if wsym.xnull then
+                if not semantics then
+                    print("xnull defined, but not brick:", wsym.name)
+                end
+                semantics_specifiers[#semantics_specifiers+1]
+                    = 'xnull'
+            end
+            if wsym.xsym then
+                if not semantics then
+                    print("xsym defined, but not brick:", wsym.name)
+                end
+                semantics_specifiers[#semantics_specifiers+1]
+                    = 'xsym=' .. wsym.xsym.name
+            end
+            if #semantics_specifiers > 1 then
+                print("More than 1 semantic for:", wsym.name, table.concat(semantics_specifiers, ' '))
+            end
+            if semantics then
+                if not wsym.xsym and not wsym.xnull and not wsym.xlexeme
+                then
+                    print("brick, but no semantics specified", wsym.name)
+                end
             end
             for field,_ in pairs(wsym) do
                  if not wsym_field_census_expected[field] then
@@ -960,7 +1110,8 @@ would have to be top-level as well.
         local new_wsym,is_new = wsym_ensure(name)
         if is_new then
             new_wsym.nullable = false
-            new_wsym.source = base_wsym
+            new_wsym.xsym = base_wsym.xsym
+            new_wsym.semantics = true
         end
         return new_wsym
     end
@@ -971,6 +1122,8 @@ would have to be top-level as well.
         if is_new then
             new_wsym.nullable = false
             new_wsym.xlexeme = xlexeme
+            new_wsym.semantics = true
+            new_wsym.terminal = true
         end
         return new_wsym
     end
@@ -980,7 +1133,9 @@ would have to be top-level as well.
         local new_wsym,is_new = wsym_ensure(name)
         if is_new then
             new_wsym.nullable = xsym.nullable
-            new_wsym.source = xsym
+            new_wsym.terminal = xsym.terminal
+            new_wsym.semantics = true
+            new_wsym.xsym = xsym
         end
         return new_wsym
     end
@@ -1000,11 +1155,11 @@ and it may be useful to know it.
 `source` is a source for `line`
 and `name_base` debugging information.
 
-`brick_type` is `terminal` or `nonterminal`
-or nil indicating, respectively,
-that the isym is a brick terminal,
-a brick nonterminal,
-or a mortar symbol.
+`semantics` is true
+if there are semantics for isym
+(that is, if it is a "brick" symbol)
+and false otherwise
+(in which case it is a "mortar" symbol).
 For a brick,
 `xsym` is the corresponding external
 symbol, and
@@ -1021,7 +1176,7 @@ will be non-nil.
     local isym_field_census = {}
     local isym_field_census_expected = {
         -- The libmarpa external ID
-        brick_type = true,
+        semantics = true,
         id = true,
         name = true,
         precedence_level = true,
@@ -1602,7 +1757,6 @@ separator, or `proper` separation.
                             grammar:development_error(
                                 [[charclass in alternate must be in square brackets]])
                         end
-                        rh_instance.brick = 'terminal'
                     elseif lexeme_type == 'string' then
                         local spec = rh_instance.spec
                         if type(spec) ~= 'string' then
@@ -1614,7 +1768,6 @@ separator, or `proper` separation.
                                 rh_instance.line
                             )
                         end
-                        rh_instance.brick = 'terminal'
                         -- luatangle: insert expand string into internal 'cc' lexemes
                     elseif lexeme_type ~= nil then
                         grammar:development_error(
@@ -1652,7 +1805,7 @@ then strings are broken into character classes.
          else
              cc_spec = string.format('[\\%d]', char:byte())
          end
-         local ilexeme = ilexeme_new('cc', cc_spec, string_lhs)
+         local ilexeme = i_cc_lexeme_new(cc_spec, string_lhs)
          local new_instance = winstance_new(ilexeme)
          string_rhs[#string_rhs+1] = new_instance
     end
@@ -2930,17 +3083,22 @@ as needed.
             -- Since all symbols are now productive, a symbol is nulling iff
             -- it is nullable and does NOT reach a terminal
             if symbol_props.nullable and
-            not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
-            then symbol_props.nulling = true end
+                not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
+            then
+                symbol_props.nulling = true
+            end
 
-            -- A nulling lexeme is a fatal error
-            if #symbol_props.lhs_xrules <= 0 and symbol_props.nulling then
-                grammar:development_error(
-                    who
-                    "Symbol " .. symbol_props.name .. " is a nulling lexeme",
-                    symbol_props.name_base,
-                    symbol_props.line
-                )
+            -- A nullable lexeme is a fatal error
+            if #symbol_props.lhs_xrules <= 0 then
+                if symbol_props.nullable then
+                    grammar:development_error(
+                        who
+                        "Symbol " .. symbol_props.name .. " is a nullable lexeme",
+                        symbol_props.name_base,
+                        symbol_props.line
+                    )
+                end
+                symbol_props.terminal = true
             end
         end
 
@@ -2971,8 +3129,9 @@ as needed.
         -- luatangle: insert wsym constructors
         -- luatangle: insert wrule constructor
         -- luatangle: insert ilexeme constructor
+        -- luatangle: insert declare wrule_from_xalt_new()
 
-        local function alt_to_work_data_add(xalt)
+        local function wrule_from_xalt_new(xalt, hidden)
             -- at top, use brick from xrule.lhs
             -- otherwise, new internal lhs
             local new_lhs
@@ -3019,9 +3178,17 @@ as needed.
                         -- But it will *never* be zero length, because the caller
                         -- made sure the external alternative is not nulling
                         if not x_rh_instance.nulling then
-                            local subalt_wrule = alt_to_work_data_add(x_element)
+                            local subalt_wrule = wrule_from_xalt_new(x_element, true)
                             local subalt_lhs = subalt_wrule.lhs
-                            local new_work_instance = winstance_new(subalt_lhs, xalt, rh_ix)
+                            local new_work_instance
+                            if hidden then
+                                new_work_instance = winstance_new(subalt_lhs)
+                            else
+                                new_work_instance =
+                                    winstance_new(subalt_lhs, xalt, rh_ix)
+                                subalt_lhs.xnull = true
+                                subalt_lhs.semantics = true
+                            end
                             work_rh_instances[#work_rh_instances+1] = new_work_instance
                         end
                     elseif element_type == 'xsym' then
@@ -3033,11 +3200,17 @@ as needed.
                         else
                             new_element = cloned_wsym_ensure(x_element)
                         end
-                        local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                        local new_work_instance = winstance_new(
+                            new_element,
+                            not hidden and xalt or nil,
+                            not hidden and rh_ix or nil)
                         work_rh_instances[#work_rh_instances+1] = new_work_instance
                     elseif element_type == 'xlexeme' then
                         new_element = wsym_from_xlexeme_new(x_element)
-                        local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                        local new_work_instance = winstance_new(
+                            new_element,
+                            not hidden and xalt or nil,
+                            not hidden and rh_ix or nil)
                         work_rh_instances[#work_rh_instances+1] = new_work_instance
                     else assert(0) -- TODO remove after developement
                     end
@@ -3054,7 +3227,6 @@ as needed.
             local separator_wsym
             if separator_xsym then
                 separator_wsym = cloned_wsym_ensure(separator_xsym)
-                separator_wsym.xsym = separator_xsym
             end
             assert(not xalt.separation or separator_wsym)
             local new_wrule = wrule_new{
@@ -3195,7 +3367,7 @@ as needed.
 
         for topalt_ix = 1,#xtopalt_by_ix do
             local xtopalt = xtopalt_by_ix[topalt_ix]
-            local brick_wrule = alt_to_work_data_add(xtopalt)
+            local brick_wrule = wrule_from_xalt_new(xtopalt)
             -- Empty rules do not return a wrule
             if brick_wrule then
                 brick_wrule.brick = true
