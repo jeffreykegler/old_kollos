@@ -325,10 +325,13 @@ any error.
     -- luatangle: section xlexeme constructors
 
     local function mt_xlexeme(table, key)
+        -- print('Looking in xlexeme for key', key)
         if key == 'type' then return 'xlexeme'
         elseif key == 'rawtype' then return 'xlexeme'
         elseif key == 'nullable' then return false
         elseif key == 'productive' then return true
+        -- eventually put a default semantics here
+        elseif key == 'semantics' then return {}
         elseif key == 'name' then
             local lexeme_type = table.lexeme_type
             local name =
@@ -340,6 +343,7 @@ any error.
             table.name = name
             return name
         end
+        -- print('Did not find key in xlexeme', key)
         return nil
     end
 
@@ -387,6 +391,24 @@ any error.
     end
 
 ```
+
+### The "no semantics" objects
+
+Currently, subrules always return nil.
+This object "carries" that semantics.
+It is analogous to the `xlexeme`
+and `xalt` objects, which carry the semantics.
+
+```
+
+    -- luatangle: section xnone object
+
+    local xnone = {
+       semantics = {}
+    }
+
+```
+
 
 ### Internal lexeme constructor
 
@@ -810,45 +832,46 @@ Instead, the `xalt` is the value of
 their `separates` named field.
 
 ```
-        -- luatangle: section+ Census fields
-        local winstance_field_census = {}
-        local winstance_field_census_expected = {
-            element = true,
-            separates = true,
-            rh_ix = true,
-            xalt = true,
-        }
+    -- luatangle: section+ Census fields
 
-        for rule_id = 1,#wrule_by_id do
-            local wrule = wrule_by_id[rule_id]
-            if wrule then
-                local rh_instances = wrule.rh_instances
-                for rh_ix = 1,#rh_instances do
-                    local winstance = rh_instances[rh_ix]
-                    if not winstance.name_base then
-                        print("missing 'name_base' in winstance:", winstance.name)
-                    end
-                    if not winstance.line then
-                        print("missing 'line' in winstance:", winstance.name)
-                    end
-                    if winstance.rh_ix and not winstance.semantics then
-                        -- print(inspect(winstance))
-                        print("instance has rh_ix but no semantics:", winstance.name)
-                    end
-                    if winstance.xalt and not winstance.semantics then
-                        print("instance has xalt but no semantics:", winstance.name)
-                    end
-                    for field,_ in pairs(winstance) do
-                        if not winstance_field_census_expected[field] then
-                            winstance_field_census[field] = true
-                        end
+    local winstance_field_census = {}
+    local winstance_field_census_expected = {
+        element = true,
+        separates = true,
+        rh_ix = true,
+        xalt = true,
+    }
+
+    for rule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[rule_id]
+        if wrule then
+            local rh_instances = wrule.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local winstance = rh_instances[rh_ix]
+                if not winstance.name_base then
+                    print("missing 'name_base' in winstance:", winstance.name)
+                end
+                if not winstance.line then
+                    print("missing 'line' in winstance:", winstance.name)
+                end
+                if winstance.rh_ix and not winstance.semantics then
+                    -- print(inspect(winstance))
+                    print("instance has rh_ix but no semantics:", winstance.name)
+                end
+                if winstance.xalt and not winstance.semantics then
+                    print("instance has xalt but no semantics:", winstance.name)
+                end
+                for field,_ in pairs(winstance) do
+                    if not winstance_field_census_expected[field] then
+                        winstance_field_census[field] = true
                     end
                 end
             end
         end
-        for field,_ in pairs(winstance_field_census) do
-            print("unexpected winstance field:", field)
-        end
+    end
+    for field,_ in pairs(winstance_field_census) do
+        print("unexpected winstance field:", field)
+    end
 
 ```
 
@@ -953,6 +976,8 @@ creating *external* symbols.
             -- am not trying to be very accurate about the line
             -- it should be the line of an alternative containing that symbol
             name_base = grammar.name_base,
+            -- the actual semantics is associated with the rule
+            semantics = {},
             line = grammar.line,
         }
         xsym_by_name[name] = props
@@ -973,7 +998,6 @@ creating *external* symbols.
         -- TODO: remove after development
         local wsym_field_census = {}
         local wsym_field_census_expected = {
-             semantics = true,
              id = true,
              name = true,
              nullable = true,
@@ -981,7 +1005,7 @@ creating *external* symbols.
              source = true,
              terminal = true,
              xlexeme = true,
-             xnull = true,
+             xnone = true,
              xsym = true,
         }
         for _,wsym in pairs(wsym_by_name) do
@@ -997,12 +1021,12 @@ creating *external* symbols.
                     = 'xlexeme=' .. wsym.xlexeme.name
             end
             local semantics = wsym.semantics
-            if wsym.xnull then
+            if wsym.xnone then
                 if not semantics then
-                    print("xnull defined, but not brick:", wsym.name)
+                    print("xnone defined, but not brick:", wsym.name)
                 end
                 semantics_specifiers[#semantics_specifiers+1]
-                    = 'xnull'
+                    = 'xnone'
             end
             if wsym.xsym then
                 if not semantics then
@@ -1015,7 +1039,7 @@ creating *external* symbols.
                 print("More than 1 semantic for:", wsym.name, table.concat(semantics_specifiers, ' '))
             end
             if semantics then
-                if not wsym.xsym and not wsym.xnull and not wsym.xlexeme
+                if not wsym.xsym and not wsym.xnone and not wsym.xlexeme
                 then
                     print("brick, but no semantics specified", wsym.name)
                 end
@@ -1058,21 +1082,30 @@ would have to be top-level as well.
             name = name,
         }
         setmetatable(wsym_props, {
-                __index = function (table, key)
-                    if key == 'type' then return 'wsym'
-                    elseif key == 'rawtype' then return 'wsym'
-                    elseif key == 'line' then return table.source.line
-                    elseif key == 'name_base' then return table.source.name_base
-                    elseif key == 'source' then return table.xsym or table.xlexeme
-                    elseif key == 'xsym' then return nil
-                    elseif key == 'xlexeme' then return nil
-                    else
-                        local parent_object = table.xsym or table.xlexeme
-                        if parent_object then
-                            return parent_object[key]
-                        end
-                        return nil
+            __index = function (table, key)
+                if key == 'type' then return 'wsym'
+                elseif key == 'rawtype' then return 'wsym'
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'source' then return table.xsym or table.xlexeme
+                elseif key == 'xsym' then return nil
+                elseif key == 'xlexeme' then return nil
+                elseif key == 'xnone' then return nil
+                else
+                    local parent_object
+                        = table.xsym or table.xlexeme or table.xnone
+                    if parent_object then
+                        -- if table.name == 'number' then
+                            -- print("table.xsym:", table.xsym)
+                            -- print("table.xnone:", table.xnone)
+                            -- print("table.xlexeme:", table.xlexeme)
+                            -- print("parent_object:", parent_object)
+                            -- print("Looking in wsym for key:", key)
+                        -- end
+                        return parent_object[key]
                     end
+                    return nil
+                end
                 end
             }
         )
@@ -1111,7 +1144,6 @@ would have to be top-level as well.
         if is_new then
             new_wsym.nullable = false
             new_wsym.xsym = base_wsym.xsym
-            new_wsym.semantics = true
         end
         return new_wsym
     end
@@ -1122,7 +1154,6 @@ would have to be top-level as well.
         if is_new then
             new_wsym.nullable = false
             new_wsym.xlexeme = xlexeme
-            new_wsym.semantics = true
             new_wsym.terminal = true
         end
         return new_wsym
@@ -1134,7 +1165,6 @@ would have to be top-level as well.
         if is_new then
             new_wsym.nullable = xsym.nullable
             new_wsym.terminal = xsym.terminal
-            new_wsym.semantics = true
             new_wsym.xsym = xsym
         end
         return new_wsym
@@ -1176,12 +1206,12 @@ will be non-nil.
     local isym_field_census = {}
     local isym_field_census_expected = {
         -- The libmarpa external ID
-        semantics = true,
         id = true,
         name = true,
         precedence_level = true,
         source = true,
         xlexeme = true,
+        xnone = true,
         xsym = true,
     }
     for _,isym in pairs(isym_by_name) do
@@ -1237,8 +1267,9 @@ would have to be top-level as well.
                 elseif key == 'source' then return table.xsym or table.xlexeme
                 elseif key == 'xsym' then return nil
                 elseif key == 'xlexeme' then return nil
+                elseif key == 'xnone' then return nil
                 else
-                    local parent_object = table.xsym or table.xlexeme
+                    local parent_object = table.xsym or table.xlexeme or table.xnone
                     if parent_object then
                         return parent_object[key]
                     end
@@ -3128,6 +3159,7 @@ as needed.
 
         -- luatangle: insert wsym constructors
         -- luatangle: insert wrule constructor
+        -- luatangle: insert xnone object
         -- luatangle: insert ilexeme constructor
         -- luatangle: insert declare wrule_from_xalt_new()
 
@@ -3186,8 +3218,7 @@ as needed.
                             else
                                 new_work_instance =
                                     winstance_new(subalt_lhs, xalt, rh_ix)
-                                subalt_lhs.xnull = true
-                                subalt_lhs.semantics = true
+                                subalt_lhs.xnone = xnone
                             end
                             work_rh_instances[#work_rh_instances+1] = new_work_instance
                         end
