@@ -1177,16 +1177,6 @@ would have to be top-level as well.
         return new_wsym
     end
 
-    -- luatangle: section Create `new_wsym` from `ilexeme_new`
-
-    do
-       local is_new
-       new_wsym,is_new = wsym_ensure(ilexeme_new.name .. '-sym')
-       assert(is_new) -- TODO delete after development
-       new_wsym.ilexeme = ilexeme_new
-       new_wsym.terminal = true
-    end
-
 ```
 
 ### Internal symbol fields
@@ -1855,8 +1845,11 @@ then strings are broken into character classes.
          end
          local ilexeme_new = i_cc_lexeme_new(cc_spec, string_lhs)
          
-         -- luatangle: insert Create `new_wsym` from `ilexeme_new`
-
+         local is_new
+         new_wsym,is_new = wsym_ensure(ilexeme_new.name .. '-ilex')
+         assert(is_new) -- TODO delete after development
+         new_wsym.ilexeme = ilexeme_new
+         new_wsym.terminal = true
          new_wsym.source = string_lhs
          local new_instance = winstance_new(new_wsym)
          string_rhs[#string_rhs+1] = new_instance
