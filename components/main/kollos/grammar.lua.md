@@ -2023,6 +2023,12 @@ Assumed to be available as an upvalue are
         if lhs then return lhs end
         local short_rhs, long_rhs
 
+        if n == 1 then
+            lhs = blk_lhs(1)
+            ranges[n] = lhs
+            return lhs
+        end
+
         local lhs_name = 'rng' .. n .. '!' .. repetend_instance.name
         local is_new
         lhs, is_new = wsym_ensure(lhs_name)
@@ -2037,10 +2043,8 @@ Assumed to be available as an upvalue are
             else
                 long_rhs = { winstance_new(lhs), repetend_instance }
             end
-        elseif n == 1 then
-            lhs = blk_lhs(1)
-            ranges[n] = lhs
-            return lhs
+        -- n == 0 not allowed
+        -- n == 1 was handled above
         elseif n == 2 then
             short_rhs = { repetend_instance }
             if separator_instance then
