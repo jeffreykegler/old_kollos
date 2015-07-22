@@ -535,7 +535,9 @@ in this context, want.
 ```
     -- luatangle: section wrule constructor
 
-    local function wrule_desc(wrule)
+    -- For debugging -- works with both internal
+    -- and working rules
+    local function rule_desc(wrule)
         local desc_table = {
             wrule.lhs.name,
             '::=',
@@ -561,7 +563,6 @@ in this context, want.
         local max = rule_args.max or 1
         local min = rule_args.min or 1
         local separator = rule_args.separator
-        local separator_id = separator and separator.id or -1
         local lhs = rule_args.lhs
         local rh_instances = rule_args.rh_instances
         wrule = {
@@ -577,18 +578,53 @@ in this context, want.
             xalt = rule_args.xalt,
         }
         setmetatable(wrule, {
-                __index = function (table, key)
-                    if key == 'type' then return 'wrule'
-                    elseif key == 'source' then return xalt or lhs
-                    elseif key == 'line' then return table.source.line
-                    elseif key == 'name_base' then return table.source.name_base
-                    elseif key == 'desc' then return wrule_desc(table)
-                    else return end
-                end
-            })
-        wrule_by_id[#wrule_by_id+1] = wrule
+            __index = function (table, key)
+                if key == 'type' then return 'wrule'
+                elseif key == 'source' then return xalt or lhs
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'desc' then return rule_desc(table)
+                else return end
+            end
+        })
+    wrule_by_id[#wrule_by_id+1] = wrule
         wrule.id = #wrule_by_id
         return wrule
+    end
+
+```
+
+### Internal rule constructor
+
+Assumes it is passed a `wrule` whose symbols have
+already been "stolen" by the internal grammar.
+`rhs` is the new RHS, if defined.
+Otherwise, the RHS is stolen from `wrule`.
+
+```
+    -- luatangle: section Define irule constructor
+
+    local function irule_from_wrule(wrule, rhs)
+        local lhs = wrule.lhs
+        local rh_instances = rhs or wrule.rh_instances
+        local irule = {
+            lhs = lhs,
+            nullable = wrule.nullable,
+            rh_instances = rh_instances,
+            source = wrule.source,
+            xalt = wrule.xalt,
+        }
+        setmetatable(irule, {
+            __index = function (table, key)
+                if key == 'type' then return 'irule'
+                elseif key == 'source' then return xalt or lhs
+                elseif key == 'line' then return table.source.line
+                elseif key == 'name_base' then return table.source.name_base
+                elseif key == 'desc' then return rule_desc(table)
+                else return end
+            end
+        })
+        return irule
     end
 
 ```
@@ -1913,13 +1949,15 @@ and has two symbols on its RHS.
         -- just in case.
         if working_wrule then
             local rh_instances = working_wrule.rh_instances
+            local rhs_mxids = {}
             for rh_ix = 1,#rh_instances do
                 local rh_instance = rh_instances[rh_ix]
-                if rh_instance.type == 'wsym' then
-                    local wsym = rh_instance.element
+                local element = rh_instance.element
+                if element.type == 'wsym' then
                     -- "steal" the wsym, making it an isym
-                    wsym.mxid = g:symbol_new()
+                    element.mxid = g:symbol_new()
                 end
+                rhs_mxids[rh_ix] = element.mxid
                 -- TODO: delete after development
                 assert(rh_instance.type == 'isym')
             end
@@ -1928,15 +1966,34 @@ and has two symbols on its RHS.
             if lhs.type == 'wsym' then
                 lhs.mxid = g:symbol_new()
             end
+
+            local lhs_mxid = lhs.mxid
+
             -- TODO: delete after development
             assert(lhs.type == 'isym')
+            local irule = irule_from_wrule(working_wrule)
+            local rule_mxid = g:rule_new(
+                lhs_mxid, rhs_mxids[1], rhs_mxids[2])
+            if rule_mxid < 0 then
+                local error_code = g:error()
+                print('Problem with rule', rule_desc(irule))
+                if error_code == luif_err_duplicate_rule then
+                    print('Duplicate rule -- non-fatal')
+                else
+                    kollos_c.error_throw(error_code, 'problem with rule_new()')
+                end
+            end
         end
     end
 
+    -- TODO: At this point, all symbols are "stolen"
+    -- Will this always be the case?  Don't know.
+    -- When I do know, I should either delete this
+    -- check or convert it to nil out the `wsym_by_name`
+    -- entry so that unstolen `wsym`'s may be
+    -- garbage-collected.
     for _,wsym in pairs(wsym_by_name) do
-        if wsym.type ~= 'isym' then
-            print("wsym not stolen", wsym.name)
-        end
+        assert(wsym.type == 'isym')
     end
 
 ```
@@ -2159,6 +2216,10 @@ or otherwise as occasion demands.
     local wrap = require "kollos.wrap"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
+    local luif_err_none -- luacheck: ignore
+        = kollos_c.error_code_by_name['LUIF_ERR_NONE'] -- luacheck: ignore
+    local luif_err_duplicate_rule -- luacheck: ignore
+        = kollos_c.error_code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
     local matrix = require "kollos.matrix"
 
     local function here() return -- luacheck: ignore here
@@ -3063,116 +3124,6 @@ as needed.
         -- luatangle: insert ilexeme constructor
         -- luatangle: insert declare wrule_from_xalt_new()
 
-        local function wrule_from_xalt_new(xalt, hidden)
-            -- at top, use brick from xrule.lhs
-            -- otherwise, new internal lhs
-            local new_lhs
-            local precedence_level = xalt.precedence_level
-            if xalt.parent_instance then
-                new_lhs = lh_wsym_ensure(xalt)
-            else
-                local old_lhs = xalt.xprec.xrule.lhs
-                if xalt.precedence_level then
-                    new_lhs =
-                    precedenced_wsym_ensure(old_lhs, precedence_level)
-                else
-                    new_lhs = cloned_wsym_ensure(old_lhs)
-                end
-            end
-
-            local rh_instances = xalt.rh_instances
-            -- just skip empty alternatives
-            if #rh_instances == 0 then return end
-            -- for now don't process precedences
-            local work_rh_instances = {}
-            -- print("compiling RHS ", new_lhs.name, #rh_instances)
-            for rh_ix = 1,#rh_instances do
-                local x_rh_instance = rh_instances[rh_ix]
-                local x_element = x_rh_instance.element
-                local element_type = x_element.type
-
-                -- print("RHS element", rh_ix, x_element.name, x_element.nulling)
-                -- Do nothing for a nulling instance
-                if not x_element.nulling then
-                    if element_type == 'xalt' then
-                        -- This is always a wsym, because an xsym
-                        -- LHS occurs only for a top level alternative,
-                        -- and, if we are here, we are dealing with
-                        -- a subalternative
-
-                        -- Skip a nulling rh instance.
-                        -- While the xalt cannot be nulling, a subalt
-                        -- can be.
-
-                        -- Because of these skips, a working rule may have
-                        -- a right side shorter than the external alternative
-                        -- from which it is derived.
-                        -- But it will *never* be zero length, because the caller
-                        -- made sure the external alternative is not nulling
-                        if not x_rh_instance.nulling then
-                            local subalt_wrule = wrule_from_xalt_new(x_element, true)
-                            local subalt_lhs = subalt_wrule.lhs
-                            local new_work_instance
-                            if hidden then
-                                new_work_instance = winstance_new(subalt_lhs)
-                            else
-                                new_work_instance =
-                                    winstance_new(subalt_lhs, xalt, rh_ix)
-                                subalt_lhs.xnone = xnone
-                            end
-                            work_rh_instances[#work_rh_instances+1] = new_work_instance
-                        end
-                    elseif element_type == 'xsym' then
-                        local new_element
-                        local level = x_rh_instance.precedence_level
-                        if level ~= nil then
-                            new_element =
-                                precedenced_wsym_ensure(x_element, level)
-                        else
-                            new_element = cloned_wsym_ensure(x_element)
-                        end
-                        local new_work_instance = winstance_new(
-                            new_element,
-                            not hidden and xalt or nil,
-                            not hidden and rh_ix or nil)
-                        work_rh_instances[#work_rh_instances+1] = new_work_instance
-                    elseif element_type == 'xlexeme' then
-                        new_element = wsym_from_xlexeme_new(x_element)
-                        local new_work_instance = winstance_new(
-                            new_element,
-                            not hidden and xalt or nil,
-                            not hidden and rh_ix or nil)
-                        work_rh_instances[#work_rh_instances+1] = new_work_instance
-                    else assert(0) -- TODO remove after developement
-                    end
-                end
-
-            end
-
-            -- I don't think it's possible for there to be an empty
-            -- RHS, because the caller has ensured that the xalt is
-            -- not nulling
-            assert( #work_rh_instances > 0 ) -- TODO remove after development
-
-            local separator_xsym = xalt.separator
-            local separator_wsym
-            if separator_xsym then
-                separator_wsym = cloned_wsym_ensure(separator_xsym)
-            end
-            assert(not xalt.separation or separator_wsym)
-            local new_wrule = wrule_new{
-                lhs = new_lhs,
-                rh_instances = work_rh_instances,
-                min = xalt.min,
-                max = xalt.max,
-                nullable = xalt.nullable or nil,
-                separator = separator_wsym,
-                separation = xalt.separation,
-                xalt = xalt,
-            }
-            return new_wrule
-        end
-
         local precedenced_instances = {}
         local function gather_precedenced_instances(xalt, lhs_id, in_seq)
             local rh_instances = xalt.rh_instances
@@ -3351,6 +3302,7 @@ as needed.
 
         -- luatangle: insert Check and expand lexemes
         -- luatangle: insert Binarize the working grammar
+        -- luatangle: insert Define irule constructor
         -- luatangle: insert Create the internal grammar
 
         for rule_id = 1,#wrule_by_id do
@@ -3465,7 +3417,7 @@ as needed.
 
     -- luatangle: section Error routines internal to compile()
 
-    local function report_nullable_precedenced_xrule(grammar, xrule)
+    local function report_nullable_precedenced_xrule(grammar_arg, xrule)
         local precedences = xrule.precedences
         local nullable_alternatives = {}
         for prec_ix = 1, #precedences do
@@ -3492,14 +3444,14 @@ as needed.
         -- At some point, find one of the alternatives
         -- which was nullable, and report that
         return nil,
-        grammar:development_error(
+        grammar_arg:development_error(
             table.concat(error_table, '\n'),
             xrule.name_base,
             xrule.line
         )
     end
 
-    local function report_nullable_repetend(grammar, xsubalt)
+    local function report_nullable_repetend(grammar_arg, xsubalt)
         local error_table = {
             'grammar.compile():' .. 'sequence repetend is nullable',
             ' That is not allowed',
@@ -3507,14 +3459,14 @@ as needed.
         }
 
         return nil,
-        grammar:development_error(
+        grammar_arg:development_error(
             table.concat(error_table, '\n'),
             xsubalt.name_base,
             xsubalt.line
         )
     end
 
-    local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
+    local function report_shared_precedenced_lhs(grammar_arg, precedenced_xrule, lhs)
 
         local error_table = {
             'grammar.compile():' .. 'precedenced rule shares LHS with another rule',
@@ -3538,7 +3490,7 @@ as needed.
         end
 
         return nil,
-        grammar:development_error(
+        grammar_arg:development_error(
             table.concat(error_table, '\n'),
             precedenced_xrule.name_base,
             precedenced_xrule.line
