@@ -993,6 +993,8 @@ creating *external* symbols.
 
 ### Census of working symbols
 
+`terminal`: I am not sure this field is necessary.
+
 ```
         -- luatangle: section+ Census fields
         -- TODO: remove after development
@@ -1004,6 +1006,7 @@ creating *external* symbols.
              precedence_level = true,
              source = true,
              terminal = true,
+             ilexeme = true,
              xlexeme = true,
              xnone = true,
              xsym = true,
@@ -1015,9 +1018,13 @@ creating *external* symbols.
             if not wsym.line then
                 print("missing 'line' in wsym:", wsym.name)
             end
-            local semantics_specifiers = {}
+            local specifiers = {}
+            if wsym.ilexeme then
+                specifiers[#specifiers+1]
+                    = 'ilexeme=' .. wsym.ilexeme.name
+            end
             if wsym.xlexeme then
-                semantics_specifiers[#semantics_specifiers+1]
+                specifiers[#specifiers+1]
                     = 'xlexeme=' .. wsym.xlexeme.name
             end
             local semantics = wsym.semantics
@@ -1025,18 +1032,18 @@ creating *external* symbols.
                 if not semantics then
                     print("xnone defined, but not brick:", wsym.name)
                 end
-                semantics_specifiers[#semantics_specifiers+1]
+                specifiers[#specifiers+1]
                     = 'xnone'
             end
             if wsym.xsym then
                 if not semantics then
                     print("xsym defined, but not brick:", wsym.name)
                 end
-                semantics_specifiers[#semantics_specifiers+1]
+                specifiers[#specifiers+1]
                     = 'xsym=' .. wsym.xsym.name
             end
-            if #semantics_specifiers > 1 then
-                print("More than 1 semantic for:", wsym.name, table.concat(semantics_specifiers, ' '))
+            if #specifiers > 1 then
+                print("More than 1 semantic for:", wsym.name, table.concat(specifiers, ' '))
             end
             if semantics then
                 if not wsym.xsym and not wsym.xnone and not wsym.xlexeme
@@ -1087,13 +1094,15 @@ would have to be top-level as well.
                 elseif key == 'rawtype' then return 'wsym'
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
-                elseif key == 'source' then return table.xsym or table.xlexeme
+                elseif key == 'source' then
+                    return table.xsym or table.xlexeme
                 elseif key == 'xsym' then return nil
+                elseif key == 'ilexeme' then return nil
                 elseif key == 'xlexeme' then return nil
                 elseif key == 'xnone' then return nil
                 else
                     local parent_object
-                        = table.xsym or table.xlexeme or table.xnone
+                        = table.xsym or table.xlexeme or table.xnone or table.ilexeme
                     if parent_object then
                         -- if table.name == 'number' then
                             -- print("table.xsym:", table.xsym)
@@ -1151,11 +1160,9 @@ would have to be top-level as well.
     local function wsym_from_xlexeme_new(xlexeme)
         local name = xlexeme.name .. '-sym'
         local new_wsym,is_new = wsym_ensure(name)
-        if is_new then
-            new_wsym.nullable = false
-            new_wsym.xlexeme = xlexeme
-            new_wsym.terminal = true
-        end
+        assert(is_new) -- TODO delete after development
+        new_wsym.xlexeme = xlexeme
+        new_wsym.terminal = true
         return new_wsym
     end
 
@@ -1168,6 +1175,16 @@ would have to be top-level as well.
             new_wsym.xsym = xsym
         end
         return new_wsym
+    end
+
+    -- luatangle: section Create `new_wsym` from `ilexeme_new`
+
+    do
+       local is_new
+       new_wsym,is_new = wsym_ensure(ilexeme_new.name .. '-sym')
+       assert(is_new) -- TODO delete after development
+       new_wsym.ilexeme = ilexeme_new
+       new_wsym.terminal = true
     end
 
 ```
@@ -1836,8 +1853,12 @@ then strings are broken into character classes.
          else
              cc_spec = string.format('[\\%d]', char:byte())
          end
-         local ilexeme = i_cc_lexeme_new(cc_spec, string_lhs)
-         local new_instance = winstance_new(ilexeme)
+         local ilexeme_new = i_cc_lexeme_new(cc_spec, string_lhs)
+         
+         -- luatangle: insert Create `new_wsym` from `ilexeme_new`
+
+         new_wsym.source = string_lhs
+         local new_instance = winstance_new(new_wsym)
          string_rhs[#string_rhs+1] = new_instance
     end
     wrule_new(
@@ -2025,6 +2046,10 @@ and has two symbols on its RHS.
             local rh_instances = working_wrule.rh_instances
             for rh_ix = 1,#rh_instances do
                 local rh_instance = rh_instances[rh_ix]
+
+                -- TODO: delete after development
+                assert(rh_instance.type == 'wsym')
+
                 local symbol_name = rh_instance.name
                 if not isym_by_name[symbol_name] then
                     local new_isym = {
