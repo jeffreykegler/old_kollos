@@ -488,7 +488,6 @@ in this context, want.
 
     local wrule_field_census = {}
     local wrule_field_census_expected = {
-        brick = true,
         id = true,
         lhs = true,
         max = true,
@@ -510,11 +509,11 @@ in this context, want.
             if not wrule.line then
                 print("missing 'line' in wrule:", wrule.desc)
             end
-            local nullable_per_rhs = nullable_per_rhs(wrule)
+            local is_nullable_per_rhs = nullable_per_rhs(wrule)
             local nullable_per_property = wrule.nullable
-            if nullable_per_rhs ~= nullable_per_property then
+            if is_nullable_per_rhs ~= nullable_per_property then
                 print("Nullable discrepancy in wrule, rhs vs. direct: ",
-                    nullable_per_rhs,
+                    is_nullable_per_rhs,
                     nullable_per_property, wrule.desc)
             end
             for field,_ in pairs(wrule) do
@@ -565,8 +564,7 @@ in this context, want.
         local separator = rule_args.separator
         local lhs = rule_args.lhs
         local rh_instances = rule_args.rh_instances
-        wrule = {
-            brick = rule_args.brick,
+        local wrule = {
             lhs = lhs,
             max = max,
             min = min,
@@ -580,7 +578,7 @@ in this context, want.
         setmetatable(wrule, {
             __index = function (table, key)
                 if key == 'type' then return 'wrule'
-                elseif key == 'source' then return xalt or lhs
+                elseif key == 'source' then return table.xalt or table.lhs
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
                 elseif key == 'desc' then return rule_desc(table)
@@ -617,7 +615,7 @@ Otherwise, the RHS is stolen from `wrule`.
         setmetatable(irule, {
             __index = function (table, key)
                 if key == 'type' then return 'irule'
-                elseif key == 'source' then return xalt or lhs
+                elseif key == 'source' then return table.xalt or table.lhs
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
                 elseif key == 'desc' then return rule_desc(table)
@@ -636,7 +634,7 @@ Otherwise, the RHS is stolen from `wrule`.
     -- luatangle: section declare wrule_from_xalt_new()
 
     local function wrule_from_xalt_new(xalt, hidden)
-        -- at top, use brick from xrule.lhs
+        -- at top, use xrule.lhs
         -- otherwise, new internal lhs
         local new_lhs
         local precedence_level = xalt.precedence_level
@@ -705,7 +703,7 @@ Otherwise, the RHS is stolen from `wrule`.
                         hidden and rh_ix or nil)
                     work_rh_instances[#work_rh_instances+1] = new_work_instance
                 elseif element_type == 'xlexeme' then
-                    new_element = wsym_from_xlexeme_new(x_element)
+                    local new_element = wsym_from_xlexeme_new(x_element)
                     local new_work_instance = winstance_new(
                         new_element,
                         hidden and xalt or nil,
@@ -1582,11 +1580,11 @@ and we change the `working_rule` accordingly.
     end
 
     if range_size then
-        local range_lhs = range_lhs(range_size)
+        local new_lhs = range_lhs(range_size)
         if #new_rhs > 0 and separator_instance then
             new_rhs[#new_rhs+1] = separator_instance
         end
-        new_rhs[#new_rhs+1] = winstance_new(range_lhs)
+        new_rhs[#new_rhs+1] = winstance_new(new_lhs)
     end
 
     working_wrule.rh_instances = new_rhs
@@ -1690,13 +1688,13 @@ separator, or `proper` separation.
         for rule_id = 1,#wrule_by_id do
             local working_wrule = wrule_by_id[rule_id]
             if working_wrule then
-                local rh_instances = working_wrule.rh_instances
-                for rh_ix = 1,#rh_instances do
-                    local rh_instance = rh_instances[rh_ix]
+                local working_rh_instances = working_wrule.rh_instances
+                for rh_ix = 1,#working_rh_instances do
+                    local rh_instance = working_rh_instances[rh_ix]
                     local lexeme_type = rh_instance.lexeme_type
 
+                    local spec = rh_instance.spec
                     if lexeme_type == 'cc' then
-                        local spec = rh_instance.spec
                         if type(spec) ~= 'string' then
                             grammar:development_error(
                                 [[charclass spec is type ']]
@@ -1711,7 +1709,6 @@ separator, or `proper` separation.
                                 [[charclass in alternate must be in square brackets]])
                         end
                     elseif lexeme_type == 'string' then
-                        local spec = rh_instance.spec
                         if type(spec) ~= 'string' then
                             grammar:development_error(
                                 [[spec in lexeme of type 'string' is type ']]
@@ -1760,7 +1757,7 @@ then strings are broken into character classes.
          end
          local ilexeme_new = i_cc_lexeme_new(cc_spec, string_lhs)
          
-         local is_new
+         local new_wsym, is_new
          new_wsym,is_new = wsym_ensure(ilexeme_new.name .. '-ilex')
          assert(is_new) -- TODO delete after development
          new_wsym.ilexeme = ilexeme_new
@@ -1785,8 +1782,8 @@ then strings are broken into character classes.
     for rule_id = 1,#wrule_by_id do
         local working_wrule = wrule_by_id[rule_id]
         if working_wrule then
-            local rh_instances = working_wrule.rh_instances
-            local original_rule_length = #rh_instances
+            local working_rh_instances = working_wrule.rh_instances
+            local original_rule_length = #working_rh_instances
             local final_wrule
             local rule_source = working_wrule.source
             if original_rule_length > 2 then
@@ -1812,8 +1809,8 @@ then strings are broken into character classes.
         last_lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
         assert(is_new) -- TODO: remove after development
         last_lhs.source = rule_source
-        local instance1 = rh_instances[pos]
-        local instance2 = rh_instances[pos+1]
+        local instance1 = working_rh_instances[pos]
+        local instance2 = working_rh_instances[pos+1]
         local rhs = { instance1, instance2 }
         if instance1.nullable and instance2.nullable then
             last_lhs.nullable = true
@@ -1845,7 +1842,7 @@ was created.
         lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. pos)
         assert(is_new) -- TODO: remove after development
         lhs.source = rule_source
-        local instance1 = rh_instances[pos]
+        local instance1 = working_rh_instances[pos]
         local instance2 = winstance_new(last_lhs)
         local rhs = { instance1, instance2 }
         if instance1.nullable and instance2.nullable then
@@ -1869,7 +1866,7 @@ was created.
 
     -- luatangle: section Binarize: Replace original rule with initial rule
     do
-        local instance1 = rh_instances[1]
+        local instance1 = working_rh_instances[1]
         local instance2 = winstance_new(last_lhs)
         working_wrule.rh_instances = { instance1, instance2 }
     end
@@ -1916,6 +1913,7 @@ and has two symbols on its RHS.
             -- the new LHS is "at" the final symbol of the original rule
             -- We will not have used this position in any of the LHS
             -- symbol names above
+            local new_lhs, is_new
             new_lhs, is_new = wsym_ensure('chaf' .. rule_id .. '@' .. original_rule_length)
             assert(is_new) -- TODO remove after development
             new_lhs.source = rule_source
@@ -1933,6 +1931,38 @@ and has two symbols on its RHS.
             final_wrule.rh_instances = { instance1, winstance_new(new_lhs) }
         end
     end
+
+```
+
+## Augment the working grammar
+
+```
+
+    -- luatangle: section Augment the working grammar
+
+    local augment_symbol
+    if at_top then
+        augment_symbol = wsym_ensure('!augment')
+        local nullable = start_symbol.nullable
+        augment_symbol.nullable = nullable
+        augment_symbol.terminal = start_symbol.terminal
+        wrule_new(
+            {
+                lhs = augment_symbol,
+                rh_instances = { winstance_new(
+                    start_symbol,
+                    compile_call_file,
+                    compile_call_line
+                ) },
+                nullable = nullable
+            }
+        )
+    else
+        -- TODO
+        return nil,
+            grammar:development_error(who .. [[L0 grammars not yet implemented]])
+    end
+
 
 ```
 
@@ -2017,6 +2047,7 @@ Assumed to be available as an upvalue are
     local blocks = {}
 
     local function blk_lhs(n)
+        local rhs
         local lhs = blocks[n]
         if lhs then return lhs end
 
@@ -2764,6 +2795,8 @@ as needed.
     function grammar_class.compile(grammar, args)
         local who = 'grammar.compile()'
         -- luatangle: insert Common PLIF argument processing
+        local compile_call_file = file
+        local compile_call_line = line
 
         local at_top = false
         local at_bottom = false
@@ -3246,15 +3279,6 @@ as needed.
             end
         end
 
-        for topalt_ix = 1,#xtopalt_by_ix do
-            local xtopalt = xtopalt_by_ix[topalt_ix]
-            local brick_wrule = wrule_from_xalt_new(xtopalt)
-            -- Empty rules do not return a wrule
-            if brick_wrule then
-                brick_wrule.brick = true
-            end
-        end
-
         -- will be used to ensure names are unique
         local unique_number = 0
 
@@ -3301,6 +3325,7 @@ as needed.
 
         -- luatangle: insert Check and expand lexemes
         -- luatangle: insert Binarize the working grammar
+        -- luatangle: insert Augment the working grammar
         -- luatangle: insert Define irule constructor
         -- luatangle: insert Create the internal grammar
 
@@ -3361,7 +3386,6 @@ as needed.
             )
         end
 
-        local who = 'grammar_new()'
         -- luatangle: insert Common PLIF argument processing
 
         -- if line is nil, the "file" is actually an error object
