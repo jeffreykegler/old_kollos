@@ -1030,14 +1030,16 @@ creating *external* symbols.
         local wsym_field_census = {}
         local wsym_field_census_expected = {
              id = true,
+             ilexeme = true,
+             line = true,
              miid = true,
              mxid = true,
+             name_base = true,
              name = true,
              nullable = true,
              precedence_level = true,
              source = true,
              terminal = true,
-             ilexeme = true,
              xlexeme = true,
              xnone = true,
              xsym = true,
@@ -1125,7 +1127,7 @@ would have to be top-level as well.
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
                 elseif key == 'source' then
-                    return table.xsym or table.xlexeme
+                    return table.xsym or table.xlexeme or table.ilexeme
                 elseif key == 'xsym' then return nil
                 elseif key == 'ilexeme' then return nil
                 elseif key == 'xlexeme' then return nil
@@ -1181,7 +1183,7 @@ would have to be top-level as well.
         local name = base_wsym.name .. '!prec' .. precedence
         local new_wsym,is_new = wsym_ensure(name)
         if is_new then
-            new_wsym.nullable = false
+            new_wsym.nullable = nil
             new_wsym.xsym = base_wsym.xsym
         end
         return new_wsym
@@ -1943,15 +1945,18 @@ and has two symbols on its RHS.
     local augment_symbol
     if at_top then
         augment_symbol = wsym_ensure('!augment')
-        local nullable = start_symbol.nullable
+        local start_wsym = wsym_by_name[start_symbol_name]
+        local nullable = start_wsym.nullable or nil
         augment_symbol.nullable = nullable
-        augment_symbol.terminal = start_symbol.terminal
+        augment_symbol.terminal = start_wsym.terminal
+        augment_symbol.name_base = grammar.name_base
+        augment_symbol.line = compile_call_line
         wrule_new(
             {
                 lhs = augment_symbol,
                 rh_instances = { winstance_new(
-                    start_symbol,
-                    compile_call_file,
+                    start_wsym,
+                    grammar.name_base,
                     compile_call_line
                 ) },
                 nullable = nullable
@@ -2795,34 +2800,34 @@ as needed.
     function grammar_class.compile(grammar, args)
         local who = 'grammar.compile()'
         -- luatangle: insert Common PLIF argument processing
-        local compile_call_file = file
         local compile_call_line = line
 
-        local at_top = false
-        local at_bottom = false
-        local start_symbol
+        local at_top = false -- luacheck: ignore at_top
+        local at_bottom = false -- luacheck: ignore at_bottom
+        local start_xsym
+        local start_symbol_name
         if args.seamless then
-            at_top = true
-            at_bottom = true
-            local start_symbol_name = args.seamless
+            at_top = true -- luacheck: ignore at_top
+            at_bottom = true -- luacheck: ignore at_bottom
+            start_symbol_name = args.seamless
             args.seamless = nil
-            start_symbol
+            start_xsym
             = grammar.xsym_by_name[start_symbol_name]
-            if not start_symbol then
+            if not start_xsym then
                 return nil, grammar:development_error(
                     who
                     .. [[ value of 'seamless' named argument must be the start symbol]]
                 )
             end
         elseif args.start then
-            at_top = true
+            at_top = true -- luacheck: ignore at_top
             args.start = nil
             return nil, grammar:development_error(
                 who
                 .. [[ 'start' named argument not yet implemented]]
             )
         elseif args.lexer then
-            at_bottom = true
+            at_bottom = true -- luacheck: ignore at_bottom
             args.lexer = nil
             return nil, grammar:development_error(
                 who
@@ -2918,19 +2923,19 @@ as needed.
         local terminal_sink_id = #xsym_by_id + 2
         local reach_matrix = matrix.init(matrix_size)
         if at_top then
-            matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
+            matrix.bit_set(reach_matrix, augment_symbol_id, start_xsym.id)
         end
 
         xrhs_transitive_closure(grammar, 'nullable')
         xrhs_transitive_closure(grammar, 'productive')
 
         -- Start symbol must be a LHS
-        if #start_symbol.lhs_xrules <= 0 then
+        if #start_xsym.lhs_xrules <= 0 then
             return nil,
             grammar:development_error(
                 who
                 .. [[ start symbol must be LHS]] .. '\n'
-                .. [[ start symbol is <]] .. start_symbol.name '>\n'
+                .. [[ start symbol is <]] .. start_xsym.name '>\n'
             )
         end
 
@@ -3136,14 +3141,14 @@ as needed.
         end
         --]]
 
-        if start_symbol.nulling then
-            print(inspect(start_symbol))
+        if start_xsym.nulling then
+            print(inspect(start_xsym))
             grammar:development_error(
                 who
-                .. "Start symbol " .. start_symbol.name .. " is nulling\n"
+                .. "Start symbol " .. start_xsym.name .. " is nulling\n"
                 .. " This is not yet implemented",
-                start_symbol.name_base,
-                start_symbol.line
+                start_xsym.name_base,
+                start_xsym.line
             )
         end
 
@@ -3278,6 +3283,11 @@ as needed.
 
             end
         end
+
+        for topalt_ix = 1,#xtopalt_by_ix do
+             local xtopalt = xtopalt_by_ix[topalt_ix]
+             wrule_from_xalt_new(xtopalt)
+         end
 
         -- will be used to ensure names are unique
         local unique_number = 0
