@@ -2682,11 +2682,10 @@ as needed.
                     .. ' specified, but no separator\n'
                 )
             end
-            if separation == 'liberal' then -- luacheck: ignore
-            elseif separation == 'proper' then
+            if separation == 'proper' then
                separation = nil -- 'proper' is the default
-            elseif separation == 'terminating' then -- luacheck: ignore
-            else
+            elseif separation ~= 'liberal'
+                and separation ~= 'terminating' then
                 grammar:development_error(
                     who
                     .. ': unknown separation style '
