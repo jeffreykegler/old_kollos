@@ -327,7 +327,6 @@ any error.
     local function mt_xlexeme(table, key)
         -- print('Looking in xlexeme for key', key)
         if key == 'type' then return 'xlexeme'
-        elseif key == 'rawtype' then return 'xlexeme'
         elseif key == 'nullable' then return false
         elseif key == 'productive' then return true
         -- eventually put a default semantics here
@@ -418,7 +417,6 @@ and `xalt` objects, which carry the semantics.
 
     local function mt_ilexeme(table, key)
         if key == 'type' then return 'ilexeme'
-        elseif key == 'rawtype' then return 'ilexeme'
         elseif key == 'name_base' then return table.source.name_base
         elseif key == 'line' then return table.source.line
         elseif key == 'nullable' then return false
@@ -581,7 +579,6 @@ in this context, want.
         setmetatable(wrule, {
                 __index = function (table, key)
                     if key == 'type' then return 'wrule'
-                    elseif key == 'rawtype' then return 'wrule'
                     elseif key == 'source' then return xalt or lhs
                     elseif key == 'line' then return table.source.line
                     elseif key == 'name_base' then return table.source.name_base
@@ -910,7 +907,6 @@ in the working grammar.
             nullable = true,
             nulling = true,
             productive = true,
-            rawtype = true,
             semantics = true,
             top_precedence_level = true,
             type = true,
@@ -971,7 +967,6 @@ creating *external* symbols.
         props = {
             name = name,
             type = 'xsym',
-            rawtype = 'xsym',
             lhs_xrules = {},
             -- am not trying to be very accurate about the line
             -- it should be the line of an alternative containing that symbol
@@ -1001,6 +996,8 @@ creating *external* symbols.
         local wsym_field_census = {}
         local wsym_field_census_expected = {
              id = true,
+             miid = true,
+             mxid = true,
              name = true,
              nullable = true,
              precedence_level = true,
@@ -1090,8 +1087,7 @@ would have to be top-level as well.
         }
         setmetatable(wsym_props, {
             __index = function (table, key)
-                if key == 'type' then return 'wsym'
-                elseif key == 'rawtype' then return 'wsym'
+                if key == 'type' then return table.mxid and 'isym' or 'wsym'
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
                 elseif key == 'source' then
@@ -1179,120 +1175,6 @@ would have to be top-level as well.
 
 ```
 
-### Internal symbol fields
-
-`id` is the Libmarpa external ID.
-`name` is a unique name.
-
-`precedence_level` is kept over from
-the working symbol, because
-external symbols don't have precedence
-and it may be useful to know it.
-
-`source` is a source for `line`
-and `name_base` debugging information.
-
-`semantics` is true
-if there are semantics for isym
-(that is, if it is a "brick" symbol)
-and false otherwise
-(in which case it is a "mortar" symbol).
-For a brick,
-`xsym` is the corresponding external
-symbol, and
-`xlexeme` the corresponding external
-lexeme.
-At most one of `xsym` and `xlexeme`
-will be non-nil.
-
-### Census of internal symbols
-
-```
-    -- luatangle: section+ Census fields
-    -- TODO: remove after development
-    local isym_field_census = {}
-    local isym_field_census_expected = {
-        -- The libmarpa external ID
-        id = true,
-        name = true,
-        precedence_level = true,
-        source = true,
-        xlexeme = true,
-        xnone = true,
-        xsym = true,
-    }
-    for _,isym in pairs(isym_by_name) do
-        if not isym.name_base then
-            print("missing 'name_base' in isym:", isym.name)
-        end
-        if not isym.line then
-            print("missing 'line' in isym:", isym.name)
-        end
-        for field,_ in pairs(isym) do
-            if not isym_field_census_expected[field] then
-                isym_field_census[field] = true
-            end
-        end
-    end
-    for field,_ in pairs(isym_field_census) do
-        print("unexpected isym field:", field)
-    end
-
-```
-
-### Working symbol constructor
-
-These isym functions
-are internal to the `compile()` method
-because they use up-values internal
-to the `compile()` method.
-
-Having these function be internal
-to `compile()` also makes it easy for the
-"working data" to be cleaned up -- it will just be garbage collected
-when compile() returns. If these functions were top-level, the data
-would have to be top-level as well.
-
-```
-
-    -- luatangle: section isym constructor
-
-    -- 2nd return value is true if this is
-    -- a new symbol
-    local function isym_ensure(name)
-        local isym_props = isym_by_name[name]
-        if isym_props then return isym_props end
-        isym_props = {
-            name = name,
-        }
-        setmetatable(isym_props, {
-            __index = function (table, key)
-                if key == 'type' then return 'isym'
-                elseif key == 'rawtype' then return 'isym'
-                elseif key == 'line' then return table.source.line
-                elseif key == 'name_base' then return table.source.name_base
-                elseif key == 'source' then return table.xsym or table.xlexeme
-                elseif key == 'xsym' then return nil
-                elseif key == 'xlexeme' then return nil
-                elseif key == 'xnone' then return nil
-                else
-                    local parent_object = table.xsym or table.xlexeme or table.xnone
-                    if parent_object then
-                        return parent_object[key]
-                    end
-                    return nil
-                end
-                end
-            }
-        )
-
-        isym_by_name[name] = isym_props
-        return isym_props,true
-    end
-
-
-```
-
 ## RHS transitive closure
 
 The RHS transitive closure is Jeffrey's coinage, to describe
@@ -1345,7 +1227,6 @@ In Marpa, "being productive" and
         local function property_of_instance_element(element,
                 property) -- luacheck: ignore property
 
-            -- print('Calling poie()', element.rawtype, element.type, element.name, property)
             if element[property] ~= nil then
                 -- print('Already has', property, element[property])
                 return element[property]
@@ -1384,8 +1265,6 @@ In Marpa, "being productive" and
                 -- Child element may be nil, if rh_ix==0 and we did not have
                 -- or are not checking the separator
                 if child_element then
-                    -- print("Checking", child_element.rawtype, child_element.type,
-                        -- child_element.name, "for", property)
                     local has_property = property_of_instance_element(child_element, property)
                     if has_property == nil then
                         return nil
@@ -2027,9 +1906,6 @@ and has two symbols on its RHS.
 
     -- luatangle: section Create the internal grammar
 
-    -- luatangle: insert isym constructor
-
-    local isym_by_name = {}
     local g = wrap.grammar()
     for rule_id = 1,#wrule_by_id do
         local working_wrule = wrule_by_id[rule_id]
@@ -2039,18 +1915,27 @@ and has two symbols on its RHS.
             local rh_instances = working_wrule.rh_instances
             for rh_ix = 1,#rh_instances do
                 local rh_instance = rh_instances[rh_ix]
-
-                -- TODO: delete after development
-                assert(rh_instance.type == 'wsym')
-
-                local symbol_name = rh_instance.name
-                if not isym_by_name[symbol_name] then
-                    local new_isym = {
-                        name = symbol_name,
-                    }
-                    new_isym.id = g:symbol_new()
+                if rh_instance.type == 'wsym' then
+                    local wsym = rh_instance.element
+                    -- "steal" the wsym, making it an isym
+                    wsym.mxid = g:symbol_new()
                 end
+                -- TODO: delete after development
+                assert(rh_instance.type == 'isym')
             end
+            local lhs = working_wrule.lhs
+            -- TODO: delete after development
+            if lhs.type == 'wsym' then
+                lhs.mxid = g:symbol_new()
+            end
+            -- TODO: delete after development
+            assert(lhs.type == 'isym')
+        end
+    end
+
+    for _,wsym in pairs(wsym_by_name) do
+        if wsym.type ~= 'isym' then
+            print("wsym not stolen", wsym.name)
         end
     end
 
@@ -2365,9 +2250,6 @@ or otherwise as occasion demands.
         setmetatable(new_xrule, {
                 __index = function (table, key)
                     if key == 'type' then return 'xrule'
-                    elseif key == 'rawtype' then return 'xrule'
-                        -- 'name' and 'subname' are computed "just in time"
-                        -- and then memoized
                     elseif key == 'subname' then
                         local subname =
                         'r'
@@ -2411,7 +2293,6 @@ or otherwise as occasion demands.
                     if key == 'type' then return 'xprec'
                         -- 'name' and 'subname' are computed "just in time"
                         -- and then memoized
-                    elseif key == 'rawtype' then return 'xprec'
                     elseif key == 'subname' then
                         local subname =
                         'p'
@@ -2490,8 +2371,7 @@ or otherwise as occasion demands.
         }
         setmetatable(new_instance, {
                 __index = function (table, key)
-                    if key == 'rawtype' then return 'xinstance'
-                    elseif key == 'line' then return element.line
+                    if key == 'line' then return element.line
                     elseif key == 'name_base' then return element.name_base
                     else return table.element[key] end
                 end
@@ -2508,8 +2388,7 @@ or otherwise as occasion demands.
         }
         setmetatable(new_instance, {
                 __index = function (table, key)
-                    if key == 'rawtype' then return 'winstance'
-                    elseif key == 'line' then return element.line
+                    if key == 'line' then return element.line
                     elseif key == 'name_base' then return element.name_base
                     elseif key == 'element' then return nil
                     else return table.element[key] end
@@ -2582,7 +2461,6 @@ as needed.
         setmetatable(new_subalternative, {
                 __index = function (table, key)
                     if key == 'type' then return 'xalt'
-                    elseif key == 'rawtype' then return 'xalt'
                     elseif key == 'lhs' then return _xalt_lhs(table)
                     elseif key == 'is_top' then return not table.parent_instance
                     elseif key == 'lhs_of_top' then
