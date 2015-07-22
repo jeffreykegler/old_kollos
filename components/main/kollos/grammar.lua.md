@@ -602,6 +602,17 @@ Otherwise, the RHS is stolen from `wrule`.
 ```
     -- luatangle: section Define irule constructor
 
+    local mt_irule = {
+        __index = function (table, key)
+            if key == 'type' then return 'irule'
+            elseif key == 'source' then return table.xalt or table.lhs
+            elseif key == 'line' then return table.source.line
+            elseif key == 'name_base' then return table.source.name_base
+            elseif key == 'desc' then return rule_desc(table)
+            else return end
+        end
+    }
+
     local function irule_from_wrule(wrule, rhs)
         local lhs = wrule.lhs
         local rh_instances = rhs or wrule.rh_instances
@@ -612,16 +623,21 @@ Otherwise, the RHS is stolen from `wrule`.
             source = wrule.source,
             xalt = wrule.xalt,
         }
-        setmetatable(irule, {
-            __index = function (table, key)
-                if key == 'type' then return 'irule'
-                elseif key == 'source' then return table.xalt or table.lhs
-                elseif key == 'line' then return table.source.line
-                elseif key == 'name_base' then return table.source.name_base
-                elseif key == 'desc' then return rule_desc(table)
-                else return end
+        setmetatable(irule, mt_irule)
+        local rhs1_mxid rhs1_mxid = rh_instances[1].mxid
+        local rh_instance2 = rh_instances[2]
+        local rhs2_mxid = rh_instance2 and rh_instance2.mxid or nil
+        rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
+        if rule_mxid < 0 then
+            local error_code = g:error()
+            print('Problem with rule', rule_desc(irule))
+            if error_code == luif_err_duplicate_rule then
+                print('Duplicate rule -- non-fatal')
+            else
+                kollos_c.error_throw(error_code, 'problem with rule_new()')
             end
-        })
+        end
+        irule.mxid = rule_mxid
         return irule
     end
 
@@ -1978,6 +1994,9 @@ and has two symbols on its RHS.
     -- luatangle: section Create the internal grammar
 
     local g = wrap.grammar()
+
+    -- luatangle: insert Define irule constructor
+
     for rule_id = 1,#wrule_by_id do
         local working_wrule = wrule_by_id[rule_id]
         -- TODO: Not sure that I ever delete a rule, but
@@ -2007,17 +2026,6 @@ and has two symbols on its RHS.
             -- TODO: delete after development
             assert(lhs.type == 'isym')
             local irule = irule_from_wrule(working_wrule)
-            local rule_mxid = g:rule_new(
-                lhs_mxid, rhs_mxids[1], rhs_mxids[2])
-            if rule_mxid < 0 then
-                local error_code = g:error()
-                print('Problem with rule', rule_desc(irule))
-                if error_code == luif_err_duplicate_rule then
-                    print('Duplicate rule -- non-fatal')
-                else
-                    kollos_c.error_throw(error_code, 'problem with rule_new()')
-                end
-            end
         end
     end
 
@@ -3336,7 +3344,6 @@ as needed.
         -- luatangle: insert Check and expand lexemes
         -- luatangle: insert Binarize the working grammar
         -- luatangle: insert Augment the working grammar
-        -- luatangle: insert Define irule constructor
         -- luatangle: insert Create the internal grammar
 
         for rule_id = 1,#wrule_by_id do
