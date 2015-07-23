@@ -638,6 +638,8 @@ Otherwise, the RHS is stolen from `wrule`.
             end
         end
         irule.mxid = rule_mxid
+        irule_by_id[rule_mxid] = irule
+        -- print('Adding irule', irule, rule_mxid)
         return irule
     end
 
@@ -1994,6 +1996,7 @@ and has two symbols on its RHS.
     -- luatangle: section Create the internal grammar
 
     local g = wrap.grammar()
+    local irule_by_id = {}
 
     -- luatangle: insert Define irule constructor
 
@@ -3346,9 +3349,9 @@ as needed.
         -- luatangle: insert Augment the working grammar
         -- luatangle: insert Create the internal grammar
 
-        for rule_id = 1,#wrule_by_id do
-            local wrule = wrule_by_id[rule_id]
-            if wrule then print(wrule.desc) end
+        -- pairs(), because 0 is a valid id
+        for _,irule in pairs(irule_by_id) do
+            if irule then print(irule.desc) end
         end
 
         -- luatangle: insert Census fields
