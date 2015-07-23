@@ -1,0 +1,2718 @@
+<!--
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+[ MIT license: http://www.opensource.org/licenses/mit-license.php ]
+
+-->
+
+<h1 id="kollos-mid-level-grammar-code"><a href="#TOC">Kollos &quot;mid-level&quot; grammar code</a></h1>
+<p>This is the code for the &quot;middle layer&quot; of Kollos. Below it is Libmarpa, a library written in the C language which contains the actual parse engine.</p>
+<p>The interface to this layer from above are a set of Lua calls, called the PLIF (Pure Lua InterFace). We expect to add a layer above this, which will parse from a DSL to the PLIF.</p>
+<p>The PLIF will be a documented interface. while not as convenient as a DSL, the PLIF can be used for programming.</p>
+<p>The mid-level implements the logic</p>
+<ul>
+<li><p>translates precedences rules to BNF.</p></li>
+<li><p>translates sequence rules to BNF.</p></li>
+<li><p>performs a set of normalizations on the BNF, to allow Libmarpa to be more efficient.</p></li>
+<li><p>performs the Libmarpa calls that create a Libmarpa grammar.</p></li>
+</ul>
+<h2 id="rewriting-grammars"><a href="#TOC">Rewriting grammars</a></h2>
+<p>Rewriting grammars prior to parsing is a technique long known and discuesed. A major obstacle is that parsing is almost always a means to an end -- the application is parsing as a first step to applying a semantics, and that semantics is defined in terms of the original grammar. Many of the most tempting rewrites undo the relationship between the original grammar and its semantics, to the extent that recovering it is so costly that the rewrite is counter-productive.</p>
+<p>Marpa/Kollos uses only &quot;semantics-safe&quot; rewrites -- rewrite which can be undone cheaply. This approach has been tested in Marpa::R2, which translates back and forth between an pre-rewrite grammar and a post-rewrite grammar. In Marpa::R2, &quot;semantics-safe&quot; rewrites can be undone cheaply not just in post-processing, but also &quot;on the fly&quot;.</p>
+<h3 id="semantics-safe-rewriting"><a href="#TOC">Semantics-safe rewriting</a></h3>
+<p>We now proceed to define &quot;semantics-safe&quot;. We consider two grammars. The <em>external</em> grammar is the one before rewriting. The <em>internal</em> grammar is the one after rewriting.</p>
+<p>A partial function, call it <code>brick()</code>, maps symbols in the internal grammar to the external grammar. Let <code>isym</code> be an internal symbol. <code>isym</code> is called a <em>brick</em> symbol iff <code>brick(isym)</code> is defined. <code>isym</code> is called a <em>mortar</em> symbol iff <code>isym</code> is not a brick symbol.</p>
+<p>In a parse tree, a brick symbol is a terminal iff it has no brick descendents. A brick symbol is the brick root iff it has no brick ancestors. Note that a brick terminal may have mortar descendants, and a brick root may have mortar ancestors.</p>
+<p>A brick symbol is a brick interior symbol iff it is not a brick root symbol and it is not a brick terminal symbol. A brick symbol is a brick non-terminal iff it is not a brick terminal symbol. A brick non-terminal may be either the brick root or a brick interior symbol.</p>
+<p>In a parse tree using the external grammar, consider the subtree formed by taking a brick non-terminal as the root, and traversing the tree left-to-tree, stopping at the first brick node encountered. In the subtree formed by such a traversal, a node will be a brick iff it is a terminal of the subtree or the root node of the subtree. We say that the terminals of this subtree are the <em>brick children</em> of its root. The order of the brick children is the order in which they are encountered in the left-to-right traversal described above.</p>
+<p>Let <code>i</code> be an input, whose <code>n</code>'th position we write as <code>i[n]</code>. In a parse tree, each node can also be seen as an &quot;instance&quot; of a symbol. We can write the instance as the triple <code>&lt;sym,start,length&gt;</code>, where <code>sym</code> is a symbol of the grammar, <code>start</code> is the location in <code>i</code> where the instance starts, and <code>length</code> is the instance's length. The first input location of the instnace will therefore be <code>i[start]</code> and the last location will be <code>i[start+length-1]</code>.</p>
+<p>Let <code>i</code> be an input, and <code>itree</code> be a parse tree that results from parsing <code>i</code> with the internal grammar. Let <code>xtree</code> be a parse tree that results from parsing <code>i</code> with the external grammar. We say that <code>itree</code> and <code>xtree</code> are <em>brick-consistent</em>, if two conditons hold:</p>
+<p>The Brick Terminal Condition: <code>&lt;xsym,start,length&gt;</code> is an instance in <code>xtree</code> iff <code>&lt;isym,start,length&gt;</code> is an brick instance in <code>itree</code>, where <code>brick(isym) == xsym</code>.</p>
+<p>The Brick Non-terminal Condition: <code>&lt;xsym,start,length&gt;</code> is a non-terminal instance whose children are</p>
+<pre><code>    `&lt;xsym1,start1,length1&gt;`, `&lt;xsym2,start2,length2&gt;` ...  `&lt;xsym-n,start-n,length-n&gt;`</code></pre>
+<p>in <code>xtree</code> iff <code>&lt;isym,start,length&gt;</code> is a non-terminal instance in <code>itree</code> whose brick children are</p>
+<pre><code>    `&lt;isym1,start1,length1&gt;`, `&lt;isym2,start2,length2&gt;` ...  `&lt;isym-n,start-n,length-n&gt;`,</code></pre>
+<p>where</p>
+<pre><code>    `brick(isym1) == xsym1`, `brick(isym2) == xsym2` ...  `brick(isym-n) == xsym-n`.</code></pre>
+<p>We're now in a position to define a semantically-safe rewrite. A rewrite is <em>semantically-safe</em> iff, for every application of the rewrite, and for every input <code>i</code>, when both the external grammar and internal grammar is used to parse <code>i</code>,</p>
+<ul>
+<li><p>every parse tree produced by the internal grammar is brick-consistent with some parse tree produced by the external grammar,</p></li>
+<li><p>and vice versa, every parse tree produced by the external grammar is brick-consistent with some parse tree produced by the internal grammar.</p></li>
+</ul>
+<p>The previous definition is perhaps clearer when rephrased so that applies only to the special case in which both the internal and external grammars are unambiguous. A rewrite is <em>semantically-safe</em> iff, for every application of the rewrite, and for every input <code>i</code>, when both the external grammar and internal grammar is used to parse <code>i</code>, the parse tree produced by the internal grammar is brick-consistent with the parse tree produced by the external grammar.</p>
+<h3 id="semantically-safe-rewrite-techniques"><a href="#TOC">Semantically-safe rewrite techniques</a></h3>
+<p>Staying semantically-safe limits the kinds of rewrites that can be applied. But, with caution, many simple and highly useful rewrite techniques be used:</p>
+<ul>
+<li><p>Rules can be split into alternatives.</p></li>
+<li><p>Intermediate rules with mortar symbols can be added.</p></li>
+<li><p>Rules can be split up or joined.</p></li>
+<li><p>Multiple brick symbols can be mapped to the same external symbol.</p></li>
+<li><p>In particular, rules can be binarized.</p></li>
+</ul>
+<p>Many of the rewrites are of non-BNF rules (sequences and precedenced rules) to BNF. Others are transformations of the BNF. All of these techniques find use in the Kollos code.</p>
+<h2 id="external-working-and-internal-grammars"><a href="#TOC">External, working and internal grammars</a></h2>
+<p>The rewrites use 3 grammars -- external (x), working (w) and internal (i). Each has a one letter abbreviation, as shown.</p>
+<p>The External grammar is either entered directly via a PLIF (Pure Lua InterFace) or indirectly, when the LUIF (LUa InterFace) is parsed into PLIF form As the name suggests, it matches the external form closely. The external form never changes, and is to kept for use by those features which must work in terms of the user's original grammar. These features include debugging, tracing, events and semantics. The external rules and symbols are what a LUIF or PLIF user sees.</p>
+<p>To do the rewrite, I create a working grammar. This is highly changeable, and the rewrites take place using it.</p>
+<p>Once the rewrites are done a Libmarpa grammar is created. The Libmarpa grammar's rules and symbols are tracked in the rules and symbols of Kollos's internal grammar.</p>
+<p>Once the Libmarpa grammar is created, the working grammar is no longer needed and can be garbage collected. The internal grammar has links back to the external grammar. These links allow translation from internal to external, and this can be done even &quot;on the fly&quot;.</p>
+<h2 id="lexemes"><a href="#TOC">Lexemes</a></h2>
+<p>The transformations are not complex enough to justify the overhead of having an external, working and internal version for each lexeme. An external lexeme is created for every lexeme in the external representation.</p>
+<p>Some lexemes do result from transformations. These are created directly as internal lexemes. Internal lexemes do not map to external lexemes, they are independent.</p>
+<p>Lexemes are in a sense, free form. Each lexeme has a &quot;type&quot;, and zero or more values, but it up to the lexer to interpret what the type and spec means.</p>
+<p>Two type are reserved: <code>cc</code> and <code>string</code>. A lexer can give them any meaning it likes, but the standard meaning is that <code>cc</code> is a character class, and that <code>string</code> is a string -- a sequence of characters.</p>
+<p>Lexemes can also be open -- simply a symbol name, whose meaning is completely up to the lexer.</p>
+<p>When using &quot;seamless&quot; parsing, Kollos imposes specific requirements on the lexemes in a grammar. The only lexemes allowed are those of the two reserved types: <code>cc</code> and <code>string</code>. The spec of <code>string</code> lexeme is a Lua string which is interpreted in the Lua standard way, as a sequence of characters. The spec of a <code>cc</code> lexeme is also a Lua string, but in the <code>cc</code> case the string specifies a Lua character class.</p>
+<p>Internal and external lexemes are kept in a single table, referenced by <code>type</code> and <code>spec</code>. A given <code>type</code> and <code>spec</code> references at most one lexeme, which is either internal or external, not both.</p>
+<h3 id="external-lexeme-constructor"><a href="#TOC">External lexeme constructor</a></h3>
+<p>Create a RHS instance of type 'xlexeme' These should only be called inside of a call to the alternative_new() method. 'throw' is always set by the caller, which catches any error.</p>
+<pre><code>
+    -- luatangle: section xlexeme constructors
+
+    local function mt_xlexeme(table, key)
+        if key == &#39;type&#39; then return &#39;xlexeme&#39;
+        elseif key == &#39;rawtype&#39; then return &#39;xlexeme&#39;
+        elseif key == &#39;nullable&#39; then return false
+        elseif key == &#39;productive&#39; then return true
+        elseif key == &#39;name&#39; then
+            local lexeme_type = table.lexeme_type
+            local name =
+                table.name_base
+                .. &#39;:&#39;
+                .. table.line
+                .. &#39;:&#39; .. lexeme_type
+                .. &#39;-&#39; .. table.id
+            table.name = name
+            return name
+        end
+        return nil
+    end
+
+    function grammar_class.lexeme(grammar, type, spec)
+
+        if type:match(&#39;[^%w]&#39;) then
+            grammar:development_error(
+                &#39;Lexeme type &quot;&#39; .. type .. &#39;&quot; is not allowed\n&#39;
+                .. &#39;  It contains a non-alphanumeric character\n&#39;,
+                grammar.name_base,
+                grammar.line
+            )
+        end
+
+        local lexeme_by_spec = grammar.lexemes_by_type[type]
+        if not lexeme_by_spec then
+            lexeme_by_spec = {}
+            grammar.lexemes_by_type = lexeme_by_spec
+        end
+        local old_lexeme = lexeme_by_spec[spec]
+        if old_lexeme then return old_lexeme end
+
+        -- used to form the name of the lexeme
+        local lexeme_id = grammar.next_lexeme_id + 1
+        grammar.next_lexeme_id = lexeme_id
+
+        local new_lexeme = {
+            lexeme_type = type,
+            id = lexeme_id,
+            line = grammar.line,
+            name_base = grammar.name_base,
+            spec = spec
+        }
+        setmetatable(new_lexeme, { __index = mt_xlexeme })
+        lexeme_by_spec[spec] = new_lexeme
+        return new_lexeme
+    end
+
+    function grammar_class.string(grammar, value)
+        return grammar_class.lexeme(grammar, &#39;string&#39;, value)
+    end
+
+    function grammar_class.cc(grammar, value)
+        return grammar_class.lexeme(grammar, &#39;cc&#39;, value)
+    end
+</code></pre>
+<h3 id="internal-lexeme-constructor"><a href="#TOC">Internal lexeme constructor</a></h3>
+<pre><code>
+    -- luatangle: section ilexeme constructor
+
+    local function mt_ilexeme(table, key)
+        if key == &#39;type&#39; then return &#39;ilexeme&#39;
+        elseif key == &#39;rawtype&#39; then return &#39;ilexeme&#39;
+        elseif key == &#39;name_base&#39; then return table.source.name_base
+        elseif key == &#39;line&#39; then return table.source.line
+        elseif key == &#39;nullable&#39; then return false
+        elseif key == &#39;productive&#39; then return true
+        elseif key == &#39;name&#39; then
+            local lexeme_type = table.lexeme_type
+            local name =
+                table.name_base
+                .. &#39;:&#39;
+                .. table.line
+                .. &#39;:&#39; .. lexeme_type
+                .. &#39;-&#39; .. table.id
+            table.name = name
+            return name
+        end
+        return nil
+    end
+
+    local function ilexeme_new(type, spec, source)
+
+        local lexeme_by_spec = grammar.lexemes_by_type[type]
+        if not lexeme_by_spec then
+            lexeme_by_spec = {}
+            grammar.lexemes_by_type = lexeme_by_spec
+        end
+        local old_lexeme = lexeme_by_spec[spec]
+        if old_lexeme then return old_lexeme end
+
+        -- used to form the name of the lexeme
+        local lexeme_id = grammar.next_lexeme_id + 1
+        grammar.next_lexeme_id = lexeme_id
+
+        local new_lexeme = {
+            lexeme_type = type,
+            spec = spec,
+            source = source,
+            id = lexeme_id,
+        }
+        setmetatable(new_lexeme, { __index = mt_ilexeme })
+        lexeme_by_spec[spec] = new_lexeme
+        return new_lexeme
+    end
+</code></pre>
+<h2 id="the-censuses"><a href="#TOC">The censuses</a></h2>
+<p>Selected Lua tables are regarded as &quot;objects&quot; with &quot;fields&quot;. This is OO but, in keeping with Lua's approach, there is a definite emphasis on the pragmatic, &quot;quick and dirty&quot; over the theoretical and &quot;clean&quot;.</p>
+<p>For development purposes, after the working and internal grammars are created, I census the fields in the important tables. It's a cheap substitute for the strict typing I neither use or, in this context, want.</p>
+<h2 id="rules"><a href="#TOC">Rules</a></h2>
+<pre><code>    -- luatangle: section Census fields
+
+    local wrule_field_census = {}
+    local wrule_field_census_expected = {
+        brick = true,
+        id = true,
+        lhs = true,
+        max = true,
+        min = true,
+        nullable = true,
+        rh_instances = true,
+        separator = true,
+        separation = true,
+        source = true,
+        xalt = true,
+    }
+
+    for rule_id = 1,#wrule_by_id do
+        local wrule = wrule_by_id[rule_id]
+        if wrule then
+            if not wrule.name_base then
+                print(&quot;missing &#39;name_base&#39; in wrule:&quot;, wrule.desc)
+            end
+            if not wrule.line then
+                print(&quot;missing &#39;line&#39; in wrule:&quot;, wrule.desc)
+            end
+            local nullable_per_rhs = nullable_per_rhs(wrule)
+            local nullable_per_property = wrule.nullable
+            if nullable_per_rhs ~= nullable_per_property then
+                print(&quot;Nullable discrepancy in wrule, rhs vs. direct: &quot;,
+                    nullable_per_rhs,
+                    nullable_per_property, wrule.desc)
+            end
+            for field,_ in pairs(wrule) do
+                if not wrule_field_census_expected[field] then
+                    wrule_field_census[field] = true
+                end
+            end
+        end
+    end
+    for field,_ in pairs(wrule_field_census) do
+        print(&quot;unexpected wrule field:&quot;, field)
+    end
+</code></pre>
+<h3 id="working-rule-constructor"><a href="#TOC">Working rule constructor</a></h3>
+<pre><code>    -- luatangle: section wrule constructor
+
+    local function wrule_desc(wrule)
+        local desc_table = {
+            wrule.lhs.name,
+            &#39;::=&#39;,
+        }
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            desc_table[#desc_table+1] = rh_instance.name
+        end
+        return table.concat(desc_table, &#39; &#39;)
+    end
+
+    local function nullable_per_rhs(wrule)
+        local rh_instances = wrule.rh_instances
+        for rh_ix = 1,#rh_instances do
+            local rh_instance = rh_instances[rh_ix]
+            if not rh_instance.nullable then return end
+        end
+        return true
+    end
+
+    local function wrule_new(rule_args)
+        local max = rule_args.max or 1
+        local min = rule_args.min or 1
+        local separator = rule_args.separator
+        local separator_id = separator and separator.id or -1
+        local lhs = rule_args.lhs
+        local rh_instances = rule_args.rh_instances
+        wrule = {
+            brick = rule_args.brick,
+            lhs = lhs,
+            max = max,
+            min = min,
+            nullable = rule_args.nullable,
+            rh_instances = rh_instances,
+            separation = rule_args.separation,
+            separator = separator,
+            source = rule_args.source,
+            xalt = rule_args.xalt,
+        }
+        setmetatable(wrule, {
+                __index = function (table, key)
+                    if key == &#39;type&#39; then return &#39;wrule&#39;
+                    elseif key == &#39;rawtype&#39; then return &#39;wrule&#39;
+                    elseif key == &#39;source&#39; then return xalt or lhs
+                    elseif key == &#39;line&#39; then return table.source.line
+                    elseif key == &#39;name_base&#39; then return table.source.name_base
+                    elseif key == &#39;desc&#39; then return wrule_desc(table)
+                    else return end
+                end
+            })
+        wrule_by_id[#wrule_by_id+1] = wrule
+        wrule.id = #wrule_by_id
+        return wrule
+    end
+</code></pre>
+<h2 id="external-subalternatives"><a href="#TOC">External subalternatives</a></h2>
+<p>External rules are complicated. An <code>xrule</code> contains one or more precedence levels, called <code>xprec</code>'s. An <code>xprec</code> contains one or more alternatives, and these alternatives may contain others. The &quot;subalternative&quot; object is used both for all alternatives -- both top-level and those below.</p>
+<pre><code>
+        -- luatangle: section+ Census fields
+        -- census subalt fields
+        -- TODO: remove after development
+        local xsubalt_field_census = {}
+        local xsubalt_field_census_expected = {
+            action = true,
+            id = true,
+            id_within_top_alternative = true,
+            line = true,
+            max = true,
+            min = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            parent_instance = true,
+            precedence_level = true,
+            productive = true,
+            rh_instances = true,
+            separation = true,
+            separator = true,
+            subname = true,
+            xprec = true,
+        }
+
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            for field,_ in pairs(xsubalt) do
+                 if not xsubalt_field_census_expected[field] then
+                     xsubalt_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(xsubalt_field_census) do
+             print(&quot;unexpected xsubalt field:&quot;, field)
+        end
+</code></pre>
+<h2 id="instances"><a href="#TOC">Instances</a></h2>
+<p>It is useful in Kollos to uniquely identify each RHS location of every rule. These are called <em>RHS instance</em> objects, or more often just <em>instances</em>.</p>
+<p>Instances serve two purposes: First, not every RHS item is a symbol, and some object is needed to identify these non-symbol items.</p>
+<p>Second, while semantics is defined in terms of rules and symbols, knowing the ID of a symbol is not always sufficient to know its semantics, which can vary by rule and even by position within rule. We can find the semantics by going back to the rule, but this will not always be convenient. Instances provide a convenient place to put information about the role a RHS item plays in the rule's semantics.</p>
+<pre><code>        -- luatangle: section+ Census fields
+        local xinstance_field_census = {}
+        local xinstance_field_census_expected = {
+            associator = true,
+            element = true,
+            precedence_level = true,
+            rh_ix = true,
+            xalt = true,
+        }
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            local rh_instances = xsubalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                for field,_ in pairs(rh_instance) do
+                     if not xinstance_field_census_expected[field] then
+                         xinstance_field_census[field] = true
+                     end
+                end
+            end
+        end
+        for field,_ in pairs(xinstance_field_census) do
+             print(&quot;unexpected xinstance field:&quot;, field)
+        end
+
+</code></pre>
+<p>Working instances currently contain nothing except their <code>element</code> (the RHS item) and, for brick instances, a <code>&lt;xalt, rh_ix&gt;</code> duple that allows their semantics to be found quickly. Currently, working instances never change after creation.</p>
+<p>Separators will usually (always?) be a brick element. They do not have the <code>&lt;xalt, rh_ix&gt;</code> duple defined. Instead, the <code>xalt</code> is the value of their <code>separates</code> named field.</p>
+<pre><code>        -- luatangle: section+ Census fields
+        local winstance_field_census = {}
+        local winstance_field_census_expected = {
+            brick = true,
+            element = true,
+            separates = true,
+            rh_ix = true,
+            xalt = true,
+        }
+
+        for rule_id = 1,#wrule_by_id do
+            local wrule = wrule_by_id[rule_id]
+            if wrule then
+                local rh_instances = wrule.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local winstance = rh_instances[rh_ix]
+                    if not winstance.name_base then
+                        print(&quot;missing &#39;name_base&#39; in winstance:&quot;, winstance.name)
+                    end
+                    if not winstance.line then
+                        print(&quot;missing &#39;line&#39; in winstance:&quot;, winstance.name)
+                    end
+                    for field,_ in pairs(winstance) do
+                        if not winstance_field_census_expected[field] then
+                            winstance_field_census[field] = true
+                        end
+                    end
+                end
+            end
+        end
+        for field,_ in pairs(winstance_field_census) do
+            print(&quot;unexpected winstance field:&quot;, field)
+        end
+</code></pre>
+<p>Since working instances do not change after creation, they can be used to represent what are actually different instances. This is tempting when the instance contains only an <code>element</code> field, so that the instance adds essentially no information to the underlying <code>element</code>. And the elements are of course reused at different RHS instances.</p>
+<p>This reuse somewhat muddies the idea of instance objects, but it is convenient, and it is used in certain places in the working grammar.</p>
+<h2 id="symbols"><a href="#TOC">Symbols</a></h2>
+<h3 id="census-of-external-symbols"><a href="#TOC">Census of external symbols</a></h3>
+<pre><code>
+        -- luatangle: section+ Census fields
+        -- census xsym fields
+        -- TODO: remove after development
+        local xsym_field_census = {}
+        local xsym_field_census_expected = {
+            id = true,
+            lhs_xrules = true,
+            line = true,
+            name_base = true,
+            name = true,
+            nullable = true,
+            nulling = true,
+            productive = true,
+            rawtype = true,
+            semantics = true,
+            top_precedence_level = true,
+            type = true,
+        }
+        for xsym_id = 1,#xsym_by_id do
+            local xsym = xsym_by_id[xsym_id]
+            for field,_ in pairs(xsym) do
+                 if not xsym_field_census_expected[field] then
+                     xsym_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(xsym_field_census) do
+             print(&quot;unexpected xsym field:&quot;, field)
+        end</code></pre>
+<h3 id="external-symbol-constructor"><a href="#TOC">External symbol constructor</a></h3>
+<p>An <em>internal</em> method for creating <em>external</em> symbols.</p>
+<pre><code>
+    -- luatangle: section xsym constructor
+
+    local function xsym_new(grammar, args)
+        local name = args.name
+        if not name then
+            return nil, [[symbol must have a name]]
+        end
+        if type(name) ~= &#39;string&#39; then
+            return nil, [[symbol &#39;name&#39; is type &#39;]]
+            .. type(name)
+            .. [[&#39;; it must be a string]]
+        end
+        -- decimal 055 is hyphen (or minus sign)
+        -- strip initial angle bracket and whitespace
+        name = name:gsub(&#39;^[&lt;]%s*&#39;, &#39;&#39;)
+        -- strip find angle bracket and whitespace
+        name = name:gsub(&#39;%s*[&gt;]$&#39;, &#39;&#39;)
+
+        local charclass = &#39;[^a-zA-Z0-9_%s\055]&#39;
+        if name:find(charclass) then
+            return nil, [[symbol &#39;name&#39; characters must be in ]] .. charclass
+        end
+
+        -- normalize internal whitespace
+        name = name:gsub(&#39;%s+&#39;, &#39; &#39;)
+        if name:sub(1, 1):find(&#39;[_\055]&#39;) then
+            return nil, [[symbol &#39;name&#39; first character may not be &#39;-&#39; or &#39;_&#39;]]
+        end
+
+        local xsym_by_name = grammar.xsym_by_name
+        local props = xsym_by_name[name]
+        if props then return props end
+
+        props = {
+            name = name,
+            type = &#39;xsym&#39;,
+            rawtype = &#39;xsym&#39;,
+            lhs_xrules = {},
+            -- am not trying to be very accurate about the line
+            -- it should be the line of an alternative containing that symbol
+            name_base = grammar.name_base,
+            line = grammar.line,
+        }
+        xsym_by_name[name] = props
+
+        local xsym_by_id = grammar.xsym_by_id
+        xsym_by_id[#xsym_by_id+1] = props
+        props.id = #xsym_by_id
+
+        return props
+    end
+</code></pre>
+<h3 id="census-of-working-symbols"><a href="#TOC">Census of working symbols</a></h3>
+<pre><code>        -- luatangle: section+ Census fields
+        -- TODO: remove after development
+        local wsym_field_census = {}
+        local wsym_field_census_expected = {
+             id = true,
+             name = true,
+             nullable = true,
+             precedence_level = true,
+             source = true,
+             xlexeme = true,
+             xsym = true,
+        }
+        for _,wsym in pairs(wsym_by_name) do
+            if not wsym.name_base then
+                print(&quot;missing &#39;name_base&#39; in wsym:&quot;, wsym.name)
+            end
+            if not wsym.line then
+                print(&quot;missing &#39;line&#39; in wsym:&quot;, wsym.name)
+            end
+            for field,_ in pairs(wsym) do
+                 if not wsym_field_census_expected[field] then
+                     wsym_field_census[field] = true
+                 end
+            end
+        end
+        for field,_ in pairs(wsym_field_census) do
+             print(&quot;unexpected wsym field:&quot;, field)
+        end
+</code></pre>
+<h3 id="working-symbol-constructors"><a href="#TOC">Working symbol constructors</a></h3>
+<p>These wsym functions are internal to the <code>compile()</code> method because they use up-values internal to the <code>compile()</code> method.</p>
+<p>Having these function be internal to <code>compile()</code> also makes it easy for the &quot;working data&quot; to be cleaned up -- it will just be garbage collected when compile() returns. If these functions were top-level, the data would have to be top-level as well.</p>
+<pre><code>
+    -- luatangle: section wsym constructors
+
+    -- 2nd return value is true if this is
+    -- a new symbol
+    local function wsym_ensure(name)
+        local wsym_props = wsym_by_name[name]
+        if wsym_props then return wsym_props end
+        wsym_props = {
+            name = name,
+        }
+        setmetatable(wsym_props, {
+                __index = function (table, key)
+                    if key == &#39;type&#39; then return &#39;wsym&#39;
+                    elseif key == &#39;rawtype&#39; then return &#39;wsym&#39;
+                    elseif key == &#39;line&#39; then return table.source.line
+                    elseif key == &#39;name_base&#39; then return table.source.name_base
+                    elseif key == &#39;source&#39; then return table.xsym or table.xlexeme
+                    elseif key == &#39;xsym&#39; then return nil
+                    elseif key == &#39;xlexeme&#39; then return nil
+                    else
+                        local parent_object = table.xsym or table.xlexeme
+                        if parent_object then
+                            return parent_object[key]
+                        end
+                        return nil
+                    end
+                end
+            }
+        )
+
+        wsym_by_name[name] = wsym_props
+        return wsym_props,true
+    end
+
+    -- Create a new *internal* lhs for this
+    -- alt
+    local function lh_wsym_ensure(alt)
+        local alt_name = alt.name
+        local name = &#39;lhs!&#39; .. alt_name
+        local wsym_props,is_new = wsym_ensure(name)
+        if is_new then
+            wsym_props.nullable = alt.nullable
+            wsym_props.source = alt
+        end
+        return wsym_props
+    end
+
+    -- Create a new *internal* lhs for this
+    -- alt
+    local function lh_of_wrule_new(name, wrule)
+        local new_wsym,is_new = wsym_ensure(name)
+        -- TODO: remove after development
+        assert(is_new)
+        new_wsym.nullable = wrule.nullable
+        new_wsym.source = wrule
+        return new_wsym
+    end
+
+    local function precedenced_wsym_ensure(base_wsym, precedence)
+        local name = base_wsym.name .. &#39;!prec&#39; .. precedence
+        local new_wsym,is_new = wsym_ensure(name)
+        if is_new then
+            new_wsym.nullable = false
+            new_wsym.source = base_wsym
+        end
+        return new_wsym
+    end
+
+    local function wsym_from_xlexeme_new(xlexeme)
+        local name = xlexeme.name .. &#39;-sym&#39;
+        local new_wsym,is_new = wsym_ensure(name)
+        if is_new then
+            new_wsym.nullable = false
+            new_wsym.xlexeme = xlexeme
+        end
+        return new_wsym
+    end
+
+    local function cloned_wsym_ensure(xsym)
+        local name = xsym.name
+        local new_wsym,is_new = wsym_ensure(name)
+        if is_new then
+            new_wsym.nullable = xsym.nullable
+            new_wsym.source = xsym
+        end
+        return new_wsym
+    end
+</code></pre>
+<h2 id="rhs-transitive-closure"><a href="#TOC">RHS transitive closure</a></h2>
+<p>The RHS transitive closure is Jeffrey's coinage, to describe a kind of property useful in Marpa.</p>
+<p>Let <code>P</code> be a symbol property. We will write <code>P(sym)</code> if symbol <code>sym</code> has property P.</p>
+<p>We say that the symbol property holds of a rule <code>r</code>, or <code>P(r)</code>, if <code>r</code> is of the form <code>LHS ::= RHS</code>, where <code>RHS</code> is is a series of zero or more RHS symbols, and <code>P(Rsym)</code> for every <code>Rsym</code> in <code>RHS</code>.</p>
+<p>A property <code>P</code> is <em>RHS transitive</em> if and only if when <code>r = LHS ::= RHS</code> and <code>P(r)</code>, then <code>P(LHS)</code>.</p>
+<p>Note that the definition of a RHS transitive property implies that every LHS of an empty rule hss that property. This is because, in the case of an empty rule, it is vacuously true that all the RHS symbols have the RHS transitive property.</p>
+<p>Also note the definition only describes the transitivity of the property, not which symbols have it. That is, while <code>P</code> is a RHS transitive property, a symbol must have property <code>P</code> if it appears on the LHS of a rule with property <code>P</code>. the converse is not necessarily true: A symbol may have property <code>P</code> even if it never appears on the LHS of a rule with property <code>P</code>.</p>
+<p>In Marpa, &quot;being productive&quot; and &quot;being nullable&quot; are RHS transitive properties</p>
+<pre><code>
+    -- luatangle: section RHS transitive closure function
+
+    local function xrhs_transitive_closure(grammar, property)
+
+        local changes_made
+
+        -- ok to shadow upvalue property, I think
+        local function property_of_instance_element(element,
+                property) -- luacheck: ignore property
+
+            -- print(&#39;Calling poie()&#39;, element.rawtype, element.type, element.name, property)
+            if element[property] ~= nil then
+                -- print(&#39;Already has&#39;, property, element[property])
+                return element[property]
+            end
+            if element.type == &#39;xsym&#39; then
+                -- If a symbol with the property still not set,
+                -- return nil and the symbol id
+                return nil, element.id
+            end
+
+            -- If we are here, the element must be an xalt
+            local rh_instances = element.rh_instances
+            -- assume true, unless found false
+            local element_has_property = true
+            -- print(&#39;#rh_instances&#39;, #rh_instances)
+            for rh_ix = 0,#rh_instances do
+                -- print(&#39;rh_ix&#39;, rh_ix)
+                local child_element
+                -- As a bit of a hack,
+                -- An rh_ix of 0 has a special meaning:
+                -- check the separator
+                if rh_ix == 0 then
+                    -- Check only if the separator is always used
+                    -- by this sequence. There is always an internal
+                    -- separator is min&gt;2; and there is always a
+                    -- terminating separator, if the separation
+                    -- type is &#39;terminating&#39;
+                    if element.separation == &#39;terminating&#39; or element.min&gt;2 then
+                        child_element = element.separator
+                    end
+                else
+                    local rh_instance = rh_instances[rh_ix]
+                    child_element = rh_instance.element
+                end
+
+                -- Child element may be nil, if rh_ix==0 and we did not have
+                -- or are not checking the separator
+                if child_element then
+                    -- print(&quot;Checking&quot;, child_element.rawtype, child_element.type,
+                        -- child_element.name, &quot;for&quot;, property)
+                    local has_property = property_of_instance_element(child_element, property)
+                    if has_property == nil then
+                        return nil
+                    elseif has_property == false then
+                        element_has_property = false
+                        break
+                    end
+                end
+            end
+            element[property] = element_has_property
+            -- print(&quot;Setting&quot; .. element.name .. &quot; &quot; .. property .. &quot; to&quot;, element_has_property)
+            changes_made = true
+            -- If instance is top level
+            if element.is_top then
+                local lhs = element.lhs_of_top
+                -- print(&quot;Setting &quot; .. lhs.name .. &quot; &quot; .. property .. &quot; to &quot;, element_has_property)
+                lhs[property] = element_has_property
+            end
+            return element_has_property
+        end
+
+        local xsubalt_by_id = grammar.xsubalt_by_id
+
+        -- Make LHS symbols consist with subalternatives
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            if xsubalt.is_top then
+                local has_property = xsubalt[property]
+                if has_property ~= nil then
+                    local lhs = xsubalt.lhs_of_top
+                    lhs[property] = has_property
+                end
+            end
+        end
+
+        changes_made = true
+        while changes_made do
+            changes_made = false
+            for xsubalt_id = 1,#xsubalt_by_id do
+                local xsubalt = xsubalt_by_id[xsubalt_id]
+                property_of_instance_element(xsubalt, property)
+            end
+        end
+
+    end
+</code></pre>
+<h2 id="nullable-semantics"><a href="#TOC">Nullable semantics</a></h2>
+<pre><code>
+    -- luatangle: section nullable semantics functions
+
+    -- Right now empty table indicates default semantics
+    -- Maybe do something more explicit?
+    local default_nullable_semantics = { }
+
+    -- Use the alternative, which the caller has ensured is
+    -- nullable, as the source of a nullable semantics
+    local function nullable_semantics_create(alternative)
+        local action = alternative.action
+        if action then
+            return { action = action }
+        end
+        -- return default semantics
+        return default_nullable_semantics
+    end
+
+    --[[
+    -- 
+    -- Find and return the nullable semantics of &lt;symbol&gt;.
+    -- On error, return nil and the error object, or else
+    -- throw the error, as specified by the grammar
+    -- 
+    -- Semantics are
+    -- 
+    -- 1) Those of the only nullable alternative, when there 
+    -- is only one.
+    -- 
+    -- 2) Those of the explicit empty rule, if there is one
+    -- 
+    -- 3) The default semantics, if that is the semantics of
+    -- all the nullable alternatives
+    -- 
+    -- If none of the above are true, it is a fatal error
+    -- 
+    --]]
+
+    local function find_nullable_semantics(grammar, symbol)
+        local xrules = symbol.lhs_xrules
+        local nullable_alternatives = {}
+        local has_only_default_semantics = true
+        for xrule_ix = 1, #xrules do
+            local precedences = xrules[xrule_ix].precedences
+            for prec_ix = 1, #precedences do
+                local alternatives = precedences[prec_ix].top_alternatives
+                for alt_ix = 1, #alternatives do
+                    local alternative = alternatives[alt_ix]
+                    if alternative.nullable then
+                        local rhs = alternative.rh_instances
+                        if #rhs &lt;= 0 then
+                            return nullable_semantics_create(grammar, alternative)
+                        end
+                        nullable_alternatives[#nullable_alternatives+1] = alternative
+                        if alternative.action then
+                            has_only_default_semantics = false
+                        end
+                    end
+                end
+            end
+        end
+        if #nullable_alternatives == 1 then
+            return nullable_semantics_create(grammar, nullable_alternatives[1])
+        end
+        if has_only_default_semantics then
+            return default_nullable_semantics
+        end
+
+        -- If here, we consider the semantics ambiguous, and report
+        -- an error
+
+        local error_table = {
+            &#39;grammar_new():&#39; .. &#39;Ambiguous nullable semantics&#39;,
+            &#39; That is not allowed&#39;,
+            &#39; An explicit empty rule is one solution ...&#39;,
+            &#39; The nullable semantics of an empty rule override all other choices.&#39;,
+            &#39; The symbol with ambiguous semantics was &lt;&#39; .. symbol.name .. &#39;&gt;&#39;,
+        }
+        error_table[#error_table+1]
+        = &#39; Nullable alternative #1 is &#39; .. nullable_alternatives[1].name
+        error_table[#error_table+1]
+        = &#39; Nullable alternative #2 is &#39; .. nullable_alternatives[2].name
+        if #nullable_alternatives &gt; 2 then
+            error_table[#error_table+1]
+            = &#39; Nullable alternative #&#39;
+            .. #nullable_alternatives
+            .. &#39; is &#39;
+            .. nullable_alternatives[#nullable_alternatives].name
+        end
+
+        -- For now, report just the rule.
+        -- At some point, find one of the alternatives
+        -- which was nullable, and report that
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, &#39;\n&#39;),
+            nullable_alternatives[1].name_base,
+            nullable_alternatives[1].line
+        )
+    end
+</code></pre>
+<h2 id="rewrite-the-sequence-counts"><a href="#TOC">Rewrite the sequence counts</a></h2>
+<p>This code rewrites sequences rules to eliminate the counts -- that is, so that, in effect, <code>min = 1</code> and <code>max = 1</code>. The <code>min</code> and <code>max</code> fields are not actually changed but will no longer be meaningful.</p>
+<p>It is assumed at this point that</p>
+<ul>
+<li><p>previous rewrites have eliminated <code>liberal</code> and <code>terminating</code> separation, so that only <code>proper</code> separation sequences and unseparated sequences remain.</p></li>
+<li><p><code>min &gt; 0</code>.</p></li>
+<li><p>the sequence rule's RHS has length of exactly 1.</p></li>
+<li><p>the sequence is non-trivial, that either <code>min ~= 1</code> or <code>max ~= 1</code>.</p></li>
+</ul>
+<h2 id="create-the-repetend-instance"><a href="#TOC">Create the repetend instance</a></h2>
+<p>Per the above assumptions, there is exactly one RHS symbol. The RHS symbol is called the <em>repetend</em>. It is the first (and only) symbol in <code>working_rule</code>.</p>
+<pre><code>    -- luatangle: section Create the repetend instance
+
+    local repetend_instance = working_wrule.rh_instances[1]
+</code></pre>
+<h2 id="create-the-separator-instance"><a href="#TOC">Create the separator instance</a></h2>
+<p>For separators, we reuse the same instance object for for multiple RHS instances. Working instances are never changed, and the same semantic information can be used in every case, so we can get away with this.</p>
+<pre><code>    -- luatangle: section Create the separator instance if needed
+
+    local separator_instance
+    if separator then
+        separator_instance = winstance_new(separator)
+        separator_instance.separates = working_wrule.xalt
+    end
+</code></pre>
+<h2 id="some-sequence-definitions"><a href="#TOC">Some sequence definitions</a></h2>
+<p>I call a <em>block</em> a sequence of fixed length. I call a <em>block</em> a sequence of fixed length. I call any other sequence a <em>range</em>. If a range has no maximum length, I call it <em>open</em>. If a range is not open, then it is <em>closed</em>. If, in a sequence, <code>min == 1</code>, then I say the sequence is <em>1-based</em>.</p>
+<h2 id="rewriting-out-sequences"><a href="#TOC">Rewriting out sequences</a></h2>
+<p>The following code works first dividing the sequence into one or two 1-based sequences. If there is only one, the sequece may be a block or a range. If there are two, the block always comes first. If there is a range, it may be either open or closed.</p>
+<p>We start by determining what sequences we have:</p>
+<pre><code>
+    -- luatangle: section Rewrite the sequence counts
+
+    local block_size
+    local range_size
+    if min == max then
+        block_size = max
+    elseif min == 1 then
+        range_size = max
+    else
+        block_size = min-1
+        range_size = max == -1 and -1 or max-block_size
+    end
+</code></pre>
+<p>At this point, we've divided the range into at most two 1-based blocks. <code>block_size</code>, if non-nil, contains the size of a block. <code>range_size</code>, if non-nil, contains the size of a range. We create a new RHS, composed of</p>
+<ul>
+<li><p>the block, if it is non-nil;</p></li>
+<li><p>a separator, if it is needed; and</p></li>
+<li><p>the range, if it is non-nil;</p></li>
+</ul>
+<p>and we change the <code>working_rule</code> accordingly.</p>
+<pre><code>    -- luatangle: section+ Rewrite the sequence counts
+    -- luatangle: insert Function to rewrite 1-based blocks
+    -- luatangle: insert Function to rewrite 1-based ranges
+
+    local new_rhs = {}
+    if block_size then
+        local block_lhs = blk_lhs(block_size)
+        new_rhs[#new_rhs+1] = winstance_new(block_lhs)
+    end
+
+    if range_size then
+        local range_lhs = range_lhs(range_size)
+        if #new_rhs &gt; 0 and separator_instance then
+            new_rhs[#new_rhs+1] = separator_instance
+        end
+        new_rhs[#new_rhs+1] = winstance_new(range_lhs)
+    end
+
+    working_wrule.rh_instances = new_rhs
+</code></pre>
+<h2 id="disallow-nulling-separator"><a href="#TOC">Disallow nulling separator</a></h2>
+<pre><code>
+    -- luatangle: section disallow nulling separator
+    if separator and separator.nulling then
+        grammar:development_error(
+            who
+            .. &#39;Separator &#39; .. separator.name .. &#39; is nulling\n&#39;
+            .. &#39; That is not allowed\n&#39;,
+            working_wrule.name_base,
+            working_wrule.line
+        )
+    end
+</code></pre>
+<h2 id="allow-only-singleton-rhs"><a href="#TOC">Allow only singleton RHS</a></h2>
+<p>We force a singleton RHS, by creating a new rule. Since we want a new, unique, symbol for the repetend, we do this <em>even</em> if the rule is already an singleton. Each sequence has a unique semantics, and we will use the repetend symbol name as a unique ID for this sequence.</p>
+<pre><code>
+    -- luatangle: section Force singleton RHS in working_rule
+
+    local new_sym
+        = lh_of_wrule_new(&#39;rh1!&#39; .. unique_number, working_wrule)
+    unique_number = unique_number + 1
+    local new_winstance = winstance_new(new_sym)
+    working_wrule.rh_instances = {new_winstance}
+    wrule_new{
+        lhs = new_sym,
+        rh_instances = rh_instances,
+    }
+</code></pre>
+<h2 id="normalize-separation"><a href="#TOC">Normalize separation</a></h2>
+<p>Elminate <code>terminating</code> and <code>liberal</code> separation by rewriting them in terms of <code>proper</code> separation. After this rewrite all rules will either have no separator, or <code>proper</code> separation.</p>
+<pre><code>
+    -- luatangle: section Normalize separation
+
+    if separation == &#39;terminating&#39; or
+        separation == &#39;liberal&#39;
+    then
+        local middle_sym
+            = lh_of_wrule_new(&#39;term!&#39; .. unique_number, working_wrule)
+        unique_number = unique_number + 1
+        local middle_winstance = winstance_new(middle_sym)
+        unique_number = unique_number + 1
+        -- The old LHS of the wrule with the actual sequence,
+        -- which we are going to replace
+        local previous_lhs = working_wrule.lhs
+        wrule_new{
+            lhs = previous_lhs,
+            rh_instances = {
+                middle_winstance,
+                separator_instance,
+            }
+        }
+        working_wrule.lhs = middle_sym
+        -- If liberal separation, also add an
+        -- unterminated variant
+        if separation == &#39;liberal&#39; then
+            wrule_new{
+                lhs = previous_lhs,
+                rh_instances = {
+                    middle_winstance,
+                }
+            }
+        end
+    end
+</code></pre>
+<h2 id="check-and-expand-lexemes"><a href="#TOC">Check and expand lexemes</a></h2>
+<pre><code>
+    -- luatangle: section Check and expand lexemes
+    if at_bottom then
+        for rule_id = 1,#wrule_by_id do
+            local working_wrule = wrule_by_id[rule_id]
+            if working_wrule then
+                local rh_instances = working_wrule.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local rh_instance = rh_instances[rh_ix]
+                    local lexeme_type = rh_instance.lexeme_type
+
+                    if lexeme_type == &#39;cc&#39; then
+                        local spec = rh_instance.spec
+                        if type(spec) ~= &#39;string&#39; then
+                            grammar:development_error(
+                                [[charclass spec is type &#39;]]
+                                .. type(spec)
+                                .. [[&#39;; the spec must be a string]],
+                                rh_instance.name_base,
+                                rh_instance.line
+                            )
+                        end
+                        if not spec:match(&#39;^%[.+%]$&#39;) then
+                            grammar:development_error(
+                                [[charclass in alternate must be in square brackets]])
+                        end
+                        rh_instance.brick = &#39;terminal&#39;
+                    elseif lexeme_type == &#39;string&#39; then
+                        local spec = rh_instance.spec
+                        if type(spec) ~= &#39;string&#39; then
+                            grammar:development_error(
+                                [[spec in lexeme of type &#39;string&#39; is type &#39;]]
+                                .. type(spec)
+                                .. [[&#39;; the spec must be a string]],
+                                rh_instance.name_base,
+                                rh_instance.line
+                            )
+                        end
+                        rh_instance.brick = &#39;terminal&#39;
+                        -- luatangle: insert expand string into internal &#39;cc&#39; lexemes
+                    elseif lexeme_type ~= nil then
+                        grammar:development_error(
+                            [[lexeme is of type &#39;]]
+                            .. type(spec)
+                            .. [[&#39;; in &#39;at bottom&#39; grammars, the type must be ]]
+                            .. [[&#39;cc&#39; or &#39;string&#39;]],
+                            rh_instance.name_base,
+                            rh_instance.line
+                        )
+                    end
+                end
+            end
+        end
+    end
+</code></pre>
+<h3 id="expand-a-string-into-chararacter-classes"><a href="#TOC">Expand a string into chararacter classes</a></h3>
+<p>If the grammar is an <code>at_bottom</code> grammar (one which reads and interprets its own characters instead of passing this on to a lower layer), then strings are broken into character classes.</p>
+<pre><code>    -- luatangle: section expand string into internal &#39;cc&#39; lexemes
+    local string_rhs = {}
+    local string_lhs = rh_instance.element
+    for string_ix = 1,#spec do
+         local char = spec:sub(string_ix,string_ix)
+         local cc_spec
+         if char:match(&#39;[%w]&#39;) then
+             cc_spec = &#39;[&#39; .. char .. &#39;]&#39;
+         else
+             cc_spec = string.format(&#39;[\\%d]&#39;, char:byte())
+         end
+         local ilexeme = ilexeme_new(&#39;cc&#39;, cc_spec, string_lhs)
+         local new_instance = winstance_new(ilexeme)
+         string_rhs[#string_rhs+1] = new_instance
+    end
+    wrule_new(
+        {
+            lhs = string_lhs,
+            rh_instances = string_rhs
+        }
+    )
+</code></pre>
+<pre><code>
+    -- luatangle: section Binarize the working grammar
+
+    for rule_id = 1,#wrule_by_id do
+        local working_wrule = wrule_by_id[rule_id]
+        if working_wrule then
+            local rh_instances = working_wrule.rh_instances
+            local original_rule_length = #rh_instances
+            local final_wrule
+            local rule_source = working_wrule.source
+            if original_rule_length &gt; 2 then
+                local last_lhs
+                -- luatangle: insert Binarize: Create the final rule
+                -- luatangle: insert Binarize: Create the medial rules
+                -- luatangle: insert Binarize: Replace original rule with initial rule
+            else final_wrule = working_wrule
+            end
+            -- luatangle: insert Binarize: Final rule hack
+        end
+    end
+</code></pre>
+<h3 id="binarize-create-the-final-rule"><a href="#TOC">Binarize: Create the final rule</a></h3>
+<pre><code>    -- luatangle: section Binarize: Create the final rule
+    do
+        local pos = original_rule_length - 1
+        local is_new
+        last_lhs, is_new = wsym_ensure(&#39;chaf&#39; .. rule_id .. &#39;@&#39; .. pos)
+        assert(is_new) -- TODO: remove after development
+        last_lhs.source = rule_source
+        local instance1 = rh_instances[pos]
+        local instance2 = rh_instances[pos+1]
+        local rhs = { instance1, instance2 }
+        if instance1.nullable and instance2.nullable then
+            last_lhs.nullable = true
+        end
+        final_wrule = wrule_new(
+            {
+                lhs = last_lhs,
+                rh_instances = rhs,
+                nullable = last_lhs.nullable
+            }
+        )
+    end
+</code></pre>
+<h3 id="binarize-create-the-medial-rules"><a href="#TOC">Binarize: Create the medial rules</a></h3>
+<p>There will not be any medial rules unless <code>#rh_instances &gt;= 4</code>. On the first pass, <code>last_lhs</code> was set when the &quot;final&quot; rule of the binarization was created.</p>
+<pre><code>
+    -- luatangle: section Binarize: Create the medial rules
+    for pos = original_rule_length - 2, 2, -1 do
+        local lhs, is_new
+        lhs, is_new = wsym_ensure(&#39;chaf&#39; .. rule_id .. &#39;@&#39; .. pos)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = rule_source
+        local instance1 = rh_instances[pos]
+        local instance2 = winstance_new(last_lhs)
+        local rhs = { instance1, instance2 }
+        if instance1.nullable and instance2.nullable then
+            lhs.nullable = true
+        end
+        wrule_new(
+            {
+                lhs = lhs,
+                rh_instances = rhs,
+                nullable = lhs.nullable
+            }
+        )
+        last_lhs = lhs
+    end
+</code></pre>
+<h3 id="binarize-replace-original-rule-with-initial-rule"><a href="#TOC">Binarize: Replace original rule with initial rule</a></h3>
+<pre><code>
+    -- luatangle: section Binarize: Replace original rule with initial rule
+    do
+        local instance1 = rh_instances[1]
+        local instance2 = winstance_new(last_lhs)
+        working_wrule.rh_instances = { instance1, instance2 }
+    end
+</code></pre>
+<h3 id="binarize-final-rule-hack"><a href="#TOC">Binarize: Final rule hack</a></h3>
+<p>This hack covers a special case. It is required because, for every symbol, we need to determine its place in an external rule, in order to apply the semantics. The <code>xalt</code> and <code>rh_ix</code> fields in the winstances do this in most cases.</p>
+<p>But what if a binarized rule contains two instances of the same nullable symbol. When we do the rewrite for nullables, we eliminate first one, then the other. But that results in two rules which are identical from the Libmarpa point of view. (Libmarpa does not see winstances.)</p>
+<p>Various hacks will solve this -- for example we could allow ambiguous winstances, so that having only one rule is fine. That way the two cases -- nulling the first instance and nulling the second instance -- look different from the Libmarpa point of view.</p>
+<p><code>final_wrule</code> was set previously We apply the hack only if <code>final_wrule</code> is nullable and has two symbols on its RHS.</p>
+<pre><code>
+    -- luatangle: section Binarize: Final rule hack
+
+    local rh_instances = final_wrule.rh_instances
+    if #rh_instances &gt;= 2 then
+        local instance1 = rh_instances[1]
+        local instance2 = rh_instances[2]
+        if instance1.nullable and instance2.nullable then
+            -- the new LHS is &quot;at&quot; the final symbol of the original rule
+            -- We will not have used this position in any of the LHS
+            -- symbol names above
+            new_lhs, is_new = wsym_ensure(&#39;chaf&#39; .. rule_id .. &#39;@&#39; .. original_rule_length)
+            assert(is_new) -- TODO remove after development
+            new_lhs.source = rule_source
+            new_lhs.nullable = true
+            -- Create a new final rule for the binarization
+            wrule_new(
+                {
+                    lhs = new_lhs,
+                    rh_instances = { instance2 },
+                    nullable = true
+                }
+            )
+            -- Replace the RHS in the existing &quot;final rule&quot;,
+            -- which will not longer be final
+            final_wrule.rh_instances = { instance1, winstance_new(new_lhs) }
+        end
+    end
+</code></pre>
+<h2 id="create-the-internal-grammar"><a href="#TOC">Create the internal grammar</a></h2>
+<pre><code>
+    -- luatangle: section Create the internal grammar
+    local isym_by_name = {}
+    local g = wrap.grammar()
+    for rule_id = 1,#wrule_by_id do
+        local working_wrule = wrule_by_id[rule_id]
+        -- TODO: Not sure that I ever delete a rule, but
+        -- just in case.
+        if working_wrule then
+            local rh_instances = working_wrule.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                local symbol_name = rh_instance.name
+                if not isym_by_name[symbol_name] then
+                    local new_isym = {
+                        name = symbol_name,
+                    }
+                    new_isym.id = g:symbol_new()
+                end
+            end
+        end
+    end
+
+</code></pre>
+<h2 id="rewrite-out-the-1-based-blocks"><a href="#TOC">Rewrite out the 1-based blocks</a></h2>
+<p>The next code performs the rewrite for a block of size <code>n</code>, without separation. Assumed to be available as an upvalue are</p>
+<ul>
+<li><p><code>working_wrule</code>, the current sequence rule.</p></li>
+<li><p><code>repetend_instance</code>, the instance for the repetend.</p></li>
+</ul>
+<pre><code>
+    -- luatangle: section Function to rewrite 1-based blocks
+
+    -- For memoizing blocks by cont
+    local blocks = {}
+
+    local function blk_lhs(n)
+        local lhs = blocks[n]
+        if lhs then return lhs end
+
+        if n == 1 then
+            rhs = { repetend_instance }
+        elseif n == 2 then
+            if separator_instance then
+                rhs = { repetend_instance, separator_instance,
+                    repetend_instance }
+            else
+                rhs = { repetend_instance, repetend_instance }
+            end
+        else
+            local n1 = pow2(n)
+            local n2 = n - n1
+            local lhs1 = blk_lhs(n1)
+            local lhs2 = blk_lhs(n2)
+            if separator_instance then
+                rhs = { winstance_new(lhs1), separator_instance,
+                    winstance_new(lhs2) }
+            else
+                rhs = { winstance_new(lhs1), winstance_new(lhs2) }
+            end
+        end
+        local lhs_name = &#39;blk&#39; .. n .. &#39;!&#39; .. repetend_instance.name
+        local is_new
+        lhs, is_new = wsym_ensure(lhs_name)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = working_wrule.source
+        wrule_new(
+            {
+                lhs = lhs,
+                rh_instances = rhs
+            }
+        )
+        blocks[n] = lhs
+        return lhs
+    end
+</code></pre>
+<h2 id="rewrite-out-the-1-based-ranges"><a href="#TOC">Rewrite out the 1-based ranges</a></h2>
+<p>The next code performs the rewrite for a range of size <code>n</code>. Assumed to be available as an upvalue are</p>
+<ul>
+<li><p><code>working_wrule</code>, the current sequence rule.</p></li>
+<li><p><code>repetend_instance</code>, the instance for the repetend.</p></li>
+</ul>
+<pre><code>
+    -- luatangle: section Function to rewrite 1-based ranges
+
+    -- For memoizing ranges by cont
+    local ranges = {}
+
+    local function range_lhs(n)
+        local lhs = ranges[n]
+        if lhs then return lhs end
+        local short_rhs, long_rhs
+
+        local lhs_name = &#39;rng&#39; .. n .. &#39;!&#39; .. repetend_instance.name
+        local is_new
+        lhs, is_new = wsym_ensure(lhs_name)
+        assert(is_new) -- TODO: remove after development
+        lhs.source = working_wrule.source
+
+        if n == -1 then
+            short_rhs = { repetend_instance }
+            if separator_instance then
+                long_rhs = { winstance_new(lhs), separator_instance,
+                    repetend_instance }
+            else
+                long_rhs = { winstance_new(lhs), repetend_instance }
+            end
+        elseif n == 1 then
+            lhs = blk_lhs(1)
+            ranges[n] = lhs
+            return lhs
+        elseif n == 2 then
+            short_rhs = { repetend_instance }
+            if separator_instance then
+                long_rhs = { repetend_instance, separator_instance,
+                    repetend_instance }
+            else
+                long_rhs = { repetend_instance, repetend_instance }
+            end
+        else
+            local n1 = pow2(n)
+            local n2 = n - n1
+            local range_lhs1 = range_lhs(n1)
+            local block_lhs1 = blk_lhs(n1)
+            local lhs2 = range_lhs(n2)
+            short_rhs = { winstance_new(range_lhs1) }
+            if separator_instance then
+                long_rhs = { winstance_new(block_lhs1), separator_instance,
+                    winstance_new(lhs2) }
+            else
+                long_rhs = { winstance_new(block_lhs1), winstance_new(lhs2) }
+            end
+        end
+        wrule_new(
+            {
+                lhs = lhs,
+                rh_instances = short_rhs
+            }
+        )
+        wrule_new(
+            {
+                lhs = lhs,
+                rh_instances = long_rhs
+            }
+        )
+        ranges[n] = lhs
+        return lhs
+    end
+</code></pre>
+<h2 id="documented-interfaces"><a href="#TOC">Documented interfaces</a></h2>
+<p>Many of the documented interfaces share the <code>line</code>, <code>file</code> and <code>throw</code> named argument, and therefore also some of the argument processing. This code is in-lined in several places. It expects the <code>who</code>, <code>grammar</code>, and <code>args</code> variables to be set, and it sets the <code>line</code> and <code>file</code> variables.</p>
+<pre><code>
+    -- luatangle: section Common PLIF argument processing
+
+    if type(args) ~= &#39;table&#39; then
+        return nil, grammar:development_error(who .. [[ must be called with a table of named arguments]])
+    end
+
+    local file = args.file
+    if file == nil then
+        file = grammar.file
+    end
+    if type(file) ~= &#39;string&#39; then
+        return nil,
+        grammar:development_error(
+            who .. [[ &#39;file&#39; named argument is &#39;]]
+            .. type(file)
+            .. [[&#39;; it should be &#39;string&#39;]]
+        )
+    end
+    grammar.file = file
+    args.file = nil
+
+    local line = args.line
+    if line == nil then
+        if type(grammar.line) ~= &#39;number&#39; then
+            return nil,
+            grammar:development_error(
+                who .. [[ line is not numeric for grammar &#39;]]
+                .. grammar.name
+                .. [[&#39;; a numeric line number is required]]
+            )
+        end
+        line = grammar.line + 1
+    end
+    grammar.line = line
+    args.line = nil
+</code></pre>
+<h2 id="unclassified-code"><a href="#TOC">Unclassified code</a></h2>
+<p>I changed to literate programming in mid-project, and am &quot;making my code literate&quot; as I go. For earlier code, this means I get to it when there's a rewrite, or otherwise as occasion demands.</p>
+<pre><code>
+    -- luatangle: section main
+
+    -- Kollos top level grammar routines
+
+    -- luacheck: std lua51
+    -- luacheck: globals bit
+    -- luacheck: globals __FILE__ __LINE__
+
+    local inspect = require &quot;kollos.inspect&quot; -- luacheck: ignore
+    local wrap = require &quot;kollos.wrap&quot;
+    local kollos_c = require &quot;kollos_c&quot;
+    local luif_err_development = kollos_c.error_code_by_name[&#39;LUIF_ERR_DEVELOPMENT&#39;]
+    local matrix = require &quot;kollos.matrix&quot;
+
+    local function here() return -- luacheck: ignore here
+        debug.getinfo(2,&#39;S&#39;).source .. debug.getinfo(2, &#39;l&#39;).currentline
+    end
+
+    local rshift = bit.rshift
+    local lshift = bit.lshift
+
+    -- Return highest power of 2 less than its argument
+    -- Valid only for n&gt;=2
+    local function pow2(n)
+        local pow = 1
+        while pow &lt; n do
+            pow = lshift(pow, 1)
+        end
+        return rshift(pow, 1)
+    end
+
+    local grammar_class = { }
+
+    function grammar_class.file_set(grammar, file_name)
+        grammar.file = file_name or debug.getinfo(2,&#39;S&#39;).source
+    end
+
+    function grammar_class.line_set(grammar, line_number)
+        grammar.line = line_number or debug.getinfo(2, &#39;l&#39;).currentline
+    end
+
+    -- note that a throw_flag of nil sets throw to *true*
+    -- returns the previous throw value
+    function grammar_class.throw_set(grammar, throw_flag)
+        local throw = true -- default is true
+        local old_throw_value = grammar.throw
+        if throw_flag == false then throw = false end
+        grammar.throw = throw
+        return old_throw_value
+    end
+
+    local function development_error_stringize(error_object)
+        return
+        &quot;Grammar error at line &quot;
+        .. error_object.line
+        .. &quot; of &quot;
+        .. error_object.file
+        .. &quot;:\n &quot;
+        .. error_object.string
+    end
+
+    function grammar_class.development_error(grammar, string, file, line)
+        local error_object
+        = kollos_c.error_new{
+            stringize = development_error_stringize,
+            code = luif_err_development,
+            string = string,
+            file = file or grammar.file,
+            line = line or grammar.line,
+        }
+        if grammar.throw then error(tostring(error_object)) end
+        return error_object
+    end
+
+    -- luatangle: insert xsym constructor
+    -- luatangle: insert xlexeme constructors
+
+    function grammar_class.rule_new(grammar, args)
+
+        local who = &#39;rule_new()&#39;
+        -- luatangle: insert Common PLIF argument processing
+
+        -- if line is nil, the &quot;file&quot; is actually an error object
+        if line == nil then return line, file end
+
+        local lhs = args[1]
+        args[1] = nil
+        if not lhs then
+            return nil, grammar:development_error([[rule must have a lhs]])
+        end
+
+        local field_name = next(args)
+        if field_name ~= nil then
+            return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+        end
+
+        local xrule_by_id = grammar.xrule_by_id
+        local new_xrule_id = #xrule_by_id + 1
+        local new_xrule = {
+            id = new_xrule_id,
+            line = grammar.line,
+            name_base = grammar.name_base,
+        }
+
+        setmetatable(new_xrule, {
+                __index = function (table, key)
+                    if key == &#39;type&#39; then return &#39;xrule&#39;
+                    elseif key == &#39;rawtype&#39; then return &#39;xrule&#39;
+                        -- &#39;name&#39; and &#39;subname&#39; are computed &quot;just in time&quot;
+                        -- and then memoized
+                    elseif key == &#39;subname&#39; then
+                        local subname =
+                        &#39;r&#39;
+                        .. table.id
+                        table.subname = subname
+                        return subname
+                    elseif key == &#39;name&#39; then
+                        local name =
+                        table.name_base
+                        .. &#39;:&#39;
+                        .. table.line
+                        .. table.subname
+                        table.name = name
+                        return name
+                    end
+                    return nil
+                end
+            })
+
+        xrule_by_id[new_xrule_id] = new_xrule
+        new_xrule.id = new_xrule_id
+
+        local symbol_props, symbol_error = xsym_new(grammar, { name = lhs })
+        if not symbol_props then
+            return nil, grammar:development_error(symbol_error)
+        end
+        new_xrule.lhs = symbol_props
+
+        local lhs_xrules = symbol_props.lhs_xrules
+        lhs_xrules[#lhs_xrules+1] = new_xrule
+
+        local current_xprec = {
+            level = 0,
+            xrule = new_xrule,
+            top_alternatives = {},
+            line = grammar.line,
+            name_base = grammar.name_base,
+        }
+        setmetatable(current_xprec, {
+                __index = function (table, key)
+                    if key == &#39;type&#39; then return &#39;xprec&#39;
+                        -- &#39;name&#39; and &#39;subname&#39; are computed &quot;just in time&quot;
+                        -- and then memoized
+                    elseif key == &#39;rawtype&#39; then return &#39;xprec&#39;
+                    elseif key == &#39;subname&#39; then
+                        local subname =
+                        &#39;p&#39;
+                        .. table.level
+                        .. table.xrule.subname
+                        table.subname = subname
+                        return subname
+                    elseif key == &#39;name&#39; then
+                        local name =
+                        table.name_base
+                        .. &#39;:&#39;
+                        .. table.line
+                        .. table.subname
+                        table.name = name
+                        return name
+                    end
+                    return nil
+                end
+            })
+
+        local xprec_by_id = grammar.xprec_by_id
+        xprec_by_id[#xprec_by_id+1] = current_xprec
+        grammar.current_xprec = current_xprec
+
+        new_xrule.precedences = { current_xprec }
+    end
+
+    function grammar_class.precedence_new(grammar, args)
+        local who = &#39;precedence_new()&#39;
+        -- luatangle: insert Common PLIF argument processing
+
+        -- if line is nil, the &quot;file&quot; is actually an error object
+        if line == nil then return line, file end
+
+        local xrule_by_id = grammar.xrule_by_id
+        if #xrule_by_id &lt; 1 then
+            return nil, grammar:development_error(who .. [[ called, but no current rule]])
+        end
+
+        local last_xprec = grammar.current_xprec
+        local new_level = last_xprec.level + 1
+
+        local current_xrule = xrule_by_id[#xrule_by_id]
+        local xrule_precedences = current_xrule.precedences
+        local new_xprec = {
+            xrule = current_xrule,
+            top_alternatives = {},
+            line = grammar.line,
+            name_base = grammar.name_base,
+            level = new_level,
+        }
+        setmetatable(new_xprec, getmetatable(last_xprec))
+
+        xrule_precedences[#xrule_precedences+1] = new_xprec
+
+        local field_name = next(args)
+        if field_name ~= nil then
+            return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+        end
+
+        if #xrule_by_id &lt; 1 then
+            return nil, grammar:development_error(who .. [[ called, but no current rule]])
+        end
+
+        local xprec_by_id = grammar.xprec_by_id
+        xprec_by_id[#xprec_by_id+1] = new_xprec
+        grammar.current_xprec = new_xprec
+
+    end
+
+    local function xinstance_new(element, xalt, rh_ix)
+        local new_instance = {
+            xalt = xalt,
+            rh_ix = rh_ix,
+            element = element
+        }
+        setmetatable(new_instance, {
+                __index = function (table, key)
+                    if key == &#39;rawtype&#39; then return &#39;xinstance&#39;
+                    elseif key == &#39;line&#39; then return element.line
+                    elseif key == &#39;name_base&#39; then return element.name_base
+                    else return table.element[key] end
+                end
+            })
+        return new_instance
+    end
+
+    local function winstance_new(element, xalt, rh_ix)
+        assert(element)
+        local new_instance = {
+            xalt = xalt,
+            rh_ix = rh_ix,
+            element = element
+        }
+        setmetatable(new_instance, {
+                __index = function (table, key)
+                    if key == &#39;rawtype&#39; then return &#39;winstance&#39;
+                    elseif key == &#39;line&#39; then return element.line
+                    elseif key == &#39;name_base&#39; then return element.name_base
+                    elseif key == &#39;element&#39; then return nil
+                    else return table.element[key] end
+                end
+            })
+        return new_instance
+    end
+
+    -- luatangle: insert RHS transitive closure function
+    -- luatangle: insert nullable semantics functions
+    -- luatangle: insert subalternative_new() internal method
+    -- luatangle: insert Grammar alternative_new() method
+    -- luatangle: insert Grammar compile() method
+    -- luatangle: insert Grammar constructor
+</code></pre>
+<h2 id="grammar-subalternative_new-method"><a href="#TOC">Grammar subalternative_new() method</a></h2>
+<p>Throw is always set for this method. The error is caught by the caller and re-thrown or not, as needed.</p>
+<pre><code>    -- luatangle: section subalternative_new() internal method
+
+    local function _top_xalt_lhs(top_xalt)
+        local xprec = top_xalt.xprec
+        local xrule = xprec.xrule
+        return xrule.lhs
+    end
+
+    local function _xalt_lhs(xalt)
+        -- parent_instance field is only defined
+        -- when the xalt is the child of *exactly*
+        -- one instance.
+        local parent = xalt
+        while true do
+            local grandparent = parent.parent_instance
+            if not grandparent then break end
+            parent = grandparent.xalt
+        end
+        return _top_xalt_lhs(parent)
+    end
+
+    local function subalternative_new(grammar, src_subalternative)
+
+        -- use name of caller
+        local who = &#39;alternative_new()&#39;
+
+        local new_rh_instances = {}
+
+        local current_xprec = grammar.current_xprec
+        local current_xrule = current_xprec.xrule
+        local xlhs_by_rhs = grammar.xlhs_by_rhs
+
+        -- used to form the name of the subalternative
+        local id_within_top_alternative = grammar.alt_id_within_top_alternative
+        id_within_top_alternative = id_within_top_alternative + 1
+        grammar.alt_id_within_top_alternative = id_within_top_alternative
+
+        local new_subalternative = {
+            xprec = current_xprec,
+            line = grammar.line,
+            id_within_top_alternative =
+            id_within_top_alternative,
+            name_base = grammar.name_base
+        }
+
+        setmetatable(new_subalternative, {
+                __index = function (table, key)
+                    if key == &#39;type&#39; then return &#39;xalt&#39;
+                    elseif key == &#39;rawtype&#39; then return &#39;xalt&#39;
+                    elseif key == &#39;lhs&#39; then return _xalt_lhs(table)
+                    elseif key == &#39;is_top&#39; then return not table.parent_instance
+                    elseif key == &#39;lhs_of_top&#39; then
+                        return _top_xalt_lhs(table)
+                    elseif key == &#39;subname&#39; then
+                        local subname =
+                        &#39;a&#39;
+                        .. table.id_within_top_alternative
+                        .. table.xprec.subname
+                        table.subname = subname
+                        return subname
+                    elseif key == &#39;name&#39; then
+                        local name =
+                        table.name_base
+                        .. &#39;:&#39;
+                        .. table.line
+                        .. table.subname
+                        table.name = name
+                        return name
+                    end
+                    return nil
+                end
+            })
+
+        local xsubalt_by_id = grammar.xsubalt_by_id
+        xsubalt_by_id[#xsubalt_by_id+1] = new_subalternative
+        local new_subalternative_id = #xsubalt_by_id
+        new_subalternative.id = new_subalternative_id
+
+        -- maxn() is used, because the src_alternative&#39;s are 
+        -- part of a user interface, so that there might be nil&#39;s
+        -- mixed in the series anywhere.
+        -- These are fatal errors, and we have to make sure
+        -- we can detect them.
+        for rh_ix = 1, table.maxn(src_subalternative) do
+            local src_rh_instance = src_subalternative[rh_ix]
+            if not src_rh_instance then
+                    grammar:development_error(
+                        [[Problem with rule rhs item #]] .. rh_ix .. &#39; &#39;
+                        .. &quot;wrong type: &quot;
+                        .. type(src_rh_instance)
+                    )
+            end
+            local new_rh_instance
+
+            if type(src_rh_instance) == &#39;table&#39; then
+                local instance_type = src_rh_instance.type
+                if not instance_type then
+                    local new_rhs_xalt = subalternative_new(grammar, src_rh_instance)
+                    new_rh_instance = xinstance_new(new_rhs_xalt, new_subalternative, rh_ix)
+                    new_rhs_xalt.parent_instance = new_rh_instance
+                else
+                    new_rh_instance = xinstance_new(src_rh_instance, new_subalternative, rh_ix)
+                end
+            else
+                local error_string
+                local new_rhs_sym
+                new_rhs_sym, error_string = xsym_new(grammar, { name = src_rh_instance })
+                if not new_rhs_sym then
+                    -- using return statements even for thrown errors is the
+                    -- standard idiom, but in this case, I think it is clearer
+                    -- without the return
+                    grammar:development_error(
+                        [[Problem with rule rhs item #]] .. rh_ix .. &#39; &#39; .. error_string
+                    )
+                end
+                new_rh_instance = xinstance_new(new_rhs_sym, new_subalternative, rh_ix)
+                xlhs_by_rhs[new_rhs_sym.id] = current_xrule.lhs.id
+            end
+            new_rh_instances[#new_rh_instances+1] = new_rh_instance
+        end
+
+        new_subalternative.rh_instances = new_rh_instances
+        local action = src_subalternative.action
+        if action then
+            if type(action) ~= &#39;function&#39; then
+                grammar:development_error(
+                    who
+                    .. [[: action must be of type function; actual type is &#39;]]
+                    .. type(action)
+                    .. [[&#39;]]
+                )
+            end
+            new_subalternative.action = action
+            src_subalternative.action = nil
+        end
+
+
+        local min = src_subalternative.min
+        local max = src_subalternative.max
+        if min ~= nil and type(min) ~= &#39;number&#39; then
+            grammar:development_error(
+                who
+                .. [[: min must be of type &#39;number&#39;; actual type is &#39;]]
+                .. type(min)
+                .. [[&#39;]]
+            )
+        end
+        if max ~= nil and type(max) ~= &#39;number&#39; then
+            grammar:development_error(
+                who
+                .. [[: max must be of type &#39;number&#39;; actual type is &#39;]]
+                .. type(min)
+                .. [[&#39;]]
+            )
+        end
+        if min == nil then
+            min = 1
+            if max == nil then max = 1 end
+        elseif max == nil then max = -1 end
+
+        new_subalternative.min = min
+        src_subalternative.min = nil
+        new_subalternative.max = max
+        src_subalternative.max = nil
+
+        local is_sequence = min ~= 1 or max ~= 1
+
+        local separator_symbol
+        local separator = src_subalternative.separator
+        if separator ~= nil then
+            if not is_sequence then
+                grammar:development_error(
+                    who
+                    .. &#39;: separator specified, but alternative is not sequence\n&#39;
+                )
+            end
+            local separator_type = type(separator)
+            if separator_type ~= &#39;string&#39; then
+                grammar:development_error(
+                    who
+                    .. &#39;: separator is type &quot;&#39;
+                    .. separator_type
+                    .. &#39;&quot;; it needs to be a string&#39;
+                )
+            end
+            local symbol_error
+            separator_symbol, symbol_error
+                = xsym_new(grammar, { name = separator })
+            if not separator_symbol then
+                grammar:development_error(symbol_error)
+            end
+            new_subalternative.separator = separator_symbol
+            src_subalternative.separator = nil
+        end
+
+        local separation = src_subalternative.separation
+        if separation ~= nil then
+            if not separator_symbol then
+                grammar:development_error(
+                    who
+                    .. &#39;: separation style &#39;
+                    .. [[&quot;]] .. separation .. [[&quot;]]
+                    .. &#39; specified, but no separator\n&#39;
+                )
+            end
+            if separation == &#39;liberal&#39; then -- luacheck: ignore
+            elseif separation == &#39;proper&#39; then
+               separation = nil -- &#39;proper&#39; is the default
+            elseif separation == &#39;terminating&#39; then -- luacheck: ignore
+            else
+                grammar:development_error(
+                    who
+                    .. &#39;: unknown separation style &#39;
+                    .. [[&quot;]] .. separation .. [[&quot;]]
+                    .. &#39; specified\n&#39;
+                )
+            end
+            new_subalternative.separation = separation
+            src_subalternative.separation = nil
+        end
+
+        assert(not new_subalternative.separation or
+            new_subalternative.separator)
+
+        if min == 0 then
+            if max == 0 then
+                grammar:development_error(
+                    who
+                    .. [[: a nulling sequence, where min == max == 0, is not allowed ]]
+                )
+            end
+            new_subalternative.productive = true
+            new_subalternative.nullable = true
+        end
+
+        for field_name,_ in pairs(src_subalternative) do
+            if type(field_name) ~= &#39;number&#39; then
+                grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+            end
+        end
+
+        return new_subalternative
+
+    end
+</code></pre>
+<h2 id="grammar-alternative_new-method"><a href="#TOC">Grammar alternative_new() method</a></h2>
+<pre><code>    -- luatangle: section Grammar alternative_new() method
+
+    function grammar_class.alternative_new(grammar, args)
+        local who = &#39;alternative_new()&#39;
+        -- luatangle: insert Common PLIF argument processing
+
+        -- if line is nil, the &quot;file&quot; is actually an error object
+        if line == nil then return line, file end
+
+        grammar.alt_id_within_top_alternative = 0
+
+        local old_throw_value = grammar:throw_set(true)
+        local ok, new_alternative = pcall(function () return subalternative_new(grammar, args) end)
+        -- if ok is false, then new_alterative is actually an error object
+        if not ok then
+            if old_throw_value then error(new_alternative, 2)
+            else return nil, new_alternative end
+        end
+        grammar:throw_set(old_throw_value)
+        new_alternative.xprec = grammar.current_xprec
+        local xprec_top_alternatives = grammar.current_xprec.top_alternatives
+        xprec_top_alternatives[#xprec_top_alternatives+1] = new_alternative
+
+        local xtopalt_by_ix = grammar.xtopalt_by_ix
+        xtopalt_by_ix[#xtopalt_by_ix+1] = new_alternative
+
+    end
+</code></pre>
+<h2 id="grammar-compile-method"><a href="#TOC">Grammar compile() method</a></h2>
+<pre><code>    -- luatangle: section Grammar compile() method
+
+    function grammar_class.compile(grammar, args)
+        local who = &#39;grammar.compile()&#39;
+        -- luatangle: insert Common PLIF argument processing
+
+        local at_top = false
+        local at_bottom = false
+        local start_symbol
+        if args.seamless then
+            at_top = true
+            at_bottom = true
+            local start_symbol_name = args.seamless
+            args.seamless = nil
+            start_symbol
+            = grammar.xsym_by_name[start_symbol_name]
+            if not start_symbol then
+                return nil, grammar:development_error(
+                    who
+                    .. [[ value of &#39;seamless&#39; named argument must be the start symbol]]
+                )
+            end
+        elseif args.start then
+            at_top = true
+            args.start = nil
+            return nil, grammar:development_error(
+                who
+                .. [[ &#39;start&#39; named argument not yet implemented]]
+            )
+        elseif args.lexer then
+            at_bottom = true
+            args.lexer = nil
+            return nil, grammar:development_error(
+                who
+                .. [[ &#39;lexer&#39; named argument not yet implemented]]
+            )
+        else
+            return nil, grammar:development_error(
+                who
+                .. [[ must have &#39;seamless&#39;, &#39;start&#39; or &#39;lexer&#39; named argument]]
+            )
+        end
+
+        local field_name = next(args)
+        if field_name ~= nil then
+            return nil, grammar:development_error(who .. [[: unacceptable named argument ]] .. field_name)
+        end
+
+        local xtopalt_by_ix = grammar.xtopalt_by_ix
+
+        -- luatangle: insert Error routines internal to compile()
+
+        -- Check for duplicate topalt&#39;s
+        -- ignore min,max,action, etc.
+        do
+            local sorted_table = {}
+            for ix = 1,#xtopalt_by_ix do
+                sorted_table[ix] = xtopalt_by_ix[ix]
+            end
+
+            -- return true if alt1 &lt; alt2, nil if ==, otherwise true
+            local function comparator(alt1, alt2)
+                local type = alt1.type
+                if type ~= alt2.type then
+                    return type &lt; alt2.type
+                end
+                if type == &#39;xlexeme&#39; then
+                    if alt1.spec == alt2.spec then return nil end
+                    return alt1.spec &lt; alt2.spec
+                elseif type == &#39;xsym&#39; then
+                    if alt1.name == alt2.name then return nil end
+                    return alt1.name &lt; alt2.name
+                elseif type == &#39;xalt&#39; then
+                    -- Only an xalt can be the top, so only here do we
+                    -- worry about the LHS
+                    local lhs_name1 = alt1.xprec.xrule.lhs.name
+                    local lhs_name2 = alt2.xprec.xrule.lhs.name
+                    if lhs_name1 ~= lhs_name2 then
+                        return lhs_name1 &lt; lhs_name2
+                    end
+
+                    local rh_instance1 = alt1.rh_instances
+                    local rh_instance2 = alt2.rh_instances
+                    local rhs_length = #rh_instance1
+                    if rhs_length ~= #rh_instance2 then
+                        return rhs_length &lt; #rh_instance2
+                    end
+                    for rh_ix = 1, rhs_length do
+                        local result = comparator(
+                            rh_instance1[rh_ix].element,
+                            rh_instance2[rh_ix].element
+                        )
+                        if result ~= nil then return result end
+                    end
+                    return nil
+                else
+                    -- Should never happen
+                    error(&quot;Unknown type &quot; .. type .. &quot; in table.sort comparator&quot;)
+                end
+            end
+            table.sort(sorted_table, comparator)
+            for ix = 1, #sorted_table-1 do
+                if comparator(sorted_table[ix], sorted_table[ix+1]) == nil then
+                    return nil,
+                    grammar:development_error(
+                        who
+                        .. [[ Duplicate alternatives: ]]
+                        .. sorted_table[ix].name
+                        .. &#39; and &#39;
+                        .. sorted_table[ix+1].name
+                        .. &#39;\n&#39;
+                    )
+                end
+            end
+        end
+
+        local xsym_by_id = grammar.xsym_by_id
+        local matrix_size = #xsym_by_id+2
+
+        -- Not the real augment symbol, but a temporary that
+        -- &quot;fakes&quot; it
+        local augment_symbol_id = #xsym_by_id + 1
+
+        local terminal_sink_id = #xsym_by_id + 2
+        local reach_matrix = matrix.init(matrix_size)
+        if at_top then
+            matrix.bit_set(reach_matrix, augment_symbol_id, start_symbol.id)
+        end
+
+        xrhs_transitive_closure(grammar, &#39;nullable&#39;)
+        xrhs_transitive_closure(grammar, &#39;productive&#39;)
+
+        -- Start symbol must be a LHS
+        if #start_symbol.lhs_xrules &lt;= 0 then
+            return nil,
+            grammar:development_error(
+                who
+                .. [[ start symbol must be LHS]] .. &#39;\n&#39;
+                .. [[ start symbol is &lt;]] .. start_symbol.name &#39;&gt;\n&#39;
+            )
+        end
+
+        -- Ban unproductive symbols (and therefore rules)
+        -- If we allow them, we must make sure that they, all
+        -- all symbols and rule they recursively make
+        -- unproductive are not used in what follows.
+        -- Much of the logic requires that all symbols be
+        -- productive
+        --
+        -- Also, we must always make sure that the start symbol
+        -- is productive
+        for symbol_id = 1,#xsym_by_id do
+            local symbol_props = xsym_by_id[symbol_id]
+            if not symbol_props.productive then
+                return nil,
+                grammar:development_error(
+                    who
+                    .. [[ unproductive symbol: ]]
+                    .. symbol_props.name
+                )
+            end
+        end
+
+        -- Ban nullable precedenced rules.
+        -- They are just too confusing. Tf the user
+        -- *really* is sure they want it, and that she
+        -- knows what she is doing, she can write it out
+        -- in BNF.
+
+        -- Also, ensure that precedenced LHS is not shared
+        -- with any other rule. Again, this reduces confusion.
+        -- There is no loss of generality. Any grammar which
+        -- breaks this rule can be rewritten
+        -- by adding a dedicated LHS symbol for the
+        -- precedenced rule.
+        -- This can be done while preserving the semantics.
+
+        -- Also, this loop labels all precedenced alternatives
+        -- with their precedence level, in preparation for later
+        -- processing
+
+        local xrule_by_id = grammar.xrule_by_id
+        for xrule_id = 1,#xrule_by_id do
+            local xrule = xrule_by_id[xrule_id]
+            local precedences = xrule.precedences
+            -- If it is a rule with multiple precedences
+            if #precedences &gt; 1 then
+                local lhs = xrule.lhs
+                if lhs.nullable then
+                    return report_nullable_precedenced_xrule(grammar, xrule)
+                end
+                if #lhs.lhs_xrules &gt; 1 then
+                    return report_shared_precedenced_lhs(grammar, xrule, lhs)
+                end
+            end
+        end
+
+        -- Note -- using the nullability
+        -- of the subalternative is not very useful,
+        -- even as a clue, because the subalternative
+        -- may be nullable because min=0, or
+        -- non-nullable because of the separator
+        --
+        -- If the user really wants sequences with nullable
+        -- repetends, and knows what she is doing,
+        -- then she can write them out in BNF.
+
+        local xsubalt_by_id = grammar.xsubalt_by_id
+        for subalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[subalt_id]
+            if xsubalt.min ~= 1 or xsubalt.max ~= 1
+            then
+
+                -- Check to see if there are any
+                -- indelible (= non-nullable) elements in the
+                -- repetend
+                local item_is_indelible = false
+                local rh_instances = xsubalt.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local rhs_instance = rh_instances[rh_ix]
+                    if not rhs_instance.element.nullable then
+                        item_is_indelible = true
+                        break
+                    end
+                end
+                if not item_is_indelible then
+                    return report_nullable_repetend(grammar, xsubalt)
+                end
+            end
+        end
+
+        -- Nullable semantics is unique
+        for symbol_id = 1,#xsym_by_id do
+            local symbol_props = xsym_by_id[symbol_id]
+            if symbol_props.nullable then
+                local semantics, error_object
+                = find_nullable_semantics(grammar, symbol_props)
+                if not semantics then
+                    -- the lower level did not throw the error, so it
+                    -- should not be thrown
+                    return nil, error_object
+                end
+                symbol_props.semantics = semantics
+            end
+        end
+
+        local xlhs_by_rhs = grammar.xlhs_by_rhs
+        for symbol_id = 1,#xsym_by_id do
+            local symbol_props = xsym_by_id[symbol_id]
+            -- every symbol reaches itself
+            matrix.bit_set(reach_matrix, symbol_id, symbol_id)
+            for _,lhs_id in pairs(xlhs_by_rhs) do
+                matrix.bit_set(reach_matrix, lhs_id, symbol_id)
+            end
+
+            if #symbol_props.lhs_xrules &lt;= 0 then
+                matrix.bit_set(reach_matrix, symbol_id, terminal_sink_id)
+                symbol_props.productive = true
+            end
+
+            if symbol_props.lexeme then
+                matrix.bit_set(reach_matrix, augment_symbol_id, symbol_id)
+            end
+        end
+
+    --[[
+
+    All symbols are assumed to be productive, so if any reaches an indelible
+    element, then we mark it as reaching a terminal.  This means no symbol
+    which derives it can be nulling.  Indelible (or terminal) elements
+    include not just non-LHS symbols, but also charclasses and strings --
+
+    --]]
+
+        for xsubalt_id = 1,#xsubalt_by_id do
+            local xsubalt = xsubalt_by_id[xsubalt_id]
+            local separator = xsubalt.separator
+            local lhs_reaches_terminal = false
+            if separator and not separator.nullable then
+                lhs_reaches_terminal = true
+            else
+                local rh_instances = xsubalt.rh_instances
+                for rh_ix = 1,#rh_instances do
+                    local rhs_instance = rh_instances[rh_ix]
+                    if not rhs_instance.element.nullable then
+                        lhs_reaches_terminal = true
+                        break
+                    end
+                end
+            end
+            if lhs_reaches_terminal then
+                local lhs = xsubalt.lhs
+                matrix.bit_set(reach_matrix, lhs.id, terminal_sink_id)
+                lhs.productive = true
+            end
+        end
+
+        matrix.transitive_closure(reach_matrix)
+
+        for symbol_id = 1,#xsym_by_id do
+            local symbol_props = xsym_by_id[symbol_id]
+
+            -- Later, make it so some symbols can be set to be &quot;inaccessible ok&quot;
+            if not matrix.bit_test(reach_matrix, augment_symbol_id, symbol_id) then
+                grammar:development_error(
+                    who
+                    .. &quot;Symbol &quot; .. symbol_props.name .. &quot; is not accessible&quot;,
+                    symbol_props.name_base,
+                    symbol_props.line
+                )
+            end
+
+            -- Since all symbols are now productive, a symbol is nulling iff
+            -- it is nullable and does NOT reach a terminal
+            if symbol_props.nullable and
+            not matrix.bit_test(reach_matrix, symbol_id, terminal_sink_id)
+            then symbol_props.nulling = true end
+
+            -- A nulling lexeme is a fatal error
+            if #symbol_props.lhs_xrules &lt;= 0 and symbol_props.nulling then
+                grammar:development_error(
+                    who
+                    &quot;Symbol &quot; .. symbol_props.name .. &quot; is a nulling lexeme&quot;,
+                    symbol_props.name_base,
+                    symbol_props.line
+                )
+            end
+        end
+
+        --[[ COMMENTED OUT
+        for from_symbol_id,from_symbol_props in ipairs(xsym_by_id) do
+            for to_symbol_id,to_symbol_props in ipairs(xsym_by_id) do
+                if matrix.bit_test(reach_matrix, from_symbol_id, to_symbol_id) then
+                    print( from_symbol_props.name, &quot;reaches&quot;, to_symbol_props.name)
+                end
+            end
+        end
+        --]]
+
+        if start_symbol.nulling then
+            print(inspect(start_symbol))
+            grammar:development_error(
+                who
+                .. &quot;Start symbol &quot; .. start_symbol.name .. &quot; is nulling\n&quot;
+                .. &quot; This is not yet implemented&quot;,
+                start_symbol.name_base,
+                start_symbol.line
+            )
+        end
+
+        local wrule_by_id = {}
+        local wsym_by_name = {}
+
+        -- luatangle: insert wsym constructors
+        -- luatangle: insert wrule constructor
+        -- luatangle: insert ilexeme constructor
+
+        local function alt_to_work_data_add(xalt)
+            -- at top, use brick from xrule.lhs
+            -- otherwise, new internal lhs
+            local new_lhs
+            local precedence_level = xalt.precedence_level
+            if xalt.parent_instance then
+                new_lhs = lh_wsym_ensure(xalt)
+            else
+                local old_lhs = xalt.xprec.xrule.lhs
+                if xalt.precedence_level then
+                    new_lhs =
+                    precedenced_wsym_ensure(old_lhs, precedence_level)
+                else
+                    new_lhs = cloned_wsym_ensure(old_lhs)
+                end
+            end
+
+            local rh_instances = xalt.rh_instances
+            -- just skip empty alternatives
+            if #rh_instances == 0 then return end
+            -- for now don&#39;t process precedences
+            local work_rh_instances = {}
+            -- print(&quot;compiling RHS &quot;, new_lhs.name, #rh_instances)
+            for rh_ix = 1,#rh_instances do
+                local x_rh_instance = rh_instances[rh_ix]
+                local x_element = x_rh_instance.element
+                local element_type = x_element.type
+
+                -- print(&quot;RHS element&quot;, rh_ix, x_element.name, x_element.nulling)
+                -- Do nothing for a nulling instance
+                if not x_element.nulling then
+                    if element_type == &#39;xalt&#39; then
+                        -- This is always a wsym, because an xsym
+                        -- LHS occurs only for a top level alternative,
+                        -- and, if we are here, we are dealing with
+                        -- a subalternative
+
+                        -- Skip a nulling rh instance.
+                        -- While the xalt cannot be nulling, a subalt
+                        -- can be.
+
+                        -- Because of these skips, a working rule may have
+                        -- a right side shorter than the external alternative
+                        -- from which it is derived.
+                        -- But it will *never* be zero length, because the caller
+                        -- made sure the external alternative is not nulling
+                        if not x_rh_instance.nulling then
+                            local subalt_wrule = alt_to_work_data_add(x_element)
+                            local subalt_lhs = subalt_wrule.lhs
+                            local new_work_instance = winstance_new(subalt_lhs, xalt, rh_ix)
+                            work_rh_instances[#work_rh_instances+1] = new_work_instance
+                        end
+                    elseif element_type == &#39;xsym&#39; then
+                        local new_element
+                        local level = x_rh_instance.precedence_level
+                        if level ~= nil then
+                            new_element =
+                                precedenced_wsym_ensure(x_element, level)
+                        else
+                            new_element = cloned_wsym_ensure(x_element)
+                        end
+                        local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                        work_rh_instances[#work_rh_instances+1] = new_work_instance
+                    elseif element_type == &#39;xlexeme&#39; then
+                        new_element = wsym_from_xlexeme_new(x_element)
+                        local new_work_instance = winstance_new(new_element, xalt, rh_ix)
+                        work_rh_instances[#work_rh_instances+1] = new_work_instance
+                    else assert(0) -- TODO remove after developement
+                    end
+                end
+
+            end
+
+            -- I don&#39;t think it&#39;s possible for there to be an empty
+            -- RHS, because the caller has ensured that the xalt is
+            -- not nulling
+            assert( #work_rh_instances &gt; 0 ) -- TODO remove after development
+
+            local separator_xsym = xalt.separator
+            local separator_wsym
+            if separator_xsym then
+                separator_wsym = cloned_wsym_ensure(separator_xsym)
+                separator_wsym.xsym = separator_xsym
+            end
+            assert(not xalt.separation or separator_wsym)
+            local new_wrule = wrule_new{
+                lhs = new_lhs,
+                rh_instances = work_rh_instances,
+                min = xalt.min,
+                max = xalt.max,
+                nullable = xalt.nullable or nil,
+                separator = separator_wsym,
+                separation = xalt.separation,
+                xalt = xalt,
+            }
+            return new_wrule
+        end
+
+        local precedenced_instances = {}
+        local function gather_precedenced_instances(xalt, lhs_id, in_seq)
+            local rh_instances = xalt.rh_instances
+            for rh_ix = 1,#rh_instances do
+                local rh_instance = rh_instances[rh_ix]
+                local element = rh_instance.element
+                local type = element.type
+                if type == &#39;xsym&#39; then
+                    if element.id == lhs_id then
+                        if in_seq then rh_instance.in_seq = true end
+                        precedenced_instances[#precedenced_instances+1] = rh_instance
+                    end
+                elseif type == &#39;xalt&#39; then
+                    local element_is_seq = element.min ~= 1 or element.max ~= 1
+                    gather_precedenced_instances(element, lhs_id, in_seq or element_is_seq)
+                end
+            end
+        end
+
+        -- This logic
+        -- relies on a precedenced xrule having a dedicated LHS
+        for xrule_id = 1,#xrule_by_id do
+            local xrule = xrule_by_id[xrule_id]
+            local precedences = xrule.precedences
+            local lhs = xrule.lhs
+            -- If it is a rule with multiple precedences
+            -- Create &quot;precedence ladder&quot; of wrules,
+            -- and precedenced symbols
+            if #precedences &gt; 1 then
+                local top_precedence_level = precedences[#precedences].level
+                lhs.top_precedence_level = top_precedence_level
+                for prec_ix = 1, #precedences do
+                    local xprec = precedences[prec_ix]
+                    local level = xprec.level
+                    local alternatives = xprec.top_alternatives
+                    for alt_ix = 1, #alternatives do
+                        local alternative = alternatives[alt_ix]
+                        alternative.precedence_level = level
+                        precedenced_instances = {}
+                        gather_precedenced_instances(
+                            alternative, lhs.id,
+                            false)
+                        if #precedenced_instances &gt; 0 then
+                            if level == 0 then
+                                -- Need a more precise explanation of what kind of
+                                -- this *is* OK at precedence 0
+                                grammar:development_error(
+                                    who
+                                    .. &quot;Recursive alternative &quot; .. alternative.name .. &quot; at precedence 0\n&quot;
+                                    .. &quot; That is not allowed\n&quot;
+                                    .. &quot; Precedence 0 is the bottom level\n&quot;,
+                                    alternative.name_base,
+                                    alternative.line
+                                )
+                            end
+                            local assoc = alternative.assoc or &#39;left&#39;
+                            -- First set them all to the next lower precedence
+                            local associator_ix
+                            -- Default is top level, so we do nothing for &#39;group&#39; precedence
+                            if assoc == &#39;left&#39; then associator_ix = 1
+                            elseif assoc == &#39;right&#39; then associator_ix = #precedenced_instances
+                            end
+                            -- Second, check, correct and mark the associator
+                            if associator_ix then
+                                --
+                                for ix = 1,#precedenced_instances do
+                                    precedenced_instances[ix].precedence_level = level-1
+                                end
+                                local associator_instance = precedenced_instances[associator_ix]
+
+                                if associator_instance.in_seq then
+                                    -- At some point, I might add logic to allow associators
+                                    -- in sequences with min&gt;=1, automatically rewriting to
+                                    -- break out the singleton. But the automatic
+                                    -- rewrite would be complicated, what with the various
+                                    -- sequence-separation and -termination options,
+                                    -- and it is quite possible the user is writing the rule
+                                    -- that way because he has not thought the matter through.
+                                    -- If the user does know what he is doing,
+                                    -- it may be best to require him to write out explicitly what
+                                    -- he wants.
+                                    grammar:development_error(
+                                        who
+                                        .. &#39;Precedence &#39; .. assoc .. &#39;-associator is inside a sequence\n&#39;
+                                        .. &#39; That is not allowed\n&#39;
+                                        .. &#39; Marpa must be able to find a unique &#39;
+                                        .. assoc
+                                        .. &#39;-associator\n&#39;
+                                        .. &#39; Possible solution: rewrite so that an unique &#39;
+                                        .. assoc
+                                        .. &#39; is outside the sequence\n&#39;,
+                                        associator_instance.name_base,
+                                        associator_instance.line
+                                    )
+                                end
+                                associator_instance.precedence_level = level
+                                associator_instance.associator = assoc
+                            end
+                        end
+                    end
+                end
+
+                local next_ladder_lhs = cloned_wsym_ensure(lhs)
+                do
+                    -- We need a symbol for the top precedence level
+                    -- in addition to the original symbol
+                    local wsym_props = wsym_ensure(lhs.name)
+                    wsym_props.xsym = lhs
+                    wsym_props.precedence_level = top_precedence_level
+                    for level = top_precedence_level,0,-1 do
+                        wsym_props = precedenced_wsym_ensure(lhs, level)
+                        wsym_props.xsym = lhs
+                        wsym_props.precedence_level = level
+                        wrule_new{lhs = next_ladder_lhs,
+                            rh_instances = {winstance_new(wsym_props)},
+                            }
+                        next_ladder_lhs = wsym_props
+                    end
+                end
+
+            end
+        end
+
+        for topalt_ix = 1,#xtopalt_by_ix do
+            local xtopalt = xtopalt_by_ix[topalt_ix]
+            local brick_wrule = alt_to_work_data_add(xtopalt)
+            -- Empty rules do not return a wrule
+            if brick_wrule then
+                brick_wrule.brick = true
+            end
+        end
+
+        -- will be used to ensure names are unique
+        local unique_number = 0
+
+        -- We change wrule_by_id as we proceed, and
+        -- so do cannot use ipairs
+        for rule_id = 1,#wrule_by_id do
+            local working_wrule = wrule_by_id[rule_id]
+
+            -- As of this writing, no wrules should be
+            -- deleted at this point,
+            -- but we are being careful
+
+            if working_wrule then
+
+                -- TODO -- split rules with internal nulling
+                --     events, and convert that event to
+                --     a completion event
+
+                local min = working_wrule.min
+                local separator = working_wrule.separator
+                local max = working_wrule.max
+
+                -- luatangle: insert disallow nulling separator
+
+                if min &lt;= 0 then
+                    min = 1
+                    working_wrule.nullable = nil
+                end
+                -- Do not need to fix working_wrule.min
+                -- because we will no longer use it
+
+                -- Rewrite sequence rules
+                if min ~= 1 or max ~= 1 then
+                    local rh_instances = working_wrule.rh_instances
+                    local separation = working_wrule.separation
+                    -- luatangle: insert Force singleton RHS in working_rule
+                    -- luatangle: insert Create the repetend instance
+                    -- luatangle: insert Create the separator instance if needed
+                    -- luatangle: insert Normalize separation
+                    -- luatangle: insert Rewrite the sequence counts
+                end
+            end
+        end
+
+        -- luatangle: insert Check and expand lexemes
+        -- luatangle: insert Binarize the working grammar
+        -- luatangle: insert Create the internal grammar
+
+        for rule_id = 1,#wrule_by_id do
+            local wrule = wrule_by_id[rule_id]
+            if wrule then print(wrule.desc) end
+        end
+
+        -- luatangle: insert Census fields
+
+    end
+</code></pre>
+<h2 id="grammar-constructor"><a href="#TOC">Grammar constructor</a></h2>
+<pre><code>
+    -- luatangle: section Grammar constructor
+
+    -- this will actually become a method of the config object
+    local function grammar_new(config, args) -- luacheck: ignore config
+        local who = &#39;grammar_new()&#39;
+        local grammar = {
+            throw = true,
+            name = &#39;[NEW]&#39;,
+            name_base = &#39;[NEW]&#39;,
+            xrule_by_id = {},
+            xprec_by_id = {},
+            xtopalt_by_ix = {},
+            xsubalt_by_id = {},
+
+            lexemes_by_type = {},
+            next_lexeme_id = 0,
+            xsym_by_id = {},
+            xsym_by_name = {},
+
+            -- maps LHS id to RHS id
+            xlhs_by_rhs = {},
+        }
+        setmetatable(grammar, {
+                __index = grammar_class,
+            })
+
+        if not args.file then
+            return nil, grammar:development_error(
+                who .. [[ requires &#39;file&#39; named argument]],
+                debug.getinfo(2,&#39;S&#39;).source,
+                debug.getinfo(2, &#39;l&#39;).currentline
+            )
+        end
+
+        if not args.line then
+            return nil, grammar:development_error(
+                who .. [[ requires &#39;line&#39; named argument]],
+                debug.getinfo(2,&#39;S&#39;).source,
+                debug.getinfo(2, &#39;l&#39;).currentline
+            )
+        end
+
+        local who = &#39;grammar_new()&#39;
+        -- luatangle: insert Common PLIF argument processing
+
+        -- if line is nil, the &quot;file&quot; is actually an error object
+        if line == nil then return line, file end
+
+        local name = args.name
+        if not name then
+            return nil, grammar:development_error([[grammar must have a name]])
+        end
+        if type(name) ~= &#39;string&#39; then
+            return nil, grammar:development_error([[grammar &#39;name&#39; must be a string]])
+        end
+        if name:find(&#39;[^a-zA-Z0-9_]&#39;) then
+            return nil, grammar:development_error(
+                [[grammar &#39;name&#39; characters must be ASCII-7 alphanumeric plus &#39;_&#39;]]
+            )
+        end
+        if name:byte(1) == &#39;_&#39; then
+            return nil, grammar:development_error([[grammar &#39;name&#39; first character may not be &#39;_&#39;]])
+        end
+        args.name = nil
+        grammar.name = name
+        -- This is used to name child objects of the grammar
+        -- For now, it is just the name of the grammar.
+        -- Someday I may create a method that allows it to be changed.
+        grammar.name_base = name
+
+        local field_name = next(args)
+        if field_name ~= nil then
+            return nil, grammar:development_error([[grammar_new(): unacceptable named argument ]] .. field_name)
+        end
+
+        return grammar
+    end
+</code></pre>
+<pre><code>
+    -- luatangle: section+ main
+
+    grammar_class.new = grammar_new
+    return grammar_class
+
+    --luatangle: write stdout main
+</code></pre>
+<h2 id="error-routines"><a href="#TOC">Error routines</a></h2>
+<pre><code>
+    -- luatangle: section Error routines internal to compile()
+
+    local function report_nullable_precedenced_xrule(grammar, xrule)
+        local precedences = xrule.precedences
+        local nullable_alternatives = {}
+        for prec_ix = 1, #precedences do
+            local xprec = precedences[prec_ix]
+            local alternatives = xprec.top_alternatives
+            for alt_ix = 1, #alternatives do
+                local alternative = alternatives[alt_ix]
+                nullable_alternatives[#nullable_alternatives+1] = alternative
+                if #nullable_alternatives &gt;= 3 then break end
+            end
+            if #nullable_alternatives &gt;= 3 then break end
+        end
+        local error_table = {
+            &#39;grammar_new():&#39; .. &#39;precedenced rule is nullable&#39;,
+            &#39; That is not allowed&#39;,
+            [[ The rule is ]] .. xrule.name
+        }
+        for ix = 1, #nullable_alternatives do
+            error_table[#error_table+1]
+            = &#39; Alternative &#39; .. nullable_alternatives[ix].name .. &quot; is nullable&quot;
+        end
+
+        -- For now, report just the rule.
+        -- At some point, find one of the alternatives
+        -- which was nullable, and report that
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, &#39;\n&#39;),
+            xrule.name_base,
+            xrule.line
+        )
+    end
+
+    local function report_nullable_repetend(grammar, xsubalt)
+        local error_table = {
+            &#39;grammar.compile():&#39; .. &#39;sequence repetend is nullable&#39;,
+            &#39; That is not allowed&#39;,
+            [[ The sequence is ]] .. xsubalt.name
+        }
+
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, &#39;\n&#39;),
+            xsubalt.name_base,
+            xsubalt.line
+        )
+    end
+
+    local function report_shared_precedenced_lhs(grammar, precedenced_xrule, lhs)
+
+        local error_table = {
+            &#39;grammar.compile():&#39; .. &#39;precedenced rule shares LHS with another rule&#39;,
+            &#39; That is not allowed: a precedenced rule must have a dedicated LHS&#39;,
+            [[ The precedenced rule is ]] .. precedenced_xrule.name,
+            [[ The LHS is ]] .. lhs.name,
+            [[ This LHS is shared with the rule ]] .. lhs.name,
+        }
+
+        -- just show at most 3 other rules
+        local xrules = lhs.xrules
+        local shown_count = 0
+        while shown_count &gt;= 3 do
+            local other_xrule = xrules[shown_count+1]
+            if other_xrule == nil then break end
+            if other_xrule ~= precedenced_xrule then
+                error_table[#error_table+1] =
+                [[ This LHS is shared with the rule ]] .. other_xrule.name
+                shown_count = shown_count + 1
+            end
+        end
+
+        return nil,
+        grammar:development_error(
+            table.concat(error_table, &#39;\n&#39;),
+            precedenced_xrule.name_base,
+            precedenced_xrule.line
+        )
+    end
+</code></pre>
+<!--
+vim: expandtab shiftwidth=4:
+-->
+
+
