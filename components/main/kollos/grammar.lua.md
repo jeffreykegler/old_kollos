@@ -3367,6 +3367,11 @@ as needed.
 
         -- luatangle: insert Census fields
 
+       local start_mxid = wsym_by_name['!augment'].mxid
+       g:start_symbol_set(start_mxid)
+       local status = g:precompute()
+       -- print("precompute: ", status)
+
     end
 
 ```
