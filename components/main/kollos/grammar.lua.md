@@ -613,19 +613,22 @@ Otherwise, the RHS is stolen from `wrule`.
         end
     }
 
-    local function irule_from_wrule(wrule, rhs)
+    local function irule_from_wrule(wrule, rh_instance1, rh_instance2)
         local lhs = wrule.lhs
-        local rh_instances = rhs or wrule.rh_instances
+        local rhs = { rh_instance1 }
+        if rh_instance2 then
+            rhs[2] = rh_instance2
+        end
         local irule = {
             lhs = lhs,
             nullable = wrule.nullable,
-            rh_instances = rh_instances,
+            rh_instances = rhs,
             source = wrule.source,
             xalt = wrule.xalt,
         }
         setmetatable(irule, mt_irule)
-        local rhs1_mxid rhs1_mxid = rh_instances[1].mxid
-        local rh_instance2 = rh_instances[2]
+        local rhs1_mxid rhs1_mxid = rh_instance1.mxid
+        local rh_instance2 = rh_instance2
         local rhs2_mxid = rh_instance2 and rh_instance2.mxid or nil
         rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
         if rule_mxid < 0 then
@@ -2006,7 +2009,6 @@ and has two symbols on its RHS.
         -- just in case.
         if working_wrule then
             local rh_instances = working_wrule.rh_instances
-            local rhs_mxids = {}
             for rh_ix = 1,#rh_instances do
                 local rh_instance = rh_instances[rh_ix]
                 local element = rh_instance.element
@@ -2014,7 +2016,6 @@ and has two symbols on its RHS.
                     -- "steal" the wsym, making it an isym
                     element.mxid = g:symbol_new()
                 end
-                rhs_mxids[rh_ix] = element.mxid
                 -- TODO: delete after development
                 assert(rh_instance.type == 'isym')
             end
@@ -2024,11 +2025,21 @@ and has two symbols on its RHS.
                 lhs.mxid = g:symbol_new()
             end
 
-            local lhs_mxid = lhs.mxid
-
             -- TODO: delete after development
             assert(lhs.type == 'isym')
-            local irule = irule_from_wrule(working_wrule)
+            if #rh_instances == 1 then
+                irule_from_wrule(working_wrule, rh_instances[1])
+            else
+                local rh_instance1 = rh_instances[1]
+                local rh_instance2 = rh_instances[2]
+                irule_from_wrule(working_wrule, rh_instance1, rh_instance2)
+                if rh_instance1.nullable then
+                    irule_from_wrule(working_wrule, rh_instance2)
+                end
+                if rh_instance2.nullable then
+                    irule_from_wrule(working_wrule, rh_instance1)
+                end
+            end
         end
     end
 
