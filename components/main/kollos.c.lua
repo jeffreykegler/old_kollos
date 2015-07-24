@@ -748,6 +748,8 @@ static void check_libmarpa_table(
 local function c_type_of_libmarpa_type(libmarpa_type)
     if (libmarpa_type == 'int') then return 'int' end
     if (libmarpa_type == 'Marpa_Assertion_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_Earley_Item_ID') then return 'int' end
+    if (libmarpa_type == 'Marpa_AHM_ID') then return 'int' end
     if (libmarpa_type == 'Marpa_IRL_ID') then return 'int' end
     if (libmarpa_type == 'Marpa_NSY_ID') then return 'int' end
     if (libmarpa_type == 'Marpa_Or_Node_ID') then return 'int' end
@@ -856,13 +858,58 @@ local c_fn_signatures = {
   {"marpa_v_valued_force"},
   {"marpa_v_rule_is_valued_set", "Marpa_Rule_ID", "symbol_id", "int", "value"},
   {"marpa_v_symbol_is_valued_set", "Marpa_Symbol_ID", "symbol_id", "int", "value"},
-  {"_marpa_g_rule_is_keep_separation", "Marpa_Rule_ID", "rule_id"},
-  {"_marpa_g_irl_lhs", "Marpa_IRL_ID", "rule_id"},
-  {"_marpa_g_irl_rhs", "Marpa_IRL_ID", "rule_id", "int", "ix"},
-  {"_marpa_g_irl_length", "Marpa_IRL_ID", "rule_id"},
+  {"_marpa_g_ahm_count"},
+  {"_marpa_g_ahm_irl", "Marpa_AHM_ID", "item_id"},
+  {"_marpa_g_ahm_position", "Marpa_AHM_ID", "item_id"},
+  {"_marpa_g_ahm_postdot", "Marpa_AHM_ID", "item_id"},
+  {"_marpa_g_irl_count"},
+  {"_marpa_g_irl_is_virtual_rhs", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_irl_length", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_irl_lhs", "Marpa_IRL_ID", "irl_id"},
   {"_marpa_g_irl_rank", "Marpa_IRL_ID", "irl_id"},
-  {"_marpa_g_nsy_rank", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_irl_rhs", "Marpa_IRL_ID", "irl_id", "int", "ix"},
+  {"_marpa_g_irl_semantic_equivalent", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_nsy_count"},
+  {"_marpa_g_nsy_is_lhs", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_is_nulling", "Marpa_NSY_ID", "nsy_id"},
   {"_marpa_g_nsy_is_semantic", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_is_start", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_lhs_xrl", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_rank", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_nsy_xrl_offset", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_real_symbol_count", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_rule_is_keep_separation", "Marpa_Rule_ID", "rule_id"},
+  {"_marpa_g_rule_is_used", "Marpa_Rule_ID", "rule_id"},
+  {"_marpa_g_source_xrl", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_source_xsy", "Marpa_NSY_ID", "nsy_id"},
+  {"_marpa_g_virtual_end", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_virtual_start", "Marpa_IRL_ID", "irl_id"},
+  {"_marpa_g_xsy_nsy", "Marpa_Symbol_ID", "symid"},
+  {"_marpa_g_xsy_nulling_nsy", "Marpa_Symbol_ID", "symid"},
+  {"_marpa_r_earley_item_origin"},
+  {"_marpa_r_earley_item_trace", "Marpa_Earley_Item_ID", "item_id"},
+  {"_marpa_r_earley_set_size", "Marpa_Earley_Set_ID", "set_id"},
+  {"_marpa_r_earley_set_trace", "Marpa_Earley_Set_ID", "set_id"},
+  {"_marpa_r_first_completion_link_trace"},
+  {"_marpa_r_first_leo_link_trace"},
+  {"_marpa_r_first_postdot_item_trace"},
+  {"_marpa_r_first_token_link_trace"},
+  {"_marpa_r_is_use_leo"},
+  {"_marpa_r_is_use_leo_set", "int", "value"},
+  {"_marpa_r_leo_base_origin"},
+  {"_marpa_r_leo_base_state"},
+  {"_marpa_r_leo_predecessor_symbol"},
+  {"_marpa_r_next_completion_link_trace"},
+  {"_marpa_r_next_leo_link_trace"},
+  {"_marpa_r_next_postdot_item_trace"},
+  {"_marpa_r_next_token_link_trace"},
+  {"_marpa_r_postdot_item_symbol"},
+  {"_marpa_r_postdot_symbol_trace", "Marpa_Symbol_ID", "symid"},
+  {"_marpa_r_source_leo_transition_symbol"},
+  {"_marpa_r_source_middle"},
+  {"_marpa_r_source_predecessor_state"},
+  -- {"_marpa_r_source_token", "int", "*value_p"},
+  {"_marpa_r_trace_earley_set"},
   {"_marpa_b_and_node_cause", "Marpa_And_Node_ID", "ordinal"},
   {"_marpa_b_and_node_count"},
   {"_marpa_b_and_node_middle", "Marpa_And_Node_ID", "and_node_id"},
@@ -946,7 +993,7 @@ for ix = 1, #c_fn_signatures do
      local arg_type = signature[arg_ix*2]
      local arg_name = signature[1 + arg_ix*2]
      local c_type = c_type_of_libmarpa_type(arg_type)
-     assert(c_type == "int", ("type " .. c_type .. "not implemented"))
+     assert(c_type == "int", ("type " .. arg_type .. " not implemented"))
      io.write("  ", arg_name, " = lua_tointeger(L, -1);\n")
      io.write("  lua_pop(L, 1);\n")
    end

@@ -1994,6 +1994,15 @@ and has two symbols on its RHS.
 
 ## Create the internal grammar
 
+Right now, cycles are dealt with in Libmarpa.
+In the future, I should deal with them here.
+That will involve splitting apart the elimination
+of nullables from the creation of Libmarpa rules
+and symbols, because cycles are easiest to dealt with
+in-between the two.
+It is easiest to spot unit rules in a grammar that
+is free of nulling and nullable symbols.
+
 ```
 
     -- luatangle: section Create the internal grammar
@@ -2002,6 +2011,8 @@ and has two symbols on its RHS.
     local irule_by_id = {}
 
     -- luatangle: insert Define irule constructor
+
+    -- TODO: Add logic to deal with cycles
 
     for rule_id = 1,#wrule_by_id do
         local working_wrule = wrule_by_id[rule_id]
