@@ -627,7 +627,7 @@ Otherwise, the RHS is stolen from `wrule`.
             xalt = wrule.xalt,
         }
         setmetatable(irule, mt_irule)
-        local rhs1_mxid rhs1_mxid = rh_instance1.mxid
+        local rhs1_mxid = rh_instance1.mxid
         local rh_instance2 = rh_instance2
         local rhs2_mxid = rh_instance2 and rh_instance2.mxid or nil
         rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
@@ -3382,6 +3382,29 @@ as needed.
        g:start_symbol_set(start_mxid)
        local status = g:precompute()
        -- print("precompute: ", status)
+
+       for isym_name,isym in pairs(wsym_by_name) do
+           print(isym_name, isym.mxid, kollos_c.grammar_xsy_nsy(g, isym.mxid))
+       end
+
+       local nsy_count = kollos_c.grammar_nsy_count(g)
+       print('NSY count', nsy_count)
+       for nsy_id = 0,nsy_count-1 do
+           if kollos_c.grammar_nsy_is_start(g, nsy_id) ~= 0 then
+               print('start NSY: ', nsy_id)
+           end
+           if kollos_c.grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
+               print('nulling NSY: ', nsy_id)
+           end
+       end
+
+       print('IRL count', kollos_c.grammar_irl_count(g))
+       local irl_count = kollos_c.grammar_irl_count(g)
+       print('IRL count', irl_count)
+       for irl_id = 0,irl_count-1 do
+           local source_xrl = kollos_c.grammar_source_xrl(g, irl_id)
+           print('IRL,source: ', irl_id, source_xrl)
+       end
 
     end
 
