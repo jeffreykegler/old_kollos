@@ -641,7 +641,7 @@ Otherwise, the RHS is stolen from `wrule`.
             end
         end
         irule.mxid = rule_mxid
-        irule_by_id[rule_mxid] = irule
+        irule_by_mxid[rule_mxid] = irule
         -- print('Adding irule', irule, rule_mxid)
         return irule
     end
@@ -2008,7 +2008,7 @@ is free of nulling and nullable symbols.
     -- luatangle: section Create the internal grammar
 
     local g = wrap.grammar()
-    local irule_by_id = {}
+    local irule_by_mxid = {}
 
     -- luatangle: insert Define irule constructor
 
@@ -3372,7 +3372,7 @@ as needed.
         -- luatangle: insert Create the internal grammar
 
         -- pairs(), because 0 is a valid id
-        for _,irule in pairs(irule_by_id) do
+        for _,irule in pairs(irule_by_mxid) do
             if irule then print(irule.desc) end
         end
 
@@ -3383,33 +3383,45 @@ as needed.
        local status = g:precompute()
        -- print("precompute: ", status)
 
+       local isym_by_mxid = {}
+       local isym_by_miid = {}
        for isym_name,isym in pairs(wsym_by_name) do
-           print(isym_name, isym.mxid, kollos_c.grammar_xsy_nsy(g, isym.mxid))
+           local mxid = isym.mxid
+           local miid = kollos_c.grammar_xsy_nsy(g, isym.mxid)
+           isym_by_mxid[mxid] = isym
+           isym.miid = midd
+           isym_by_miid[miid] = isym
        end
 
+       local start_miid
        local nsy_count = kollos_c.grammar_nsy_count(g)
        print('NSY count', nsy_count)
        for nsy_id = 0,nsy_count-1 do
-           if kollos_c.grammar_nsy_is_start(g, nsy_id) ~= 0 then
-               print('start NSY: ', nsy_id)
-           end
            if kollos_c.grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
-               print('nulling NSY: ', nsy_id)
+               error('nulling NSY: ' .. nsy_id)
+           end
+           if kollos_c.grammar_nsy_is_start(g, nsy_id) ~= 0
+           then
+               start_miid = nsy_id
+           end
+           if start_miid ~= nsy_id and not isym_by_miid[nsy_id]
+           then
+               print('start NSY: ', nsy_id)
            end
        end
 
-       print('IRL count', kollos_c.grammar_irl_count(g))
+
        local irl_count = kollos_c.grammar_irl_count(g)
        print('IRL count', irl_count)
-       for irl_id = 0,irl_count-1 do
-           local source_xrl = kollos_c.grammar_source_xrl(g, irl_id)
-           if source_xrl then
-               print('IRL,source: ', irl_id, source_xrl)
-           else
-               local lhs = kollos_c.grammar_irl_lhs(g, irl_id)
-               local rhs = kollos_c.grammar_irl_rhs(g, irl_id, 0)
-               print('no-XRL IRL: ', lhs, '::=', rhs)
+       for miid = 0,irl_count-1 do
+           local mxid = kollos_c.grammar_source_xrl(g, miid)
+           if not mxid then
+               local lhs = kollos_c.grammar_irl_lhs(g, miid)
+               if lhs ~= start_miid then
+                   error('no-XRL IRL: ', lhs, '::=', rhs)
+               end
            end
+           irule_by_mxid[mxid].miid = irl_id
        end
 
     end
