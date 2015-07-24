@@ -3403,7 +3403,13 @@ as needed.
        print('IRL count', irl_count)
        for irl_id = 0,irl_count-1 do
            local source_xrl = kollos_c.grammar_source_xrl(g, irl_id)
-           print('IRL,source: ', irl_id, source_xrl)
+           if source_xrl then
+               print('IRL,source: ', irl_id, source_xrl)
+           else
+               local lhs = kollos_c.grammar_irl_lhs(g, irl_id)
+               local rhs = kollos_c.grammar_irl_rhs(g, irl_id, 0)
+               print('no-XRL IRL: ', lhs, '::=', rhs)
+           end
        end
 
     end
