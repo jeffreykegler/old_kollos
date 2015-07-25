@@ -3386,12 +3386,23 @@ as needed.
 
        local isym_by_mxid = {}
        local isym_by_miid = {}
+       local mxids_by_cc = {}
+
        for isym_name,isym in pairs(wsym_by_name) do
            local mxid = isym.mxid
            local miid = kollos_c.grammar_xsy_nsy(g, isym.mxid)
            isym_by_mxid[mxid] = isym
            isym.miid = midd
            isym_by_miid[miid] = isym
+           if isym.lexeme_type == 'cc' then
+               local cc_spec = isym.spec
+               local mxids = mxids_by_cc[isym.spec]
+               if not mxids then
+                   mxids_by_cc[isym.spec] = { mxid }
+               else
+                   mxids[#mxids+1] = mxid
+               end
+           end
        end
 
        local start_miid
