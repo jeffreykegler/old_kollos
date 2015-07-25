@@ -2008,6 +2008,7 @@ is free of nulling and nullable symbols.
     -- luatangle: section Create the internal grammar
 
     local g = wrap.grammar()
+    local irule_by_miid = {}
     local irule_by_mxid = {}
 
     -- luatangle: insert Define irule constructor
@@ -3420,10 +3421,11 @@ as needed.
                if lhs ~= start_miid then
                    error('no-XRL IRL: ', lhs, '::=', rhs)
                end
+           else
+               local irule = irule_by_mxid[mxid]
+               irule.miid = miid
+               irule_by_miid[miid] = irule
            end
-           local irule = irule_by_mxid[mxid]
-           irule.miid = irl_id
-           irule_by_miid[miid] = irule
        end
 
        return {
