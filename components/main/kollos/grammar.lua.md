@@ -2291,6 +2291,8 @@ or otherwise as occasion demands.
     local luif_err_duplicate_rule -- luacheck: ignore
         = kollos_c.error_code_by_name['LUIF_ERR_DUPLICATE_RULE'] -- luacheck: ignore
     local matrix = require "kollos.matrix"
+    local recce = require "kollos.recce"
+    local a8lex = require "kollos.a8lex"
 
     local function here() return -- luacheck: ignore here
         debug.getinfo(2,'S').source .. debug.getinfo(2, 'l').currentline
@@ -3540,6 +3542,8 @@ as needed.
     -- luatangle: section+ main
 
     grammar_class.new = grammar_new
+    grammar_class.recce_new = recce.new
+    grammar_class.a8lex_new = a8lex.new
     return grammar_class
 
     --luatangle: write stdout main
