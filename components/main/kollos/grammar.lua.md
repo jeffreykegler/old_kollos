@@ -3544,6 +3544,7 @@ as needed.
     grammar_class.new = grammar_new
     grammar_class.recce_new = recce.new
     grammar_class.a8lex_new = a8lex.new
+    grammar_class.default_lexer_factory = a8lex.new
     return grammar_class
 
     --luatangle: write stdout main
