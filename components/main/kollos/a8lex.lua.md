@@ -27,7 +27,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 This is the code for the Kollos's 8-bit ASCII
 character reader.
-It's an optional of Kollos's recognizer.
+It's an optional part of Kollos's recognizer.
+
+Kollos allows custom lexers,
+and this source also contains
+the description of the interface
+for lexers in general.
 
 ## The lexer interface
 
@@ -36,9 +41,9 @@ which in turn is a kind of lexer.
 
 The lexer interface offers the following methods:
 
-### `coro()`
+### `iterator()`
 
-`coro()` returns a coroutine that produces the
+`iterator()` returns a coroutine that produces the
 series of lexemes.  This is described further below.
 
 ### `value(pos, symbol)`
@@ -76,9 +81,9 @@ This must be the Lua string which was passed to
 the lexer factory.
 Archetypally, it will be a file name.
 
-## The lexer cooroutine
+## The lexer coroutine
 
-The lexer cooroutine, when resumeed,
+The lexer coroutine, when resumeed,
 takes no argumentes.
 On yielding, it returns a table of mxid's.
 At end of input, the table is empty.
@@ -91,33 +96,70 @@ one which will, once the recce has been created and the
 input is known, will create the lexer.
 
     -- luatangle: section Advertized methods
+    -- luatangle: insert a8 memos key declaration
 
+    local a8_memos_key
     local function a8lex_new(grammar)
          -- Add error checking
          local a8_memos = grammar[a8_memos_key]
          if not a8_memos then
              grammar[a8_memos_key] = {}
          end
-         return {}
+         return a8_concrete_factory
     end
+
+This table is used as the key for the memoization
+of ASCII-8 characters.
+It is empty and stays empty --
+it's purpose in life is to create an unique address,
+one which can be used as a key to grammar field
+without fear of conflict.
+
+This is hardly necessary for the lexers which
+come bundled with Kollos, but custom lexers will
+need to make sure the use keys which do not conflict
+with any grammar fields, present or future.
+
+    -- luatangle: section a8 memos key declaration
+
+    local a8_memos_key = {}
 
 ## The concrete lexer factory
 
 This method takes a blob name and an input
-spefication and returns a lexer.
+specification and returns a lexer.
+
+    -- luatangle: section Concrete lexer factory
+
+    local function a8_concrete_factory(
+        blob, input_string, start_pos, end_pos)
+        local lexer = {}
+        -- luatangle: insert Declare a8_iterator_cofn
+        local iterator = coroutine.create(a8_iterator_coro)
+        return { iterator = iterator }
+    end
+
+## The A8 lexer iterator co-function
+
+    -- luatangle: section Declare a8_iterator_cofn
+
+    local a8_interator_cofn = function (parent_pos)
+    end
 
 ## Finish and return the a8lex class object
 
     -- luatangle: section Finish and return object
 
     local a8lex_class = {
-        new = a8lex_new
+        new = a8lex_new,
+        memo_key = a8_memo_key,
     }
     return a8lex_class
 
 ## Output file
 
     -- luatangle: section main
+    -- luatangle: insert Concrete lexer factory
     -- luatangle: insert Advertized methods
     -- luatangle: insert Finish and return object
     -- luatangle: write stdout main
