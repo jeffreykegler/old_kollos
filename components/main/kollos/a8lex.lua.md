@@ -313,8 +313,8 @@ occurred.
             if up_pos_arg <= lexer.up_pos then
                 return nil,lexer:development_error(
                     "a8_lexer:iterator: attempt to use non-increasing up position\n"
-                    " current up_pos = " .. up_pos .. "\n"
-                    " up_pos arguments = " .. up_pos_arg .. "\n"
+                    .. " current up_pos = " .. up_pos .. "\n"
+                    .. " up_pos arguments = " .. up_pos_arg .. "\n"
                 )
             end
             if not up_history then
