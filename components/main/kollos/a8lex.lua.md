@@ -92,8 +92,9 @@ At end of input, the table is empty.
  
 This is an abstract factory method.
 It returns another factory,
-one which will, once the recce has been created and the
-input is known, will create the lexer.
+one which will,
+once the recce is known,
+will create the lexer.
 
     -- luatangle: section Advertized methods
     -- luatangle: insert a8 memos key declaration
@@ -131,20 +132,62 @@ specification and returns a lexer.
 
     -- luatangle: section Concrete lexer factory
 
-    local function a8_concrete_factory(
-        blob, input_string, start_pos, end_pos)
-        local lexer = {}
+    local function a8_concrete_factory(recce)
+        local lexer = {
+            recce = recce,
+            throw = recce.throw,
+        }
+        return lexer
+    end
+
+## The blob_set() lexer method
+
+The blob is a string which will be used in error
+messages.
+Archetypally, the blog name is the file name.
+For blobs which are not files,
+the blob name
+should be something
+that helps the user identify where the error
+occurred.
+
+    -- luatangle: section Lexer methods
+
+    local function blob_set(
+        lexer, blob, input_string, start_pos, end_pos)
+        local blob_type = type(blob)
+        if blob_type ~= 'string' then
+            return nil,lexer:development_error(
+                "a8_lexer:blob_set(): blob_name is type '"
+                    .. type(blob)
+                    .. "' -- it must be a string")
+        end
+        if lexer.blob then
+            return nil,lexer:development_error(
+                "a8_lexer:blob_set() called more than once\n"
+                    ..  "  blob_set() can only be called once")
+        end
+        lexer.blob = blob
+        lexer.input_string = input_string
+        lexer.start_pos = start_pos
+        lexer.end_pos = start_pos
+        return lexer
+    end
+
+## The itererator_new() lexer method
+
+    -- luatangle: section+ Lexer methods
+
+    local function iterator_new(lexer)
         -- luatangle: insert Declare a8_iterator_cofn
-        local iterator = coroutine.create(a8_iterator_coro)
-        return { iterator = iterator }
+        return coroutine.create(a8_iterator_cofn)
     end
 
 ## The A8 lexer iterator co-function
 
     -- luatangle: section Declare a8_iterator_cofn
 
-    local a8_interator_cofn = function (parent_pos)
-    end
+    local a8_iterator_cofn = function(up_pos) end
 
 ## Finish and return the a8lex class object
 
@@ -156,9 +199,38 @@ specification and returns a lexer.
     }
     return a8lex_class
 
+## Development errors
+
+    -- luatangle: section Development error methods
+
+    local function development_error_stringize(error_object)
+        return
+        "A8 lexer error at line "
+        .. error_object.line
+        .. " of "
+        .. error_object.file
+        .. ":\n "
+        .. error_object.string
+    end
+
+    local function development_error(lexer, string)
+        local error_object
+        = kollos_c.error_new{
+            stringize = development_error_stringize,
+            code = luif_err_development,
+            file = lexer.blog,
+            line = debug.getinfo(2, 'l').currentline,
+            string = string
+        }
+        if lexer.throw then error(tostring(error_object)) end
+        return error_object
+    end
+
 ## Output file
 
     -- luatangle: section main
+    -- luatangle: insert Development error methods
+    -- luatangle: insert Lexer methods
     -- luatangle: insert Concrete lexer factory
     -- luatangle: insert Advertized methods
     -- luatangle: insert Finish and return object
