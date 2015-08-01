@@ -30,21 +30,122 @@ character reader.
 It's an optional part of Kollos's recognizer.
 
 Kollos allows custom lexers,
-and this source also contains
-the description of the interface
-for lexers in general.
+and provides a documented interface for them.
+Since this source describes the most basic lexer,
+we include the description of the lexer interface
+here.
+It precedes the description of the A8 lexer.
 
 ## The lexer interface
 
-This code is for one of the character readers,
-which in turn is a kind of lexer.
+Kollos allows more than one lexer,
+including customized lexers.
+Lexers can also be stacked,
+one above another, in a chain of command.
 
-The lexer interface offers the following methods:
+### What is a lexer?
+
+*Lexer*, in this context, is a Kollos-specific term.
+A Kollos recognizer has *layers*.
+The top layer is special, and is called the *parser layer*,
+or simply, *parser*.
+All other layers are *lexer layers*,
+or simply,
+lexers.
+Note that a lexer layer may have many implementations,
+including implementations more than complicated enough
+to justify the term "parser" in its ordinary, non-Kollos,
+sense.
+
+Every lexer layer has a parent layer.
+The lexer layer passes a stream to its parent
+layer,
+where each element of the stream is a *set*
+of symbols.
+Each element of the stream is a *set* of symbols,
+because Kollos allows ambiguous lexing.
+
+Each stream element occurs at a stream position.
+The positions in each stream are a 1-based sequence
+of consecutive integers.
+
+Position in the parent's stream is called *up-position*.
+A layer will also have a concept of *down position*.
+In a bottom layer, down-position may be anything convenient
+for the lexer.
+In a lexer layer which is not the bottom layers,
+down-positions must also be the up-positions
+of another lexer layer,
+and therefore must be elements of a 1-based sequence of
+integers.
+
+### The lexer iterator
+
+Each lexer layer has an iterator,
+which returns the set of symbols for the current
+up-position.
+If the iterator is called with an argument,
+that argument is the current up-position.
+Usually the iterator will
+*not* be called with an argument,
+and the current up-position will be the default.
+
+Default up-position is 1 initially,
+and is one plus the current position after that.
+
+If a position has been the current position for
+any call of the iterator, it is said to have
+been "visited".
+For every "visited" position,
+and for the lifetime of the lexer,
+it must be able to report
+
+* the value of any symbol reported at that position
+
+* the blob name, line and column.
+
+For every span of visited positions,
+and for the lifetime of the lexer,
+it must be able to report a substring.
+
+## Lexer methods
+
+### `blob()`
+
+The blob name.
+This must be the Lua string which was passed to
+the lexer factory.
+Archetypally, it will be a file name.
+If the lexer is non-standard, the blob name
+may be arbitrary,
+but it should be as useful as possible for error
+reporting.
 
 ### `iterator()`
 
 `iterator()` returns a coroutine that produces the
 series of lexemes.  This is described further below.
+
+### `linecol(pos)`
+
+If pos is a already visited up-position,
+a lexer *must* be able
+to report a line and column.
+Line and column is used for error reporting.
+A lexer must keep whatever history it needs to do this.
+
+A "standard" lexer has inputs which are strings,
+and will report line and column according to the Unicode
+standard.
+
+Line and column must always be two non-negative integers.
+Line and column values of zero may be used,
+but should be reserved for special cases.
+Otherwise,
+if the lexer is non-standard, its line and column
+may be arbitrary,
+but it should be as useful as possible for error
+reporting.
 
 ### `value(pos, symbol)`
 
@@ -62,28 +163,34 @@ value, so that the "arbitrary" choice
 among the values is in fact precisely
 determined.
 
-### `linecol(pos)`
+### `sub(start_pos, end_pos)`
 
-Returns two values -- the line and column corresponding
-to `pos`.
-These must be integers if `pos` was a visited location.
-but what they mean is up to the lexer.
+If every up-position in the range from
+`start_pos` to `end_pos` is a visited position,
+`sub(start_pos, end_pos)`
+must return a string
+somehow corresponding to
+that range of up-positions.
+A lexer must be able to detect if any up-position
+in the range was not visited,
+and must return a fatal error in that case.
 
-A "standard" lexer assumes has inputs
-which are strings containing text files,
-and reports line and column according to the Unicode
-standard.
+In a "standard" lexer, inputs will be strings,
+and `sub(start_pos, end_pos)` should be a substring
+of the input string.
 
-### `blob()`
+### Other lexer methods
 
-The blob name.
-This must be the Lua string which was passed to
-the lexer factory.
-Archetypally, it will be a file name.
+A lexer will often have other methods,
+special to it.
+For example, a lexer will often want to allow
+the application to manipulate its down-positions.
+
+### The Ascii 8 lexer
 
 ## The lexer coroutine
 
-The lexer coroutine, when resumeed,
+The lexer coroutine, when resumed,
 takes no argumentes.
 On yielding, it returns a table of mxid's.
 At end of input, the table is empty.
@@ -177,15 +284,22 @@ occurred.
         lexer.input_string = input_string
         lexer.start_pos = start_pos
         lexer.end_pos = start_pos
+        lexer.up_history = {}
         return lexer
     end
 
-## The itererator_new() lexer method
+## The iterator() lexer method
 
     -- luatangle: section+ Lexer methods
 
-    local function iterator_new(lexer)
+    local function iterator(lexer)
+        if not lexer.blob then
+            return nil,lexer:development_error(
+                "a8_lexer:iterator() called, but no blob set\n")
+        end
         -- luatangle: insert Declare a8_iterator_cofn
+        local up_pos = 0
+        local down_pos = 1
         return coroutine.create(a8_iterator_cofn)
     end
 
@@ -193,7 +307,31 @@ occurred.
 
     -- luatangle: section Declare a8_iterator_cofn
 
-    local a8_iterator_cofn = function(up_pos) end
+    local a8_iterator_cofn = function(up_pos_arg)
+        local up_history = lexer.up_history
+        if up_pos_arg then
+            if up_pos_arg <= lexer.up_pos then
+                return nil,lexer:development_error(
+                    "a8_lexer:iterator: attempt to use non-increasing up position\n"
+                    " current up_pos = " .. up_pos .. "\n"
+                    " up_pos arguments = " .. up_pos_arg .. "\n"
+                )
+            end
+            if not up_history then
+                lexer.up_history = { { up_pos_arg, false, down_pos } }
+            else
+                local last_history_ix = #up_history
+                lexer.uphistory[last_history_ix+1][2] = lexer.up_pos
+                lexer.uphistory[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
+            end
+            lexer.up_pos = up_pos_arg
+        else
+            up_pos = up_pos + 1
+            if not up_history then
+                lexer.up_history = { { up_pos, false, down_pos } }
+            end
+        end
+    end
 
 ## Finish and return the a8lex class object
 
