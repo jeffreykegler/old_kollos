@@ -288,6 +288,31 @@ occurred.
         return lexer
     end
 
+## The "Up history"
+
+The A8 lexer's up history is a table of triples.
+Each triple is `<u1,u2,d>`
+
+* `u1` is start up-position
+
+* `u2` is end up-position
+
+* `d` is start down-position
+
+It is expected,
+for an up-position `u`
+that is in the span from 
+start up-position to
+end up-position,
+that down-position will be
+`d + u - u1`.
+In the last up-history,
+the value of
+`u2` may be a Lua `false`,
+in which case the actual `u2`
+value will be the current up-postion of
+the lexer.
+
 ## The iterator() lexer method
 
     -- luatangle: section+ Lexer methods

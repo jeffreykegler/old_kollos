@@ -3447,6 +3447,7 @@ as needed.
            isym_by_mxid = isym_by_mxid,
            irule_by_miid = irule_by_miid,
            irule_by_mxid = irule_by_mxid,
+           mxids_by_cc = mxids_by_cc,
            libmarpa_g = g,
        }
 
