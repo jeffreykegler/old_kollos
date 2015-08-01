@@ -95,17 +95,17 @@ It returns another factory,
 one which will,
 once the recce is known,
 will create the lexer.
+For the a8 lexer, the abstract factory
+does not do much.
+But some lexers may want to do pre-processing
+after the grammar is known,
+but before the recognizer is known.
+This stage of the process exists for the benefit of
+those lexers.
 
     -- luatangle: section Advertized methods
-    -- luatangle: insert a8 memos key declaration
 
-    local a8_memos_key
-    local function a8lex_new(grammar)
-         -- Add error checking
-         local a8_memos = grammar[a8_memos_key]
-         if not a8_memos then
-             grammar[a8_memos_key] = {}
-         end
+    local function a8lex_new(grammar) -- luacheck: ignore grammar
          return a8_concrete_factory
     end
 
@@ -133,10 +133,16 @@ specification and returns a lexer.
     -- luatangle: section Concrete lexer factory
 
     local function a8_concrete_factory(recce)
+        local grammar = recce.grammar
         local lexer = {
             recce = recce,
+            grammar = grammar,
             throw = recce.throw,
         }
+        local a8_memos = grammar[a8_memos_key]
+        if not a8_memos then
+            grammar[a8_memos_key] = {}
+        end
         return lexer
     end
 
@@ -230,6 +236,7 @@ occurred.
 
     -- luatangle: section main
     -- luatangle: insert Development error methods
+    -- luatangle: insert a8 memos key declaration
     -- luatangle: insert Lexer methods
     -- luatangle: insert Concrete lexer factory
     -- luatangle: insert Advertized methods
