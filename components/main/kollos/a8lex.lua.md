@@ -79,35 +79,6 @@ of another lexer layer,
 and therefore must be elements of a 1-based sequence of
 integers.
 
-### The lexer iterator
-
-Each lexer layer has an iterator,
-which returns the set of symbols for the current
-up-position.
-If the iterator is called with an argument,
-that argument is the current up-position.
-Usually the iterator will
-*not* be called with an argument,
-and the current up-position will be the default.
-
-Default up-position is 1 initially,
-and is one plus the current position after that.
-
-If a position has been the current position for
-any call of the iterator, it is said to have
-been "visited".
-For every "visited" position,
-and for the lifetime of the lexer,
-it must be able to report
-
-* the value of any symbol reported at that position
-
-* the blob name, line and column.
-
-For every span of visited positions,
-and for the lifetime of the lexer,
-it must be able to report a substring.
-
 ## Lexer methods
 
 ### `blob()`
@@ -186,14 +157,41 @@ special to it.
 For example, a lexer will often want to allow
 the application to manipulate its down-positions.
 
+### Using the lexer iterator
+
+The lexer iterator is a Lua coroutine.
+It should be resumed with no arguments or one.
+If the iterator is called with an argument,
+that argument becomes the current up-position.
+Usually the iterator will
+*not* be called with an argument,
+and the current up-position will be the default.
+
+The default for the current up-position is 1 initially,
+and is one plus the current position after that.
+Since the up-positions in a lexer's parent layer must always
+start at 1 and must be consecutive integers, this
+will usually be what is wanted.
+
+One example of a circumstance where the default current
+up-position is not what is wanted,
+is the case where two lexers are in use.
+When the Kollos layer switches lexers,
+it must inform
+the lexer of its current up-position.
+
+On yielding, the lexer coroutine returns
+
+* On success before the end of input,
+  the table of mxid's for the current up-position,
+  This table must not be altered.
+
+* On success at end of input, an empty table.
+
+* On unthrown failure, two values: a `nil`,
+  followed by an error object.
+
 ### The Ascii 8 lexer
-
-## The lexer coroutine
-
-The lexer coroutine, when resumed,
-takes no argumentes.
-On yielding, it returns a table of mxid's.
-At end of input, the table is empty.
 
 ## Constructor
  
@@ -244,6 +242,7 @@ specification and returns a lexer.
         local lexer = {
             recce = recce,
             grammar = grammar,
+            cc_by_mxids = grammar.cc_by_mxids,
             throw = recce.throw,
         }
         local a8_memos = grammar[a8_memos_key]
@@ -267,7 +266,7 @@ occurred.
     -- luatangle: section Lexer methods
 
     local function blob_set(
-        lexer, blob, input_string, start_pos, end_pos)
+        lexer, blob, input_string, start_dpos, end_dpos)
         local blob_type = type(blob)
         if blob_type ~= 'string' then
             return nil,lexer:development_error(
@@ -282,8 +281,8 @@ occurred.
         end
         lexer.blob = blob
         lexer.input_string = input_string
-        lexer.start_pos = start_pos
-        lexer.end_pos = start_pos
+        lexer.down_pos = start_dpos
+        lexer.end_of_input = end_dpos
         lexer.up_history = {}
         return lexer
     end
@@ -356,7 +355,53 @@ the lexer.
                 lexer.up_history = { { up_pos, false, down_pos } }
             end
         end
+        if down_pos > end_of_input then
+            return {}
+        end
+        local byte = lexer.string:byte(down_pos)
+        local mxids_by_byte = lexer.mxids_by_byte[byte]
+        if not mxids_by_byte then
+            -- luatangle: insert set the mxids_by_byte entry for byte
+            lexer.mxids_by_byte[byte] = mxids_by_byte
+        end
+        return mxids_by_byte
     end
+
+## Set the mxids_by_byte entry for byte
+
+    -- luatangle: section set the mxids_by_byte entry for byte
+
+    local char = string.char(byte)
+    mxids_by_byte = {}
+    for cc_spec,mxids_for_cc in pairs(mxids_by_cc) do
+        local found = char:find(cc_spec)
+        if found then
+            for ix = 1,#mxids_for_cc do
+                mxids_by[#mxids_by+1]
+                    = mxids_for_cc[ix]
+            end
+        end
+    end
+    if #mxids_by_byte <= 0 then
+        local error_message = {
+            "a8_lexer:iterator: character in input is not known to grammar\n",
+            "   character value is ", byte, "\n"
+        }
+        if char:find('[^%c]') then
+            error_message[#error_message+1] =
+             "  character printable glyph is " .. char .. "\n"
+        end
+        return nil,lexer:development_error(
+            table.concat(error_message)
+        )
+    end
+    -- make these entries write only
+    setmetatable(mxids_for_byte, {
+       __newindex = function(table) 
+                error("mxids by cc are write only")
+           end
+        }
+    )
 
 ## Finish and return the a8lex class object
 
