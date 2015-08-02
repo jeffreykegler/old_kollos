@@ -356,7 +356,7 @@ the lexer.
             end
         end
         if down_pos > end_of_input then
-            return {}
+            coroutine.yield({})
         end
         local byte = lexer.string:byte(down_pos)
         local mxids_by_byte = lexer.mxids_by_byte[byte]
@@ -364,7 +364,7 @@ the lexer.
             -- luatangle: insert set the mxids_by_byte entry for byte
             lexer.mxids_by_byte[byte] = mxids_by_byte
         end
-        return mxids_by_byte
+        coroutine.yield(mxids_by_byte)
     end
 
 ## Set the mxids_by_byte entry for byte
