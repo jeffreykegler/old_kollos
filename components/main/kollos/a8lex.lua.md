@@ -321,17 +321,17 @@ the lexer.
             return nil,lexer:development_error(
                 "a8_lexer:iterator() called, but no blob set\n")
         end
-        -- luatangle: insert Declare a8_iterator_cofn
-        local up_pos = 0
-        local down_pos = 1
-        return coroutine.create(a8_iterator_cofn)
+        local lex_string = lexer.string
+        local mxids_by_byte = lexer.mxids_by_byte
+        -- luatangle: insert Declare a8_iterator_fn
+        return a8_iterator_fn
     end
 
 ## The A8 lexer iterator co-function
 
-    -- luatangle: section Declare a8_iterator_cofn
+    -- luatangle: section Declare a8_iterator_fn
 
-    local a8_iterator_cofn = function(up_pos_arg)
+    local a8_iterator_fn = function(up_pos_arg)
         local up_history = lexer.up_history
         if up_pos_arg then
             if up_pos_arg <= lexer.up_pos then
@@ -345,44 +345,50 @@ the lexer.
                 lexer.up_history = { { up_pos_arg, false, down_pos } }
             else
                 local last_history_ix = #up_history
-                lexer.uphistory[last_history_ix+1][2] = lexer.up_pos
-                lexer.uphistory[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
+                uphistory[last_history_ix+1][2] = lexer.up_pos
+                uphistory[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
             end
             lexer.up_pos = up_pos_arg
         else
             up_pos = up_pos + 1
             if not up_history then
-                lexer.up_history = { { up_pos, false, down_pos } }
+                up_history = { { up_pos, false, down_pos } }
             end
         end
+        local down_pos = lexer.down_pos
         if down_pos > end_of_input then
-            coroutine.yield({})
+            return {}
+        elseif not down_pos then
+            down_pos = 1
+        else
+            down_pos = down_pos + 1
         end
-        local byte = lexer.string:byte(down_pos)
-        local mxids_by_byte = lexer.mxids_by_byte[byte]
-        if not mxids_by_byte then
-            -- luatangle: insert set the mxids_by_byte entry for byte
-            lexer.mxids_by_byte[byte] = mxids_by_byte
+        lexer.down_pos = down_pos
+        local byte = lex_string:byte(down_pos)
+        local mxids_for_byte = mxids_by_byte[byte]
+        if not mxids_for_byte then
+            -- luatangle: insert set mxids_for_byte
+            mxids_by_byte[byte] = mxids_for_byte
         end
-        coroutine.yield(mxids_by_byte)
+        return mxids_for_byte
     end
 
-## Set the mxids_by_byte entry for byte
+## Set the mxids entry for byte
 
-    -- luatangle: section set the mxids_by_byte entry for byte
+    -- luatangle: section set mxids_for_byte
 
     local char = string.char(byte)
-    mxids_by_byte = {}
+    mxids_for_byte = {}
     for cc_spec,mxids_for_cc in pairs(mxids_by_cc) do
         local found = char:find(cc_spec)
         if found then
             for ix = 1,#mxids_for_cc do
-                mxids_by[#mxids_by+1]
+                mxids_for_byte[#mxids_by+1]
                     = mxids_for_cc[ix]
             end
         end
     end
-    if #mxids_by_byte <= 0 then
+    if #mxids_for_byte <= 0 then
         local error_message = {
             "a8_lexer:iterator: character in input is not known to grammar\n",
             "   character value is ", byte, "\n"
