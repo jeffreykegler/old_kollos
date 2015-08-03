@@ -34,7 +34,7 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Constructor
 
-    function new(grammar)
+    local function grammar_new(grammar)
         local recce = {
              grammar = grammar,
              throw = grammar.throw,
@@ -65,8 +65,8 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Finish return object
 
-    recce_static_class = {
-        new = new
+    local recce_static_class = {
+        new = grammar_new
     }
     return recce_static_class
 

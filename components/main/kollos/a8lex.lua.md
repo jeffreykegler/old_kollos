@@ -281,8 +281,9 @@ occurred.
         end
         lexer.blob = blob
         lexer.input_string = input_string
-        lexer.down_pos = start_dpos
-        lexer.end_of_input = end_dpos
+        lexer.down_pos = start_dpos or 0
+        lexer.up_pos = 0
+        lexer.end_of_input = end_dpos or #input_string
         lexer.up_history = {}
         return lexer
     end
@@ -323,6 +324,7 @@ the lexer.
         end
         local lex_string = lexer.string
         local mxids_by_byte = lexer.mxids_by_byte
+        local up_history = lexer.up_history
         -- luatangle: insert Declare a8_iterator_fn
         return a8_iterator_fn
     end
@@ -332,9 +334,15 @@ the lexer.
     -- luatangle: section Declare a8_iterator_fn
 
     local a8_iterator_fn = function(up_pos_arg)
-        local up_history = lexer.up_history
+        local down_pos = lexer.down_pos
+        if down_pos > lexer.end_of_input then
+            return {}
+        end
+        down_pos = down_pos + 1
+        lexer.down_pos = down_pos
+        local up_pos = lexer.up_pos
         if up_pos_arg then
-            if up_pos_arg <= lexer.up_pos then
+            if up_pos_arg <= up_pos then
                 return nil,lexer:development_error(
                     "a8_lexer:iterator: attempt to use non-increasing up position\n"
                     .. " current up_pos = " .. up_pos .. "\n"
@@ -345,25 +353,16 @@ the lexer.
                 lexer.up_history = { { up_pos_arg, false, down_pos } }
             else
                 local last_history_ix = #up_history
-                uphistory[last_history_ix+1][2] = lexer.up_pos
-                uphistory[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
+                up_history[last_history_ix+1][2] = lexer.up_pos
+                up_history[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
             end
-            lexer.up_pos = up_pos_arg
         else
             up_pos = up_pos + 1
             if not up_history then
                 up_history = { { up_pos, false, down_pos } }
             end
         end
-        local down_pos = lexer.down_pos
-        if down_pos > end_of_input then
-            return {}
-        elseif not down_pos then
-            down_pos = 1
-        else
-            down_pos = down_pos + 1
-        end
-        lexer.down_pos = down_pos
+        lexer.up_pos = up_pos_arg
         local byte = lex_string:byte(down_pos)
         local mxids_for_byte = mxids_by_byte[byte]
         if not mxids_for_byte then
@@ -379,11 +378,11 @@ the lexer.
 
     local char = string.char(byte)
     mxids_for_byte = {}
-    for cc_spec,mxids_for_cc in pairs(mxids_by_cc) do
+    for cc_spec,mxids_for_cc in pairs(mxids_for_cc) do
         local found = char:find(cc_spec)
         if found then
             for ix = 1,#mxids_for_cc do
-                mxids_for_byte[#mxids_by+1]
+                mxids_for_byte[#mxids_for_byte+1]
                     = mxids_for_cc[ix]
             end
         end
@@ -415,7 +414,7 @@ the lexer.
 
     local a8lex_class = {
         new = a8lex_new,
-        memo_key = a8_memo_key,
+        memo_key = a8_memos_key,
     }
     return a8lex_class
 
