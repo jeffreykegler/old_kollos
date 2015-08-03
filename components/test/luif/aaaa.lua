@@ -45,5 +45,6 @@ l0:alternative_new{}
 l0:compile{ seamless = 'top', line = __LINE__}
 
 local r0 = l0:recce_new()
+r0:start()
 
 -- vim: expandtab shiftwidth=4:

@@ -52,6 +52,15 @@ the C language which contains the actual parse engine.
     -- luatangle: section Declare recce_class
     local recce_class = {}
 
+## The start() method
+
+    -- luatangle: section start() recce method
+
+    function recce_class.start(recce)
+        local r = recce.libmarpa_r
+        return r:start_input()
+    end
+
 ## Finish and return the recce static class
 
     -- luatangle: section Finish return object
@@ -74,6 +83,7 @@ the C language which contains the actual parse engine.
 
     -- luatangle: insert Declare recce_class
     -- luatangle: insert Constructor
+    -- luatangle: insert start() recce method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 
