@@ -3441,15 +3441,15 @@ as needed.
            end
        end
 
-       return {
-           isym_by_name = wsym_by_name,
-           isym_by_miid = isym_by_miid,
-           isym_by_mxid = isym_by_mxid,
-           irule_by_miid = irule_by_miid,
-           irule_by_mxid = irule_by_mxid,
-           mxids_by_cc = mxids_by_cc,
-           libmarpa_g = g,
-       }
+       grammar.isym_by_name = wsym_by_name
+       grammar.isym_by_miid = isym_by_miid
+       grammar.isym_by_mxid = isym_by_mxid
+       grammar.irule_by_miid = irule_by_miid
+       grammar.irule_by_mxid = irule_by_mxid
+       grammar.mxids_by_cc = mxids_by_cc
+       grammar.libmarpa_g = g
+
+       return grammar
 
     end
 

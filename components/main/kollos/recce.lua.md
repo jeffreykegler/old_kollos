@@ -34,7 +34,12 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Constructor
 
-    function new()
+    function new(grammar)
+        local recce = {
+             grammar = grammar,
+             throw = grammar.throw,
+        }
+        local r = wrap.recce(grammar.libmarpa_g)
     end
 
 ## Finish and return the recce class object
@@ -49,6 +54,14 @@ the C language which contains the actual parse engine.
 ## Output file
 
     -- luatangle: section main
+
+    -- luacheck: std lua51
+    -- luacheck: globals bit
+    -- luacheck: globals __FILE__ __LINE__
+
+    local wrap = require "kollos.wrap"
+    local a8lex = require "kollos.a8lex"
+
     -- luatangle: insert Constructor
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
