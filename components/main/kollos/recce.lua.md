@@ -40,16 +40,26 @@ the C language which contains the actual parse engine.
              throw = grammar.throw,
         }
         local r = wrap.recce(grammar.libmarpa_g)
+        recce.libmarpa_r = r
+        setmetatable(recce, {
+                __index = recce_class,
+            })
+        return recce
     end
 
-## Finish and return the recce class object
+## Declare the recce class
+
+    -- luatangle: section Declare recce_class
+    local recce_class = {}
+
+## Finish and return the recce static class
 
     -- luatangle: section Finish return object
 
-    local recce_class = {
+    recce_static_class = {
         new = new
     }
-    return recce_class
+    return recce_static_class
 
 ## Output file
 
@@ -62,6 +72,7 @@ the C language which contains the actual parse engine.
     local wrap = require "kollos.wrap"
     local a8lex = require "kollos.a8lex"
 
+    -- luatangle: insert Declare recce_class
     -- luatangle: insert Constructor
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main

@@ -3448,6 +3448,7 @@ as needed.
        grammar.irule_by_mxid = irule_by_mxid
        grammar.mxids_by_cc = mxids_by_cc
        grammar.libmarpa_g = g
+       grammar.default_lexer_factory = a8lex.new
 
        return grammar
 
@@ -3542,11 +3543,11 @@ as needed.
 
     -- luatangle: section+ main
 
-    grammar_class.new = grammar_new
     grammar_class.recce_new = recce.new
     grammar_class.a8lex_new = a8lex.new
-    grammar_class.default_lexer_factory = a8lex.new
-    return grammar_class
+
+    local grammar_static_class = { new = grammar_new }
+    return grammar_static_class
 
     --luatangle: write stdout main
 
