@@ -12,13 +12,7 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
 ENABLE_TESTING()
 
-FIND_PACKAGE(Lua51)
-IF (LUA_INCLUDE_DIR)
-  MESSAGE(STATUS "Lua include path: ${LUA_INCLUDE_DIR}")
-  include_directories("${LUA_INCLUDE_DIR}")
-ELSE ()
-  message( FATAL_ERROR "Lua 5.1 not available.  Kollos cannot be built" )
-ENDIF (LUA_INCLUDE_DIR)
+include_directories("${CMAKE_SOURCE_DIR}/lua/src")
 
 # ----------------------------------------------------------------------------
 # Enable all warnings depending on compiler
@@ -87,7 +81,7 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${libmarpa_SOURCE_DIR}/include")
 ADD_LIBRARY(kollos_c SHARED ${CMAKE_CURRENT_BINARY_DIR}/kollos.c)
-target_link_libraries(kollos_c ${libmarpa_BINARY_DIR}/libmarpa_s.a ${lua_BINARY_DIR}/src/liblua.a ${LUA_LIBRARIES})
+target_link_libraries(kollos_c ${libmarpa_BINARY_DIR}/libmarpa_s.a ${lua_BINARY_DIR}/src/liblua.a)
 
 add_subdirectory(kollos) # kollos-wide tests
 

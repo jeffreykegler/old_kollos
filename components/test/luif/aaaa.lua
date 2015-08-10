@@ -46,5 +46,8 @@ l0:compile{ seamless = 'top', line = __LINE__}
 
 local r0 = l0:recce_new()
 r0:start()
+local lexer_factory = r0.default_lexer_factory
+local input = 'aaaa'
+local lexer = lexer_factory('aaaa', input)
 
 -- vim: expandtab shiftwidth=4:

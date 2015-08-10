@@ -195,24 +195,60 @@ On yielding, the lexer coroutine returns
 
 ## Constructor
  
-This is an abstract factory method.
-It returns another factory,
-one which will,
-once the recce is known,
-will create the lexer.
-For the a8 lexer, the abstract factory
-does not do much.
-But some lexers may want to do pre-processing
-after the grammar is known,
-but before the recognizer is known.
-This stage of the process exists for the benefit of
-those lexers.
+This is a factory method.
+Once the recce is known,
+it will create the lexer.
+Using a factory serves two purposes:
 
-    -- luatangle: section Advertized methods
+* It is a convenient way to specify a default lexer for
+  a grammar.  All default lexers must present the
+  standard string-oriented interface.
 
-    local function a8lex_new(grammar) -- luacheck: ignore grammar
-         return a8_concrete_factory
-    end
+* It allows the use of upvalues,
+  access to which is more
+  efficient thank the hashed lookup
+
+    -- luatangle: section Static methods
+
+    local function factory(
+        recce, blob_name, string)
+        local blob_name_type = type(blob_name)
+        if blob_name_type ~= 'string' then
+            return nil,lexer:development_error(
+                "a8_lexer:abstract_factory(): blob_name is type '"
+                    .. blob_name_type
+                    .. "' -- it must be a blob_name")
+        end -- 1
+        local string_type = type(string)
+        if string_type ~= 'string' then
+            return nil,lexer:development_error(
+                "a8_lexer:abstract_factory(): string is type '"
+                    .. string_type
+                    .. "' -- it must be a string")
+        end -- 2
+
+        local grammar = recce.grammar
+        local cc_by_mxids = grammar[a8_memos_key]
+        if not cc_by_mxids then
+            cc_by_mxids = {}
+            grammar[a8_memos_key] = cc_by_mxids
+        end -- 3
+        local down_pos = 0
+        local end_of_input = #string
+        local up_history = {},
+        local throw = recce.throw,
+
+        -- luatangle: insert define lexer next() method
+        -- luatangle: insert define lexer resume() method
+
+        local lexer = {
+            next = next_method
+            resume = resume_method
+        }
+        return lexer
+    end -- 4
+
+## The memos key
 
 This table is used as the key for the memoization
 of ASCII-8 characters.
@@ -230,31 +266,37 @@ with any grammar fields, present or future.
 
     local a8_memos_key = {}
 
-## The concrete lexer factory
+## Down positions
 
-This method takes a blob name and an input
-specification and returns a lexer.
+Down positions are positions in the layer below
+the lexer.
+These must be in term accessible to the layer above
+the lexer, so that it can use the `resume()` method.
 
-    -- luatangle: section Concrete lexer factory
+It may the case that the positions accessible to the
+upper layer are not the useful one.
+For example, the useful positioning 
+in a UTF-8 lexer's will be by codepoint,
+but knowledge of that positioning is only available
+within the lexer.
+The upper layer will see the string as a sequence
+of bytes.
+If necessary, a method must be provided 
+to translate from
+useful values to down positions as visible to
+the upper layer.
 
-    local function a8_concrete_factory(recce)
-        local grammar = recce.grammar
-        local lexer = {
-            recce = recce,
-            grammar = grammar,
-            cc_by_mxids = grammar.cc_by_mxids,
-            throw = recce.throw,
-        }
-        local a8_memos = grammar[a8_memos_key]
-        if not a8_memos then
-            grammar[a8_memos_key] = {}
-        end
-        return lexer
-    end
+The down position is never `nil`.
+An undefined down position is indicated by a value
+one less than the `start_of_input`.
+This is in order to optimize the `next()` method.
+Optimization of `next()` is prefered because it is
+the default, and in most cases the most called,
+method.
 
-## The blob_set() lexer method
+## The blob name
 
-The blob is a string which will be used in error
+The blob name is a string which will be used in error
 messages.
 Archetypally, the blog name is the file name.
 For blobs which are not files,
@@ -262,31 +304,6 @@ the blob name
 should be something
 that helps the user identify where the error
 occurred.
-
-    -- luatangle: section Lexer methods
-
-    local function blob_set(
-        lexer, blob, input_string, start_dpos, end_dpos)
-        local blob_type = type(blob)
-        if blob_type ~= 'string' then
-            return nil,lexer:development_error(
-                "a8_lexer:blob_set(): blob_name is type '"
-                    .. type(blob)
-                    .. "' -- it must be a string")
-        end
-        if lexer.blob then
-            return nil,lexer:development_error(
-                "a8_lexer:blob_set() called more than once\n"
-                    ..  "  blob_set() can only be called once")
-        end
-        lexer.blob = blob
-        lexer.input_string = input_string
-        lexer.down_pos = start_dpos or 0
-        lexer.up_pos = 0
-        lexer.end_of_input = end_dpos or #input_string
-        lexer.up_history = {}
-        return lexer
-    end
 
 ## The "Up history"
 
@@ -313,62 +330,19 @@ in which case the actual `u2`
 value will be the current up-postion of
 the lexer.
 
-## The iterator() lexer method
+## The next() lexer method
 
-    -- luatangle: section+ Lexer methods
+    -- luatangle: section define lexer next() method
 
-    local function iterator(lexer)
-        if not lexer.blob then
-            return nil,lexer:development_error(
-                "a8_lexer:iterator() called, but no blob set\n")
-        end
-        local lex_string = lexer.string
-        local mxids_by_byte = lexer.mxids_by_byte
-        local up_history = lexer.up_history
-        -- luatangle: insert Declare a8_iterator_fn
-        return a8_iterator_fn
-    end
-
-## The A8 lexer iterator co-function
-
-    -- luatangle: section Declare a8_iterator_fn
-
-    local a8_iterator_fn = function(up_pos_arg)
-        local down_pos = lexer.down_pos
-        if down_pos > lexer.end_of_input then
-            return {}
-        end
+    local lexer_next()
         down_pos = down_pos + 1
-        lexer.down_pos = down_pos
-        local up_pos = lexer.up_pos
-        if up_pos_arg then
-            if up_pos_arg <= up_pos then
-                return nil,lexer:development_error(
-                    "a8_lexer:iterator: attempt to use non-increasing up position\n"
-                    .. " current up_pos = " .. up_pos .. "\n"
-                    .. " up_pos arguments = " .. up_pos_arg .. "\n"
-                )
-            end
-            if not up_history then
-                lexer.up_history = { { up_pos_arg, false, down_pos } }
-            else
-                local last_history_ix = #up_history
-                up_history[last_history_ix+1][2] = lexer.up_pos
-                up_history[last_history_ix+1] = { lexer.up_pos_arg, false, down_pos }
-            end
-        else
-            up_pos = up_pos + 1
-            if not up_history then
-                up_history = { { up_pos, false, down_pos } }
-            end
-        end
-        lexer.up_pos = up_pos_arg
+        up_pos = up_pos + 1
         local byte = lex_string:byte(down_pos)
         local mxids_for_byte = mxids_by_byte[byte]
         if not mxids_for_byte then
             -- luatangle: insert set mxids_for_byte
             mxids_by_byte[byte] = mxids_for_byte
-        end
+        end -- 4
         return mxids_for_byte
     end
 
@@ -385,8 +359,8 @@ the lexer.
                 mxids_for_byte[#mxids_for_byte+1]
                     = mxids_for_cc[ix]
             end
-        end
-    end
+        end -- 8
+    end -- 9
     if #mxids_for_byte <= 0 then
         local error_message = {
             "a8_lexer:iterator: character in input is not known to grammar\n",
@@ -395,28 +369,71 @@ the lexer.
         if char:find('[^%c]') then
             error_message[#error_message+1] =
              "  character printable glyph is " .. char .. "\n"
-        end
+        end -- 10
         return nil,lexer:development_error(
             table.concat(error_message)
         )
-    end
+    end -- 11
     -- make these entries write only
     setmetatable(mxids_for_byte, {
        __newindex = function(table) 
                 error("mxids by cc are write only")
-           end
+           end --12
         }
     )
+
+## The resume() lexer method
+
+"Resumes" a lexer at a new position.
+Automatically sets a new up-position.
+With no end_arg, defaults to #string.
+To set a new up-position without changing
+the down positions, leave them nil.
+If start_arg is nil, end_arg is always ignored.
+
+    -- luatangle: section define lexer resume() method
+
+    local function resume_method(start_arg, end_arg)
+        local up_history_ix = #up_history
+        local current_up_history = up_history[up_history_ix]
+
+        -- If the old history entry was actually used
+        if down_pos >= current_up_history[3] then
+            -- Mark the end position where the last history
+            -- segment ended
+            up_history[up_history_ix][2] = up_pos
+            -- Prepare to create a new history entry
+            up_history_ix = up_history_ix + 1
+        end --13
+
+        -- start_arg and end_arg might both be nil
+        if start_arg then
+            start_of_input = start_arg
+            if not end_arg then
+                end_of_input = end_arg
+            else
+                end_of_input = #string
+            end -- 14
+        end -- 15
+
+        local current_up_pos = recce.current_pos()
+        up_history[up_last_history_ix] = { current_up_pos, false, start_of_input }
+
+        -- Undefined position is indicated as start less one
+        -- to make the next() method efficient
+        down_pos = start_of_input - 1
+        up_pos = current_up_pos - 1
+
+    end -- 16
 
 ## Finish and return the a8lex class object
 
     -- luatangle: section Finish and return object
 
-    local a8lex_class = {
-        new = a8lex_new,
-        memo_key = a8_memos_key,
+    local static_class = {
+        factory = factory
     }
-    return a8lex_class
+    return static_class
 
 ## Development errors
 
@@ -430,29 +447,27 @@ the lexer.
         .. error_object.file
         .. ":\n "
         .. error_object.string
-    end
+    end -- 17
 
     local function development_error(lexer, string)
         local error_object
         = kollos_c.error_new{
             stringize = development_error_stringize,
             code = luif_err_development,
-            file = lexer.blog,
+            file = lexer.blob,
             line = debug.getinfo(2, 'l').currentline,
             string = string
         }
         if lexer.throw then error(tostring(error_object)) end
         return error_object
-    end
+    end -- 18
 
 ## Output file
 
     -- luatangle: section main
     -- luatangle: insert Development error methods
     -- luatangle: insert a8 memos key declaration
-    -- luatangle: insert Lexer methods
-    -- luatangle: insert Concrete lexer factory
-    -- luatangle: insert Advertized methods
+    -- luatangle: insert Static methods
     -- luatangle: insert Finish and return object
     -- luatangle: write stdout main
 
