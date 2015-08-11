@@ -218,21 +218,21 @@ Using a factory serves two purposes:
                 "a8_lexer:abstract_factory(): blob_name is type '"
                     .. blob_name_type
                     .. "' -- it must be a blob_name")
-        end -- 1
+        end
         local string_type = type(string)
         if string_type ~= 'string' then
             return nil,lexer:development_error(
                 "a8_lexer:abstract_factory(): string is type '"
                     .. string_type
                     .. "' -- it must be a string")
-        end -- 2
+        end
 
         local grammar = recce.grammar
         local cc_by_mxids = grammar[a8_memos_key]
         if not cc_by_mxids then
             cc_by_mxids = {}
             grammar[a8_memos_key] = cc_by_mxids
-        end -- 3
+        end
         local down_pos = 0
         local end_of_input = #string
         local up_history = {}
@@ -246,7 +246,7 @@ Using a factory serves two purposes:
             resume = resume_method
         }
         return lexer
-    end -- 4
+    end
 
 ## The memos key
 
@@ -334,7 +334,7 @@ the lexer.
 
     -- luatangle: section define lexer next() method
 
-    local function lexer_next()
+    local function next_method()
         down_pos = down_pos + 1
         up_pos = up_pos + 1
         local byte = lex_string:byte(down_pos)
@@ -342,7 +342,7 @@ the lexer.
         if not mxids_for_byte then
             -- luatangle: insert set mxids_for_byte
             mxids_by_byte[byte] = mxids_for_byte
-        end -- 4
+        end
         return mxids_for_byte
     end
 
@@ -359,8 +359,8 @@ the lexer.
                 mxids_for_byte[#mxids_for_byte+1]
                     = mxids_for_cc[ix]
             end
-        end -- 8
-    end -- 9
+        end
+    end
     if #mxids_for_byte <= 0 then
         local error_message = {
             "a8_lexer:iterator: character in input is not known to grammar\n",
@@ -369,11 +369,11 @@ the lexer.
         if char:find('[^%c]') then
             error_message[#error_message+1] =
              "  character printable glyph is " .. char .. "\n"
-        end -- 10
+        end
         return nil,lexer:development_error(
             table.concat(error_message)
         )
-    end -- 11
+    end
     -- make these entries write only
     setmetatable(mxids_for_byte, {
        __newindex = function(table) 
@@ -413,8 +413,8 @@ If start_arg is nil, end_arg is always ignored.
                 end_of_input = end_arg
             else
                 end_of_input = #string
-            end -- 14
-        end -- 15
+            end
+        end
 
         local current_up_pos = recce.current_pos()
         up_history[up_last_history_ix] = { current_up_pos, false, start_of_input }
@@ -424,7 +424,7 @@ If start_arg is nil, end_arg is always ignored.
         down_pos = start_of_input - 1
         up_pos = current_up_pos - 1
 
-    end -- 16
+    end
 
 ## Finish and return the a8lex class object
 
@@ -447,7 +447,7 @@ If start_arg is nil, end_arg is always ignored.
         .. error_object.file
         .. ":\n "
         .. error_object.string
-    end -- 17
+    end
 
     local function development_error(lexer, string)
         local error_object
@@ -460,7 +460,7 @@ If start_arg is nil, end_arg is always ignored.
         }
         if lexer.throw then error(tostring(error_object)) end
         return error_object
-    end -- 18
+    end
 
 ## Output file
 

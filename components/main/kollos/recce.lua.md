@@ -125,6 +125,40 @@ it allows the lexer's access to this datum.
         return recce.down_pos
     end
 
+## The read() method
+
+Requires a lexer to be set.
+Reads for as long as it returns symbols
+or, in other words,
+until an event occurs.
+
+    -- luatangle: section read() recce method
+
+    function recce_class.read(recce)
+        local lexer = recce.lexer
+        if not lexer then
+            return nil, lexer:development_error(
+                "recce:read(): No lexer\n"
+                .. "  Lexer must be set before calling read() method\n"
+                )
+        end
+        while true do
+            local symbols, error_object = lexer.next
+            if symbols = nil then return nil, error_object end
+            -- Note: recce current pos is set only *after success*
+            -- of next() method call
+            down_pos = down_pos + 1
+            -- luatangle: insert print results
+        end
+    end
+
+    -- TODO deleted after development
+    -- luatangle: insert print results
+
+    for _,symbol in ipairs(symbols) do
+         print("@" .. down_pos,  symbol, lexer.value(down_pos))
+    end
+
 ## Finish and return the recce static class
 
     -- luatangle: section Finish return object
@@ -133,6 +167,37 @@ it allows the lexer's access to this datum.
         new = recce_new
     }
     return recce_static_class
+
+## Development errors
+
+    -- luatangle: section Development error methods
+
+    local function development_error_stringize(error_object)
+        return
+        "recce error at line "
+        .. error_object.line
+        .. " of "
+        .. error_object.file
+        .. ":\n "
+        .. error_object.string
+    end
+
+    local function development_error(recce, string)
+        local blob = 'No blob'
+        if recce.lexer then
+             blob = recce.lexer.blob()
+        end
+        local error_object
+        = kollos_c.error_new{
+            stringize = development_error_stringize,
+            code = luif_err_development,
+            file = blob,
+            line = debug.getinfo(2, 'l').currentline,
+            string = string
+        }
+        if recce.throw then error(tostring(error_object)) end
+        return error_object
+    end
 
 ## Output file
 
@@ -146,6 +211,7 @@ it allows the lexer's access to this datum.
     local a8lex = require "kollos.a8lex"
 
     -- luatangle: insert Declare recce_class
+    -- luatangle: insert Development error methods
     -- luatangle: insert Constructor
     -- luatangle: insert start() recce method
     -- luatangle: insert lexer_set() recce method
