@@ -49,5 +49,7 @@ r0:start()
 local lexer_factory = l0.default_lexer_factory
 local input = 'aaaa'
 local lexer = lexer_factory(r0, 'aaaa', input)
+r0:lexer_set(lexer)
+r0:read()
 
 -- vim: expandtab shiftwidth=4:
