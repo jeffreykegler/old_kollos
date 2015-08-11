@@ -235,14 +235,14 @@ Using a factory serves two purposes:
         end -- 3
         local down_pos = 0
         local end_of_input = #string
-        local up_history = {},
-        local throw = recce.throw,
+        local up_history = {}
+        local throw = recce.throw
 
         -- luatangle: insert define lexer next() method
         -- luatangle: insert define lexer resume() method
 
         local lexer = {
-            next = next_method
+            next = next_method,
             resume = resume_method
         }
         return lexer
@@ -334,7 +334,7 @@ the lexer.
 
     -- luatangle: section define lexer next() method
 
-    local lexer_next()
+    local function lexer_next()
         down_pos = down_pos + 1
         up_pos = up_pos + 1
         local byte = lex_string:byte(down_pos)

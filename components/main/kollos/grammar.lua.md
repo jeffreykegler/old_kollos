@@ -3448,7 +3448,7 @@ as needed.
        grammar.irule_by_mxid = irule_by_mxid
        grammar.mxids_by_cc = mxids_by_cc
        grammar.libmarpa_g = g
-       grammar.default_lexer_factory = a8lex.new
+       grammar.default_lexer_factory = a8lex.factory
 
        return grammar
 
