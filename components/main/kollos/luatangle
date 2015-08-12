@@ -73,7 +73,8 @@ local function section_end()
 end
 
 local function command_do(line)
-    local prefix,command = line:match("^(%s*)--%s*luatangle:%s+(.*)$")
+    -- print('command_do', line)
+    local prefix,command = line:match("^(%s*)--%s*luatangle:%s*(.*)$")
     if not prefix then return end
     if prefix:match('[^\32]') then
         error("Command prefix is not all spaces -- it must be\n"
@@ -141,7 +142,7 @@ local function command_do(line)
     end
 
     if not current_section then
-        error("Command found outside of a section\n"
+        error("Line " .. line_number .. ": command found outside of a section\n"
             .. "  It might be valid section command, but found outside of a section,\n"
             .. "  or it might simply an invalid command\n"
             .. "  Problem line: " .. line .. "\n"
@@ -165,15 +166,24 @@ if file_ids.stdin then
     if not input_handle then error(error_message) end
 else input_handle = io.input() end
 
-function multiline_command_do(line)
-    if line:match("%]$") then
+local function multiline_command_do(line)
+    -- print('multiline', '"' .. line .. '"')
+    if not line:find'^%s*[-][-]' then
+        error("Problem at line " .. line_number .. '\n'
+            .. '  line is .. "' .. line .. '"\n'
+            .. "  Every line in a multiline command must be a comment\n"
+        )
+    end
+    line = line:gsub('^[^-]*[-][-]', '', 1)
+    multiline_command[#multiline_command+1] = line
+    if line:find']%s*$' then
+        -- print('Found!')
         local single_line = table.concat(multiline_command)
-        single_line:gsub('-- %[', '--', 1)
-        single_line:gsub('%]$', '', 1)
+        multiline_command = nil
+        single_line = single_line:gsub('--%sluatangle:%s*%[', '-- luatangle:', 1)
+        single_line = single_line:gsub(']%s*$', '', 1)
+        -- print('Found!', single_line)
         command_do(single_line)
-        multiline_comand = nil
-    else
-        multiline_command[#multiline_command+1] = line
     end
 end
 
@@ -181,8 +191,7 @@ for line in input_handle:lines() do
     line_number = line_number + 1
     if multiline_command then
         multiline_command_do(line)
-    end
-    if current_subsection then
+    elseif current_subsection then
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
         then
