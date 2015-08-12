@@ -211,7 +211,7 @@ Using a factory serves two purposes:
     -- luatangle: section Static methods
 
     local function factory(
-        recce, blob_name, string)
+        recce, blob_name, lex_string)
         local blob_name_type = type(blob_name)
         if blob_name_type ~= 'string' then
             return nil,lexer:development_error(
@@ -219,7 +219,7 @@ Using a factory serves two purposes:
                     .. blob_name_type
                     .. "' -- it must be a blob_name")
         end
-        local string_type = type(string)
+        local string_type = type(lex_string)
         if string_type ~= 'string' then
             return nil,lexer:development_error(
                 "a8_lexer:abstract_factory(): string is type '"
@@ -228,21 +228,24 @@ Using a factory serves two purposes:
         end
 
         local grammar = recce.grammar
-        local cc_by_mxids = grammar[a8_memos_key]
-        if not cc_by_mxids then
-            cc_by_mxids = {}
-            grammar[a8_memos_key] = cc_by_mxids
+        local mxids_by_cc = grammar.mxids_by_cc
+        local mxids_by_byte = grammar[a8_memos_key]
+        if not mxids_by_byte then
+            mxids_by_byte = {}
+            grammar[a8_memos_key] = mxids_by_byte
         end
         local down_pos = 0
-        local end_of_input = #string
+        local up_pos = 0
+        local end_of_input = #lex_string
         local up_history = {}
         local throw = recce.throw
 
+        -- luatangle: insert define lexer blob() method
         -- luatangle: insert define lexer next() method
         -- luatangle: insert define lexer resume() method
 
         local lexer = {
-            next = next_method,
+            next_lexeme = next_method,
             resume = resume_method
         }
         return lexer
@@ -305,6 +308,12 @@ should be something
 that helps the user identify where the error
 occurred.
 
+## The blob() lexer method
+
+    -- luatangle: section define lexer blob() method
+
+    local function blob_method() return blob_name end
+
 ## The "Up history"
 
 The A8 lexer's up history is a table of triples.
@@ -350,14 +359,14 @@ the lexer.
 
     -- luatangle: section set mxids_for_byte
 
-    local char = string.char(byte)
+    local char = lex_string.char(byte)
     mxids_for_byte = {}
-    for cc_spec,mxids_for_cc in pairs(mxids_for_cc) do
+    for cc_spec,mxids_by_cc in pairs(mxids_by_cc) do
         local found = char:find(cc_spec)
         if found then
-            for ix = 1,#mxids_for_cc do
+            for ix = 1,#mxids_by_cc do
                 mxids_for_byte[#mxids_for_byte+1]
-                    = mxids_for_cc[ix]
+                    = mxids_by_cc[ix]
             end
         end
     end
@@ -386,7 +395,7 @@ the lexer.
 
 "Resumes" a lexer at a new position.
 Automatically sets a new up-position.
-With no end_arg, defaults to #string.
+With no end_arg, defaults to #lex_string.
 To set a new up-position without changing
 the down positions, leave them nil.
 If start_arg is nil, end_arg is always ignored.
@@ -412,7 +421,7 @@ If start_arg is nil, end_arg is always ignored.
             if not end_arg then
                 end_of_input = end_arg
             else
-                end_of_input = #string
+                end_of_input = #lex_string
             end
         end
 
@@ -424,6 +433,67 @@ If start_arg is nil, end_arg is always ignored.
         down_pos = start_of_input - 1
         up_pos = current_up_pos - 1
 
+    end
+
+## The value() lexer method
+
+Using the up-history, find the value at 'up_pos_arg`.
+
+    -- luatangle: section define lexer value() method
+
+    local function value_method(up_pos_arg)
+        if up_pos_arg > up_pos then
+            return nil,lexer:development_error(
+                "a8_lexer:value(): position is past last position read\n"
+                    .. "  last position read: " .. up_pos .. "\n"
+                    .. "  position argument: " .. up_pos_arg .. "\n"
+            )
+        end
+        if up_pos_arg < 1 then
+            return nil,lexer:development_error(
+                "a8_lexer:value(): position argument is less than 1\n"
+                    .. "  position argument: " .. up_pos_arg .. "\n"
+            )
+        end
+        local most_recent_up_entry = up_history[#up_history]
+        local start_of_up_range = most_recent_up_entry[1]
+        local dpos_base
+
+        -- The most recent entry is a special case, because it's
+        -- end of up-range is not set.  Treating it as such
+        -- has the benefit of optimizing the case where there
+        -- is a single history entry, which should be the most
+        -- common.
+        if up_pos_arg >= start_of_up_range then
+            dpos_base = most_recent_up_entry[3]
+        else
+            -- up_pos was not in range of last up-history entry, so
+            -- binary search the others
+            local lo = 1
+            local hi = #up_history - 1
+            -- avoid overflow
+            while not dpos_base do
+                if hi < lo then
+                    return nil,lexer:development_error(
+                        "a8_lexer:value(): Internal error\n"
+                            .. "  position argument is not in lexer up-history: " .. up_pos_arg .. "\n"
+                    )
+                end
+                local trial = ((hi - lo) / 2) + lo
+                local trial_up_entry = up_history[trial]
+                start_of_up_range = trial_up_entry[1]
+                local end_of_up_range = trial_up_entry[2]
+                if up_pos_arg > end_of_up_range then
+                    lo = trial + 1
+                elseif up_pos_arg < start_of_up_range then
+                    hi = trial - 1
+                else
+                    dpos_base = trial_up_entry[3]
+                end
+            end
+        end
+        value_dpos = (up_pos_arg - start_of_up_range) + dpos_base
+        return lex_string:sub(value_dpos, value_dpos)
     end
 
 ## Finish and return the a8lex class object

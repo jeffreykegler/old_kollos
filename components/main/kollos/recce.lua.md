@@ -104,7 +104,7 @@ first.
         -- recent entry has never been used -- in that case,
         -- the most recent entry is replaced
         if down_history_ix > 0 and
-                down_pos >= down_history[down_history_ix][1] then
+                recce.down_pos >= down_history[down_history_ix][1] then
              down_history_ix = down_history_ix + 1
         end
 
@@ -143,20 +143,20 @@ until an event occurs.
                 )
         end
         while true do
-            local symbols, error_object = lexer.next
-            if symbols = nil then return nil, error_object end
+            local symbols, error_object = lexer.next_lexeme()
+            if symbols == nil then return nil, error_object end
             -- Note: recce current pos is set only *after success*
             -- of next() method call
-            down_pos = down_pos + 1
+            recce.down_pos = recce.down_pos + 1
             -- luatangle: insert print results
         end
     end
 
-    -- TODO deleted after development
-    -- luatangle: insert print results
+    -- luatangle: section print results
+    -- TODO to be deleted after development
 
     for _,symbol in ipairs(symbols) do
-         print("@" .. down_pos,  symbol, lexer.value(down_pos))
+         print("@" .. recce.down_pos,  symbol, lexer.value(recce.down_pos))
     end
 
 ## Finish and return the recce static class
@@ -216,6 +216,7 @@ until an event occurs.
     -- luatangle: insert start() recce method
     -- luatangle: insert lexer_set() recce method
     -- luatangle: insert current_pos() recce method
+    -- luatangle: insert read() recce method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 

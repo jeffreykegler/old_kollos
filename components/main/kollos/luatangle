@@ -50,6 +50,7 @@ local current_section
 local current_subsection
 local current_prefix
 local line_number = 0
+local multiline_command
 
 local function form_section_name(line, words, offset)
     local section_name_table = {}
@@ -83,7 +84,9 @@ local function command_do(line)
     for word in command:gmatch("[^%s]+") do
         words[#words+1] = word
     end
-    if words[1] == 'section' then
+    if words[1] == '[' then
+        multiline_command = { line }
+    elseif words[1] == 'section' then
         local section_name = form_section_name(line, words, 2)
         if sections[section_name] then
             error(
@@ -161,21 +164,37 @@ if file_ids.stdin then
     if not input_handle then error(error_message) end
 else input_handle = io.input() end
 
+function multiline_command_do(line)
+    if line:match("%]$") then
+        local single_line = table.concat(multiline_command)
+        single_line:sub('-- %[', '--')
+        single_line:sub('%]$', '')
+        command_do(single_line)
+        multiline_comand = nil
+    else
+        multiline_command[#multiline_command+1] = line
+    end
+end
+
 for line in input_handle:lines() do
     line_number = line_number + 1
+    if multiline_command then
+        multiline_command_do(line)
+    end
     if current_subsection then
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
         then
             command_do(line)
         elseif line_prefix:match("^[^%s]") then
+            -- outdent ending section must not be a command
             section_end()
         elseif #line ~= 0 then
             local subsection_name = current_subsection.name
             local subsection_name_desc
                 = subsection_name and '"' .. subsection_name .. '"' or '?'
             error("Section " .. subsection_name_desc .. " ends in bad line\n"
-                .. " Problem line: " .. line .. "\n"
+                .. " Problem line: " .. '#' .. line_number .. '"' .. line .. '"\n'
             )
         end
     else
