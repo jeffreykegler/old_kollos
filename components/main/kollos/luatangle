@@ -86,6 +86,7 @@ local function command_do(line)
     end
     if words[1] == '[' then
         multiline_command = { line }
+        return
     elseif words[1] == 'section' then
         local section_name = form_section_name(line, words, 2)
         if sections[section_name] then
@@ -167,8 +168,8 @@ else input_handle = io.input() end
 function multiline_command_do(line)
     if line:match("%]$") then
         local single_line = table.concat(multiline_command)
-        single_line:sub('-- %[', '--')
-        single_line:sub('%]$', '')
+        single_line:gsub('-- %[', '--', 1)
+        single_line:gsub('%]$', '', 1)
         command_do(single_line)
         multiline_comand = nil
     else
