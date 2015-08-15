@@ -1,0 +1,16 @@
+tag Kollos-fork-attempt-1
+Tagger: Jeffrey Kegler <jeffreykegler@jeffreykegler.com>
+Date:   Sat Aug 15 14:16:40 2015 -0700
+
+Kollos fork attempt 1
+as of kollos commit fd577a7b8f
+
+commit ac0070f214caee9a33faf9e1d8ace5f0f2ccdc13
+Merge: a2043a1 1adf828
+Author: Jeffrey Kegler <jeffreykegler@jeffreykegler.com>
+Date:   Sun Mar 29 13:44:39 2015 -0700
+
+    Merge pull request #67 from rns/counted_tests
+    
+    make tests counted
+
