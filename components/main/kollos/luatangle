@@ -49,8 +49,19 @@ local outputs = {}
 local current_section
 local current_subsection
 local current_prefix
-local line_number = 0
-local multiline_command
+
+local input_handle
+if file_ids.stdin then
+    local error_message
+    input_handle, error_message = io.open(file_ids.stdin)
+    if not input_handle then error(error_message) end
+else input_handle = io.input() end
+
+local line_number = 1
+local lines = {}
+for line in input_handle:lines() do
+    lines[#lines+1] = line
+end
 
 local function form_section_name(line, words, offset)
     local section_name_table = {}
@@ -85,10 +96,7 @@ local function command_do(line)
     for word in command:gmatch("[^%s]+") do
         words[#words+1] = word
     end
-    if words[1] == '[' then
-        multiline_command = { line }
-        return
-    elseif words[1] == 'section' then
+    if words[1] == 'section' then
         local section_name = form_section_name(line, words, 2)
         if sections[section_name] then
             error(
@@ -159,46 +167,62 @@ local function command_do(line)
     end
 end
 
-local input_handle
-if file_ids.stdin then
-    local error_message
-    input_handle, error_message = io.open(file_ids.stdin)
-    if not input_handle then error(error_message) end
-else input_handle = io.input() end
+local matching_bracket = {
+   ['<'] = '>',
+   ['('] = ')',
+   ['{'] = '}',
+   ['['] = ']'
+}
 
-local function multiline_command_do(line)
-    -- print('multiline', '"' .. line .. '"')
-    if not line:find'^%s*[-][-]' then
-        error("Problem at line " .. line_number .. '\n'
-            .. '  line is .. "' .. line .. '"\n'
-            .. "  Every line in a multiline command must be a comment\n"
-        )
-    end
-    line = line:gsub('^[^-]*[-][-]', '', 1)
-    multiline_command[#multiline_command+1] = line
-    if line:find']%s*$' then
-        -- print('Found!')
-        local single_line = table.concat(multiline_command)
-        multiline_command = nil
-        single_line = single_line:gsub('--%sluatangle:%s*%[', '-- luatangle:', 1)
-        single_line = single_line:gsub(']%s*$', '', 1)
-        -- print('Found!', single_line)
-        command_do(single_line)
-    end
-end
-
-local lines = {}
-for line in input_handle:lines() do
-    lines[#lines+1] = line
-end
-
-local line_number = 1
-while line_number <= #lines do
-    local line = lines[line_number]
+-- a virtual line is either a physical line or
+-- a multiline command
+local function read_virtual_line()
     line_number = line_number + 1
-    if multiline_command then
-        multiline_command_do(line)
-    elseif current_subsection then
+    if line_number > #lines then return end
+    local line = lines[line_number]
+    local prefix,brackets,suffix = line:match("^(%s*--%s*luatangle:%s*)([%[%<%(%(]+)(%s.*)$")
+    if not prefix then
+        return line
+    end
+    local closing_table = {}
+    for i = 1, #brackets do
+        closing_table[#closing_table+1] = matching_bracket[brackets:sub(i,i)]
+    end
+    local closing_brackets = table.concat(closing_table)
+    local first_line_number = line_number
+    local physical_lines = { prefix .. suffix }
+    while line_number < #lines do
+        line_number = line_number + 1
+        line = lines[line_number]
+        if not line:find'^%s*[-][-]' then
+            error("Problem at line " .. line_number .. '\n'
+                .. '  line is .. "' .. line .. '"\n'
+                .. "  Every line in a multiline command must be a comment\n"
+            )
+        end
+        if line:find'%s$' then
+            error("Problem at line " .. line_number .. '\n'
+                .. '  line is .. "' .. line .. '"\n'
+                .. "  Line in a multiline command may not contain trailing spaces\n"
+            )
+        end
+        line = line:gsub('^%s*[-][-]%s*', '')
+        suffix = line:sub(-#closing_brackets)
+        if suffix == closing_brackets then
+             physical_lines[#physical_lines+1] = line:sub(1, -(#closing_brackets+1))
+             return table.concat(physical_lines, ' ')
+        end
+        physical_lines[#physical_lines+1] = line
+    end
+    error("Command starting at line number " .. first_line_number .. " never ends\n"
+       .. '  line is "' .. lines[first_line_number] .. '"\n'
+    )
+end
+
+while true do
+    local line = read_virtual_line()
+    if line == nil then break end
+    if current_subsection then
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
         then
