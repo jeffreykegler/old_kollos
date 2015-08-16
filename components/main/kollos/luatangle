@@ -187,7 +187,14 @@ local function multiline_command_do(line)
     end
 end
 
+local lines = {}
 for line in input_handle:lines() do
+    lines[#lines+1] = line
+end
+
+local line_number = 1
+while line_number <= #lines do
+    local line = lines[line_number]
     line_number = line_number + 1
     if multiline_command then
         multiline_command_do(line)
