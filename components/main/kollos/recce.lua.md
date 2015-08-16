@@ -145,6 +145,7 @@ until an event occurs.
         while true do
             local symbols, error_object = lexer.next_lexeme()
             if symbols == nil then return nil, error_object end
+            if #symbols < 1 then return recce.down_pos end
             -- Note: recce current pos is set only *after success*
             -- of next() method call
             recce.down_pos = recce.down_pos + 1

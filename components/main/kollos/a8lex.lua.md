@@ -237,7 +237,7 @@ Using a factory serves two purposes:
         local down_pos = 0
         local up_pos = 0
         local end_of_input = #lex_string
-        local up_history = {}
+        local up_history = { { up_pos+1, false, down_pos+1 } }
         local throw = recce.throw
         local lexer = { }
 
