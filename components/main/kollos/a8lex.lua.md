@@ -208,20 +208,20 @@ Using a factory serves two purposes:
   access to which is more
   efficient thank the hashed lookup
 
-    -- luatangle: section Static methods
+    -- luatangle: section Factory method
 
     local function factory(
         recce, blob_name, lex_string)
         local blob_name_type = type(blob_name)
         if blob_name_type ~= 'string' then
-            return nil,lexer:development_error(
+            return nil,recce:development_error(
                 "a8_lexer:abstract_factory(): blob_name is type '"
                     .. blob_name_type
                     .. "' -- it must be a blob_name")
         end
         local string_type = type(lex_string)
         if string_type ~= 'string' then
-            return nil,lexer:development_error(
+            return nil,recce:development_error(
                 "a8_lexer:abstract_factory(): string is type '"
                     .. string_type
                     .. "' -- it must be a string")
@@ -239,15 +239,18 @@ Using a factory serves two purposes:
         local end_of_input = #lex_string
         local up_history = {}
         local throw = recce.throw
+        local lexer = { }
 
+        -- luatangle: insert define error methods
         -- luatangle: insert define lexer blob() method
         -- luatangle: insert define lexer next() method
         -- luatangle: insert define lexer resume() method
+        -- luatangle: insert define lexer value() method
 
-        local lexer = {
-            next_lexeme = next_method,
-            resume = resume_method
-        }
+        lexer.next_lexeme = next_method
+        lexer.resume = resume_method
+        lexer.value = value_method
+        lexer.blob = blob_method
         return lexer
     end
 
@@ -346,6 +349,9 @@ the lexer.
 
     local function next_method()
         down_pos = down_pos + 1
+        if down_pos > end_of_input then
+            return {}
+        end
         up_pos = up_pos + 1
         local byte = lex_string:byte(down_pos)
         local mxids_for_byte = mxids_by_byte[byte]
@@ -362,12 +368,12 @@ the lexer.
 
     local char = lex_string.char(byte)
     mxids_for_byte = {}
-    for cc_spec,mxids_by_cc in pairs(mxids_by_cc) do
+    for cc_spec,mxids_for_cc in pairs(mxids_by_cc) do
         local found = char:find(cc_spec)
         if found then
-            for ix = 1,#mxids_by_cc do
+            for ix = 1,#mxids_for_cc do
                 mxids_for_byte[#mxids_for_byte+1]
-                    = mxids_by_cc[ix]
+                    = mxids_for_cc[ix]
             end
         end
     end
@@ -380,7 +386,7 @@ the lexer.
             error_message[#error_message+1] =
              "  character printable glyph is " .. char .. "\n"
         end
-        return nil,lexer:development_error(
+        return nil,development_error(
             table.concat(error_message)
         )
     end
@@ -417,17 +423,15 @@ If start_arg is nil, end_arg is always ignored.
         end --13
 
         -- start_arg and end_arg might both be nil
-        if start_arg then
-            start_of_input = start_arg
-            if not end_arg then
-                end_of_input = end_arg
-            else
-                end_of_input = #lex_string
-            end
+        local start_of_input = start_arg or down_pos + 1
+        if start_arg and end_arg then
+            end_of_input = end_arg
+        else
+            end_of_input = #lex_string
         end
 
         local current_up_pos = recce.current_pos()
-        up_history[up_last_history_ix] = { current_up_pos, false, start_of_input }
+        up_history[up_history_ix] = { current_up_pos, false, start_of_input }
 
         -- Undefined position is indicated as start less one
         -- to make the next() method efficient
@@ -444,14 +448,14 @@ Using the up-history, find the value at 'up_pos_arg`.
 
     local function value_method(up_pos_arg)
         if up_pos_arg > up_pos then
-            return nil,lexer:development_error(
+            return nil,development_error(
                 "a8_lexer:value(): position is past last position read\n"
                     .. "  last position read: " .. up_pos .. "\n"
                     .. "  position argument: " .. up_pos_arg .. "\n"
             )
         end
         if up_pos_arg < 1 then
-            return nil,lexer:development_error(
+            return nil,development_error(
                 "a8_lexer:value(): position argument is less than 1\n"
                     .. "  position argument: " .. up_pos_arg .. "\n"
             )
@@ -475,7 +479,7 @@ Using the up-history, find the value at 'up_pos_arg`.
             -- avoid overflow
             while not dpos_base do
                 if hi < lo then
-                    return nil,lexer:development_error(
+                    return nil,development_error(
                         "a8_lexer:value(): Internal error\n"
                             .. "  position argument is not in lexer up-history: " .. up_pos_arg .. "\n"
                     )
@@ -493,7 +497,7 @@ Using the up-history, find the value at 'up_pos_arg`.
                 end
             end
         end
-        value_dpos = (up_pos_arg - start_of_up_range) + dpos_base
+        local value_dpos = (up_pos_arg - start_of_up_range) + dpos_base
         return lex_string:sub(value_dpos, value_dpos)
     end
 
@@ -508,7 +512,7 @@ Using the up-history, find the value at 'up_pos_arg`.
 
 ## Development errors
 
-    -- luatangle: section Development error methods
+    -- luatangle: section define error methods
 
     local function development_error_stringize(error_object)
         return
@@ -520,25 +524,34 @@ Using the up-history, find the value at 'up_pos_arg`.
         .. error_object.string
     end
 
-    local function development_error(lexer, string)
+    local function development_error(string)
         local error_object
         = kollos_c.error_new{
             stringize = development_error_stringize,
             code = luif_err_development,
-            file = lexer.blob,
+            file = blob_name,
             line = debug.getinfo(2, 'l').currentline,
             string = string
         }
-        if lexer.throw then error(tostring(error_object)) end
+        if throw then error(tostring(error_object)) end
         return error_object
     end
 
 ## Output file
 
     -- luatangle: section main
-    -- luatangle: insert Development error methods
+
+    -- luacheck: std lua51
+    -- luacheck: globals bit
+    -- luacheck: globals __FILE__ __LINE__
+
+    local inspect = require "kollos.inspect" -- luacheck: ignore
+    local wrap = require "kollos.wrap"
+    local kollos_c = require "kollos_c"
+    local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
+
     -- luatangle: insert a8 memos key declaration
-    -- luatangle: insert Static methods
+    -- luatangle: insert Factory method
     -- luatangle: insert Finish and return object
     -- luatangle: write stdout main
 
