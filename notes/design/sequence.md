@@ -329,7 +329,7 @@ we reduce it to a left recursion:
     Add rule seq ::= seq item
 ```
 
-### Eliminate large spans
+### Eliminate large separated spans
 
 As a reminder,
 at this point all spans are normalized --
@@ -342,13 +342,26 @@ If we have
     Reduce( item, 1, n, sep, 'proper' )
 ```
 where n is greater than 2,
-we binarize it into a choice of two
+we binarize it into a sequence of two
 smaller ranges:
 ```
-    Let sym1 = Reduce( item, 1, pow2(n), sep, sep_type )
-    Let sym2 = Reduce( item, 1, n-pow2(n), sep, sep_type )
-    Add rule seq ::= sym1
-    Add rule seq ::= sym2
+    Let sym1 = Reduce( item, 1, pow2(n), sep, 'terminator' )
+    Let sym2 = Reduce( item, 0, n-pow2(n), sep, 'proper' )
+    Add rule seq ::= sym1 sym2
+```
+
+### Eliminate large unseparated spans
+
+If we have
+```
+    Reduce( item, 1, n, 'nil', 'none' )
+```
+where n is more than 2,
+the conversion is
+```
+    Let sym1 = Reduce( item, 1, pow2(n), 'nil', 'none' )
+    Let sym2 = Reduce( item, 0, n-pow2(n), 'nil', 'none' )
+    Add rule seq ::= sym1 sym2
 ```
 
 ### Eliminate spans
