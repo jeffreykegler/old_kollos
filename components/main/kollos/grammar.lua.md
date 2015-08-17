@@ -1254,7 +1254,7 @@ when `r = LHS ::= RHS` and `P(r)`,
 then `P(LHS)`.
 
 Note that the definition of a RHS transitive property implies that
-every LHS of an empty rule hss that property.
+every LHS of an empty rule has that property.
 This is because, in the case of an empty rule, it is vacuously
 true that all the RHS symbols have the RHS transitive property.
 
