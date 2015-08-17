@@ -104,11 +104,14 @@ local function command_do(line)
                 .. " Problem line: " .. line .. "\n"
             )
         end
-        current_subsection = {}
+        current_subsection = {
+            first = line_number,
+            last = line_number,
+            prefix = prefix,
+        }
         current_section = { current_subsection }
         sections[section_name] = current_section
         current_section.name = section_name
-        current_subsection.prefix = prefix
         current_prefix = prefix
         return
     elseif words[1] == 'section+' then
@@ -119,8 +122,11 @@ local function command_do(line)
                 .. " Problem line: " .. line .. "\n"
             )
         end
-        current_subsection = {}
-        current_subsection.prefix = prefix
+        current_subsection = {
+            first = line_number,
+            last = line_number,
+            prefix = prefix,
+        }
         current_prefix = prefix
         current_section[#current_section + 1] = current_subsection
         return
@@ -243,7 +249,7 @@ while true do
     end
     -- A command may have ended or started a subsection
     if current_subsection then
-    current_subsection[#current_subsection+1] = line
+        current_subsection.last = line_number
     end
 end
 
@@ -261,8 +267,8 @@ local function write_section(handle, section_name, parent_prefix, seen)
     for subsection_ix = 1,#section do
         local subsection = section[subsection_ix]
         local subsection_prefix = subsection.prefix
-        for line_ix = 1,#subsection do
-            local line = subsection[line_ix]:sub(#subsection_prefix+1)
+        for line_no = subsection.first,subsection.last do
+            local line = lines[line_no]:sub(#subsection_prefix+1)
             handle:write(parent_prefix .. line, '\n')
             local insert_prefix,command = line:match("^(%s*)--%s*luatangle:%s+insert%s+(.*)$")
             if insert_prefix then
