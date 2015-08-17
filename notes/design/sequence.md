@@ -93,8 +93,8 @@ That is
     pow2(2) == 1
     pow2(3) == 2
     pow2(4) == 2
-    pow2(5) == 3
-    pow2(6) == 3
+    pow2(5) == 4
+    pow2(6) == 4
 ```
 and so on.
 We leave
@@ -121,10 +121,10 @@ where all of its rules
 have RHS's
 whose length is two or less.
 Libmarpa's internal form will eventually be
-converted to obey this resriction.
+converted to obey this restriction.
 The procedure in this document
 reduces sequence rules to BNF
-rules show RHS is not longer
+rules whose RHS is not longer
 than two symbols,
 with a few exceptions.
 The exceptions are cases
@@ -297,8 +297,8 @@ If we have
 where m is 2 or more,
 we convert it into a block and a range:
 ```
-    Let sym1 = Reduce( item, m, m), 'nil', 'none' )
-    Let sym2 = Reduce( item, 1, n-m, nul, 'none' )
+    Let sym1 = Reduce( item, m, m, 'nil', 'none' )
+    Let sym2 = Reduce( item, 1, n-m, 'nil', 'none' )
     Add rule seq ::= sym1 sym2
 ```
 
@@ -372,7 +372,7 @@ With this step, we have eliminated all spans.
 Only blocks remain to be reduced
 into BNF rules.
 
-### Eliminate large blocks
+### Eliminate large separated blocks
 
 If we have
 ```
@@ -382,10 +382,12 @@ where n is more than 2,
 we binarize it into a sequence of two
 smaller blocks:
 ```
-    Let sym1 = Reduce( item, pow2(n), pow2(n), sep, 'termination' )
+    Let sym1 = Reduce( item, pow2(n), pow2(n), sep, 'terminator' )
     Let sym2 = Reduce( item, n-pow2(n), n-pow2(n), sep, 'proper' )
     Add rule seq ::= sym1 sym2
 ```
+
+### Eliminate large unseparated blocks
 
 If we have
 ```

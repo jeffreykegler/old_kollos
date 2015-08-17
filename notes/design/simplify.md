@@ -12,7 +12,7 @@ related to the Kollos project.
 
 ## Eliminate internal/external symbol levels
 
-In the SLIF, there are 3 levels of symobls
+In the SLIF, there are 3 levels of symbols
 
 + Perl interface level symbols and rules
 + Libmarpa external
