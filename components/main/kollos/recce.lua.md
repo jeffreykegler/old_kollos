@@ -149,16 +149,87 @@ until an event occurs.
             -- Note: recce current pos is set only *after success*
             -- of next() method call
             recce.down_pos = recce.down_pos + 1
-            -- luatangle: insert print results
+            -- luatangle: insert scan symbols into recce
         end
     end
 
-    -- luatangle: section print results
-    -- TODO to be deleted after development
+    -- luatangle: section scan symbols into recce
 
     for _,symbol in ipairs(symbols) do
-         print("@" .. recce.down_pos,  symbol, lexer.value(recce.down_pos))
+        local tokens_accepted = 0
+        print("@" .. recce.down_pos,  symbol, lexer.value(recce.down_pos))
+            if recce.libmarpa_r:alternative(symbol) then
+                tokens_accepted = tokens_accepted + 1
+                -- print("Character accepted", describe_character(byte),
+                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
+            -- else
+                -- klol_progress_report(klol_r)
+                -- print("Character not accepted", describe_character(byte),
+                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
+            end
+        if tokens_accepted <= 0 then
+            print("Rejection at cursor", cursor)
+            return
+        end
+        local event_count = recce.libmarpa_r:earleme_complete() -- luacheck: ignore result
     end
+
+    --[===[ stuff that may prove useful --
+
+    -- local err_none = kollos.error.code_by_name['LUIF_ERR_NONE']
+    local err_unexpected_token_id = kollos.error.code_by_name['LUIF_ERR_UNEXPECTED_TOKEN_ID'] -- luacheck: ignore
+    -- print(inspect(kollos.event))
+    local symbol_completed_event = kollos.event.code_by_name['LIBMARPA_EVENT_SYMBOL_COMPLETED']
+    local symbol_exhausted_event = kollos.event.code_by_name['LIBMARPA_EVENT_EXHAUSTED']
+
+    local function describe_character(byte)
+        local printable_description = ''
+        local char = string.char(byte)
+        if char:find('^[^%c%s]') then
+            printable_description = '"' .. char .. '", '
+        end
+        return printable_description .. string.format("0x%.2X", byte)
+    end
+
+    local function show_rule(rule_props, dot_position)
+        local pieces = {
+            rule_props.lhs.symbol.name,
+        "::="}
+        for dot_ix = 1,#rule_props.rhs do
+            pieces[#pieces+1] = rule_props.rhs[dot_ix].symbol.name
+        end
+        if dot_position then
+            table.insert(pieces, dot_position+3, '.')
+        end
+        return table.concat(pieces, ' ')
+    end
+
+    local function klol_progress_report(klol_r, earley_set)
+        local libmarpa_r = klol_r.libmarpa_r
+        local latest_earley_set =
+            earley_set or libmarpa_r:latest_earley_set()
+        print("Earley set " .. latest_earley_set)
+        libmarpa_r:progress_report_start(latest_earley_set)
+        while true do
+            local rule_id, position, origin = libmarpa_r:progress_item()
+            if not rule_id then break end
+            print("@" .. origin .. '-' .. latest_earley_set ..
+                "; " .. show_rule(klol_r.klol_g.rule_by_libmarpa_id[rule_id], position))
+        end
+        libmarpa_r:progress_report_finish()
+    end
+
+    local function result_for_events(lexer, last_completions, last_completions_cursor)
+        -- print("Events!", #last_completions)
+        local result_table = { lexer.cursor, last_completions_cursor }
+        for event_ix = 1, #last_completions do
+            local event_value = last_completions[event_ix]
+            result_table[#result_table + 1] = event_value
+        end
+        lexer.cursor = last_completions_cursor + 1
+        return result_table
+    end
+    ]===]
 
 ## Finish and return the recce static class
 
