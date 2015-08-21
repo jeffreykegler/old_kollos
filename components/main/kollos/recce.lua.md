@@ -174,6 +174,27 @@ until an event occurs.
         local event_count = recce.libmarpa_r:earleme_complete() -- luacheck: ignore result
     end
 
+# The progress report
+
+    -- luatangle: section progress_report() recce method
+
+    function recce_class.progress_report(recce, earley_set)
+        local lexer = recce.lexer
+        local libmarpa_r = recce.libmarpa_r
+        local latest_earley_set =
+            earley_set or libmarpa_r:latest_earley_set()
+        print("Earley set " .. latest_earley_set)
+        libmarpa_r:progress_report_start(latest_earley_set)
+        while true do
+            local rule_id, position, origin = libmarpa_r:progress_item()
+            if not rule_id then break end
+            print("@" .. origin .. '-' .. latest_earley_set, rule_id, position)
+            -- print("@" .. origin .. '-' .. latest_earley_set ..
+                -- "; " .. show_rule(klol_r.klol_g.rule_by_libmarpa_id[rule_id], position))
+        end
+        libmarpa_r:progress_report_finish()
+    end
+
     --[===[ stuff that may prove useful --
 
     -- local err_none = kollos.error.code_by_name['LUIF_ERR_NONE']
@@ -202,21 +223,6 @@ until an event occurs.
             table.insert(pieces, dot_position+3, '.')
         end
         return table.concat(pieces, ' ')
-    end
-
-    local function klol_progress_report(klol_r, earley_set)
-        local libmarpa_r = klol_r.libmarpa_r
-        local latest_earley_set =
-            earley_set or libmarpa_r:latest_earley_set()
-        print("Earley set " .. latest_earley_set)
-        libmarpa_r:progress_report_start(latest_earley_set)
-        while true do
-            local rule_id, position, origin = libmarpa_r:progress_item()
-            if not rule_id then break end
-            print("@" .. origin .. '-' .. latest_earley_set ..
-                "; " .. show_rule(klol_r.klol_g.rule_by_libmarpa_id[rule_id], position))
-        end
-        libmarpa_r:progress_report_finish()
     end
 
     local function result_for_events(lexer, last_completions, last_completions_cursor)
@@ -289,6 +295,7 @@ until an event occurs.
     -- luatangle: insert lexer_set() recce method
     -- luatangle: insert current_pos() recce method
     -- luatangle: insert read() recce method
+    -- luatangle: insert progress_report() recce method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 
