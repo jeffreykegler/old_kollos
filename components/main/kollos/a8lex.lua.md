@@ -242,7 +242,12 @@ Using a factory serves two purposes:
         local lexer = { }
 
         -- luatangle: insert define error methods
-        -- luatangle: insert define lexer blob() method
+        --[=[ luatangle:
+        insert
+        define
+        lexer
+        blob() method
+        ]=]
         -- luatangle: insert define lexer next() method
         -- luatangle: insert define lexer resume() method
         -- luatangle: insert define lexer value() method
