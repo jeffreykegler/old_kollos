@@ -84,8 +84,9 @@ local function section_end()
 end
 
 local function command_do(line, command_line_number)
-    print('command_do', line, command_line_number)
+    -- print('command_do', line, command_line_number)
     local prefix,command = line:match("^(%s*)--%s*luatangle:%s*(.*)$")
+    if not prefix then return end
     if prefix:match('[^\32]') then
         error("Command prefix is not all spaces -- it must be\n"
             .. " Problem line: " .. line .. "\n"
@@ -172,70 +173,53 @@ local function command_do(line, command_line_number)
     end
 end
 
-local matching_bracket = {
-   ['<'] = '>',
-   ['('] = ')',
-   ['{'] = '}',
-   ['['] = ']'
-}
-
 -- a virtual line is either a physical line or
 -- a multiline command
-local function read_virtual_line(line_no)
-    if line_no > #lines then return end
-    local line = lines[line_no]
-    local prefix,brackets,suffix = line:match("^(%s*--%s*luatangle:%s*)([%[%<%(%(]+)(%s.*)$")
-    if not prefix then
-        return line, line_no+1
+local function read_virtual_line(first_line_no)
+    if first_line_no > #lines then return end
+    local line = lines[first_line_no]
+    local equal_signs = line:match("^%s*--%[(=*)%[%s*luatangle:")
+    if not equal_signs then
+        return line, first_line_no+1, first_line_no
     end
-    local command_line_number = line_no
-    local closing_table = {}
-    for i = 1, #brackets do
-        closing_table[#closing_table+1] = matching_bracket[brackets:sub(i,i)]
-    end
-    local closing_brackets = table.concat(closing_table)
-    local physical_lines = { prefix .. suffix }
-    while line_no < #lines do
-        line_no = line_no + 1
+    local closing = ']' .. equal_signs .. ']'
+    local physical_lines = {}
+    for line_no = first_line_no,#lines do
         line = lines[line_no]
-        if not line:find'^%s*[-][-]' then
-            error("Problem at line " .. line_no .. '\n'
-                .. '  line is .. "' .. line .. '"\n'
-                .. "  Every line in a multiline command must be a comment\n"
-            )
-        end
-        if line:find'%s$' then
-            error("Problem at line " .. line_no .. '\n'
-                .. '  line is .. "' .. line .. '"\n'
-                .. "  Line in a multiline command may not contain trailing spaces\n"
-            )
-        end
-        line = line:gsub('^%s*[-][-]%s*', '')
-        suffix = line:sub(-#closing_brackets)
-        if suffix == closing_brackets then
-             physical_lines[#physical_lines+1] = line:sub(1, -(#closing_brackets+1))
-             return table.concat(physical_lines, ' '), line_no, command_line_number
+        local closing_start, closing_end = line:find(closing)
+        if closing_end then
+            if closing_end ~= #line then
+                error("Command closing has trailing characters, line #" .. line_no .. "\n"
+                   .. '  line is "' .. lines[line_no] .. '"\n'
+                )
+            end
+            physical_lines[#physical_lines+1] = line:sub(1, closing_start-1)
+            local first_line = physical_lines[1]:gsub('%[=*%[', '', 1)
+            physical_lines[1] = first_line
+            local full_line = table.concat(physical_lines, ' ')
+            return full_line, line_no+1, first_line_no
         end
         physical_lines[#physical_lines+1] = line
     end
-    error("Command starting at line number " .. command_line_number .. " never ends\n"
-       .. '  line is "' .. lines[command_line_number] .. '"\n'
+    error("Command starting at line number " .. first_line_no .. " never ends\n"
+       .. '  line is "' .. lines[first_line_no] .. '"\n'
     )
 end
 
 while true do
     local line, command_line_number
     line, line_number, command_line_number = read_virtual_line(line_number)
+    -- print("looking at line", line)
     if line == nil then break end
     if current_subsection then
+        -- print("current subsection", current_subsection)
         local line_prefix = line:sub(1,#current_prefix)
         if line_prefix == current_prefix
         then
-            if command_line_number then
-                command_do(line, command_line_number)
-            end
+            command_do(line, command_line_number)
         elseif line_prefix:match("^[^%s]") then
             -- outdent ending section must not be a command
+            current_subsection.last = line_number - 2
             section_end()
         elseif #line ~= 0 then
             local subsection_name = current_subsection.name
@@ -246,13 +230,12 @@ while true do
             )
         end
     else
-        if command_line_number then
-            command_do(line, command_line_number)
-        end
+        -- print("no current subsection")
+        command_do(line, command_line_number)
     end
     -- A command may have ended or started a subsection
     if current_subsection then
-        current_subsection.last = line_number
+        current_subsection.last = line_number - 1
     end
 end
 

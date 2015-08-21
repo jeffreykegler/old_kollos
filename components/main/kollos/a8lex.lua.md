@@ -313,8 +313,8 @@ occurred.
 
 ## The blob() lexer method
 
-    -- luatangle: [ 
-    -- section define lexer blob() method ]
+    --[[ luatangle:
+       section define lexer blob() method ]]
 
     local function blob_method() return blob_name end
 
