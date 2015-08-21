@@ -256,13 +256,17 @@ local function write_section(handle, section_name, parent_prefix, seen)
         local line_no = subsection.first
         local last_line_of_subsection = subsection.last
         while line_no <= last_line_of_subsection do
-            local line = lines[line_no]:sub(#subsection_prefix+1)
-            line_no = line_no + 1
-            handle:write(parent_prefix .. line, '\n')
-            local insert_prefix,command = line:match("^(%s*)--%s*luatangle:%s+insert%s+(.*)$")
+            local virtual_line, first_command_line_no
+            virtual_line, line_no, first_command_line_no = read_virtual_line(line_no)
+            for command_line_no = first_command_line_no, line_no-1 do
+                local command_line = lines[command_line_no]:sub(#subsection_prefix+1)
+                handle:write(parent_prefix .. command_line, '\n')
+            end
+            virtual_line = virtual_line:sub(#subsection_prefix+1)
+            local insert_prefix,raw_section_name = virtual_line:match("^(%s*)--%s*luatangle:%s+insert%s+(.*)$")
             if insert_prefix then
                 local words = {}
-                for word in command:gmatch("[^%s]+") do
+                for word in raw_section_name:gmatch("[^%s]+") do
                     words[#words+1] = word
                 end
                 local insert_section_name = form_section_name(line, words, 1)
