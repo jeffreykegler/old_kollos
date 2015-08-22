@@ -178,9 +178,28 @@ until an event occurs.
 
     -- luatangle: section progress_report() recce method
 
+    local function show_irule(irule_props, dot_position)
+        local pieces = {
+            irule_props.lhs.name,
+        "::="}
+        for dot_ix = 1,#irule_props.rh_instances do
+            pieces[#pieces+1] = irule_props.rh_instances[dot_ix].element.name
+        end
+        if dot_position then
+            if dot_position >= 0 then
+                table.insert(pieces, dot_position+3, '.')
+            else
+                pieces[#pieces+1] = '.'
+            end
+        end
+        return table.concat(pieces, ' ')
+    end
+
     function recce_class.progress_report(recce, earley_set)
         local lexer = recce.lexer
         local libmarpa_r = recce.libmarpa_r
+        local grammar = recce.grammar
+        local irule_by_mxid = grammar.irule_by_mxid
         local latest_earley_set =
             earley_set or libmarpa_r:latest_earley_set()
         print("Earley set " .. latest_earley_set)
@@ -188,9 +207,11 @@ until an event occurs.
         while true do
             local rule_id, position, origin = libmarpa_r:progress_item()
             if not rule_id then break end
-            print("@" .. origin .. '-' .. latest_earley_set, rule_id, position)
-            -- print("@" .. origin .. '-' .. latest_earley_set ..
-                -- "; " .. show_rule(klol_r.klol_g.rule_by_libmarpa_id[rule_id], position))
+            local irule = irule_by_mxid[rule_id]
+            -- print(inspect(irule, { depth = 4 }))
+            -- print("@" .. origin .. '-' .. latest_earley_set, rule_id, position)
+            print("@" .. origin .. '-' .. latest_earley_set ..
+                "; " .. show_irule(irule, position))
         end
         libmarpa_r:progress_report_finish()
     end
@@ -210,19 +231,6 @@ until an event occurs.
             printable_description = '"' .. char .. '", '
         end
         return printable_description .. string.format("0x%.2X", byte)
-    end
-
-    local function show_rule(rule_props, dot_position)
-        local pieces = {
-            rule_props.lhs.symbol.name,
-        "::="}
-        for dot_ix = 1,#rule_props.rhs do
-            pieces[#pieces+1] = rule_props.rhs[dot_ix].symbol.name
-        end
-        if dot_position then
-            table.insert(pieces, dot_position+3, '.')
-        end
-        return table.concat(pieces, ' ')
     end
 
     local function result_for_events(lexer, last_completions, last_completions_cursor)
@@ -285,6 +293,7 @@ until an event occurs.
     -- luacheck: globals bit
     -- luacheck: globals __FILE__ __LINE__
 
+    -- local inspect = require "kollos.inspect"
     local wrap = require "kollos.wrap"
     local a8lex = require "kollos.a8lex"
 
