@@ -926,6 +926,9 @@ local c_fn_signatures = {
   {"_marpa_b_or_node_position", "Marpa_Or_Node_ID", "ordinal"},
   {"_marpa_b_or_node_set", "Marpa_Or_Node_ID", "ordinal"},
   {"_marpa_b_top_or_node"},
+  {"_marpa_o_and_order_get", "Marpa_Or_Node_ID", "or_node_id", "int", "ix"},
+  {"_marpa_o_or_node_and_node_count", "Marpa_Or_Node_ID", "or_node_id"},
+  {"_marpa_o_or_node_and_node_id_by_ix", "Marpa_Or_Node_ID", "or_node_id", "int", "ix"},
 }
 
 -- Here are notes
@@ -1465,6 +1468,22 @@ static int l_recce_ud_mt_gc(lua_State *L) {
     if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_recce = (Marpa_Recognizer *) lua_touserdata (L, 1);
     if (*p_recce) marpa_r_unref(*p_recce);
+   return 0;
+}
+
+static int l_bocage_ud_mt_gc(lua_State *L) {
+    Marpa_Recognizer *p_bocage;
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_bocage = (Marpa_Bocage *) lua_touserdata (L, 1);
+    if (*p_bocage) marpa_b_unref(*p_bocage);
+   return 0;
+}
+
+static int l_order_ud_mt_gc(lua_State *L) {
+    Marpa_Recognizer *p_order;
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_order = (Marpa_Order *) lua_touserdata (L, 1);
+    if (*p_order) marpa_o_unref(*p_order);
    return 0;
 }
 
