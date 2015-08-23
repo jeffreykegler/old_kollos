@@ -83,6 +83,8 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 
 set(${PROJECT_NAME}_ERROR_CODES ${PROJECT_SOURCE_DIR}/error_codes.table
     CACHE INTERNAL "${PROJECT_NAME}: Error codes table" FORCE)
+set(${PROJECT_NAME}_EVENT_CODES ${PROJECT_SOURCE_DIR}/event_codes.table
+    CACHE INTERNAL "${PROJECT_NAME}: Event codes table" FORCE)
 
 include_directories(
     "${PROJECT_BINARY_DIR}" \  # for config.h

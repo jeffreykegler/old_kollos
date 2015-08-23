@@ -28,11 +28,11 @@ CPPWRAP = perl ../bin/cppwrap.pl
 C_LANGUAGE_PREAMBLE = ../shared/license.c ../shared/do_not_edit.c
 MARPA_H_PIECES = $(C_LANGUAGE_PREAMBLE) \
   marpa.h.p10 marpa.h-version marpa.h-err \
-  marpa.h-event marpa.h-step \
+  marpa.h-event_codes marpa.h-step \
   marpa.h.p50 marpa.h.p80 marpa.h.p90
 
 all: marpa.h marpa_codes.c \
-    error_codes.table events.table steps.table
+    error_codes.table event_codes.table steps.table
 
 marpa.h.p50: ../dev/marpa.h.p50
 	cp $? $@
@@ -47,7 +47,7 @@ CPPWRAP = perl ../bin/cppwrap.pl
 
 # The pieces with the code data,
 # not yet wrapped with the pre-processor line directive
-MARPA_CODES_C_UNWRAPPED = marpa_codes.c.p10 marpa.c-err marpa.c-event marpa.c-step
+MARPA_CODES_C_UNWRAPPED = marpa_codes.c.p10 marpa.c-err marpa.c-event_codes marpa.c-step
 
 MARPA_CODES_C_PIECES = $(C_LANGUAGE_PREAMBLE) $(MARPA_CODES_C_UNWRAPPED)
 
@@ -66,13 +66,13 @@ error_codes.table marpa.c-err marpa.h-err: $(API_TEXI_FILES)
 	  ../shared/do_not_edit.hash \
 	  error_codes.table.p50 > error_codes.table
 
-events.table marpa.c-event marpa.h-event: ../dev/api.texi
+event_codes.table marpa.c-event_codes marpa.h-event_codes: ../dev/api.texi
 	cat $(API_TEXI_FILES) | \
-	  perl texi2event.pl marpa.c-event events.table.p50 | \
-	  $(CPPWRAP) marpa.h-event > marpa.h-event
+	  perl texi2event.pl marpa.c-event_codes event_codes.table.p50 | \
+	  $(CPPWRAP) marpa.h-event_codes > marpa.h-event_codes
 	cat ../shared/license.hash \
 	  ../shared/do_not_edit.hash \
-	  events.table.p50 > events.table
+	  event_codes.table.p50 > event_codes.table
 
 steps.table marpa.c-step marpa.h-step: ../dev/api.texi
 	cat $(API_TEXI_FILES) | \
@@ -82,8 +82,8 @@ steps.table marpa.c-step marpa.h-step: ../dev/api.texi
 	  ../shared/do_not_edit.hash \
 	  steps.table.p50 > steps.table
 
-CLEAN_FILES = marpa.c-err marpa.c-event marpa.c-step \
-  marpa.h marpa.h-err marpa.h-event marpa.h-step marpa.h.p50 marpa.h.p80 \
+CLEAN_FILES = marpa.c-err marpa.c-event_codes marpa.c-step \
+  marpa.h marpa.h-err marpa.h-event_codes marpa.h-step marpa.h.p50 marpa.h.p80 \
   marpa_codes.c
 
 clean:

@@ -65,8 +65,8 @@ cm_dist/marpa_avl.h: work/avl/marpa_avl.h
 cm_dist/marpa_tavl.h: work/tavl/marpa_tavl.h
 cm_dist/marpa_tavl.c: work/tavl/marpa_tavl.c
 cm_dist/error_codes.table: work/public/error_codes.table
+cm_dist/event_codes.table: work/public/event_codes.table
 cm_dist/steps.table: work/public/steps.table
-cm_dist/events.table: work/public/events.table
 cm_dist/COPYING.LESSER: work/obs/COPYING.LESSER
 cm_dist/COPYING: work/shared/COPYING
 cm_dist/README: work/ac/README

@@ -24,7 +24,7 @@ use English qw( -no_match_vars );
 use Fatal qw(open close);
 
 if (scalar @ARGV != 2) {
-    die("usage: $PROGRAM_NAME marpa.c-event events.table > marpa.h-event");
+    die("usage: $PROGRAM_NAME marpa.c-event_codes event_codes.table > marpa.h-event_codes");
 }
 
 open my $codes_c, '>', $ARGV[0];

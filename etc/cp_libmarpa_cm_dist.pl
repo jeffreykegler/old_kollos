@@ -99,5 +99,5 @@ components/libmarpa/include/marpa.h: libmarpa/cm_dist/include/marpa.h
 components/libmarpa/marpa_avl.c: libmarpa/cm_dist/marpa_avl.c
 components/libmarpa/COPYING.LESSER: libmarpa/cm_dist/COPYING.LESSER
 components/libmarpa/marpa_avl.h: libmarpa/cm_dist/marpa_avl.h
-components/libmarpa/events.table: libmarpa/cm_dist/events.table
+components/libmarpa/event_codes.table: libmarpa/cm_dist/event_codes.table
 components/libmarpa/marpa_obs.h: libmarpa/cm_dist/marpa_obs.h
