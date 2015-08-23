@@ -228,6 +228,17 @@ until an event occurs.
     end
     ]===]
 
+## The recce values() method
+
+This method returns an interator of the values of
+the parse for external symbol `xsym`,
+starting at earleme location `start`
+and ending at earleme location `current`.
+
+    -- luatangle: section values() recce method
+    function recce_class.values(recce, xsym, start, current)
+    end
+
 ## Finish and return the recce static class
 
     -- luatangle: section Finish return object
@@ -288,6 +299,7 @@ until an event occurs.
     -- luatangle: insert current_pos() recce method
     -- luatangle: insert read() recce method
     -- luatangle: insert progress_report() recce method
+    -- luatangle: insert values() recce method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 
