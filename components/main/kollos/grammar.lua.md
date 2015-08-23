@@ -536,17 +536,21 @@ in this context, want.
 
     -- For debugging -- works with both internal
     -- and working rules
-    local function rule_desc(wrule)
-        local desc_table = {
-            wrule.lhs.name,
-            '::=',
-        }
-        local rh_instances = wrule.rh_instances
-        for rh_ix = 1,#rh_instances do
-            local rh_instance = rh_instances[rh_ix]
-            desc_table[#desc_table+1] = rh_instance.name
+    local function show_dotted_rule(rule_props, dot_position)
+        local pieces = {
+            rule_props.lhs.name,
+        "::="}
+        for dot_ix = 1,#rule_props.rh_instances do
+            pieces[#pieces+1] = rule_props.rh_instances[dot_ix].element.name
         end
-        return table.concat(desc_table, ' ')
+        if dot_position then
+            if dot_position >= 0 then
+                table.insert(pieces, dot_position+3, '.')
+            else
+                pieces[#pieces+1] = '.'
+            end
+        end
+        return table.concat(pieces, ' ')
     end
 
     local function nullable_per_rhs(wrule)
@@ -581,7 +585,7 @@ in this context, want.
                 elseif key == 'source' then return table.xalt or table.lhs
                 elseif key == 'line' then return table.source.line
                 elseif key == 'name_base' then return table.source.name_base
-                elseif key == 'desc' then return rule_desc(table)
+                elseif key == 'desc' then return show_dotted_rule(table)
                 else return end
             end
         })
@@ -608,7 +612,8 @@ Otherwise, the RHS is stolen from `wrule`.
             elseif key == 'source' then return table.xalt or table.lhs
             elseif key == 'line' then return table.source.line
             elseif key == 'name_base' then return table.source.name_base
-            elseif key == 'desc' then return rule_desc(table)
+            elseif key == 'desc' then return show_dotted_rule(table)
+            elseif key == 'show_dotted' then return show_dotted_rule
             else return end
         end
     }
@@ -633,7 +638,7 @@ Otherwise, the RHS is stolen from `wrule`.
         rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
         if rule_mxid < 0 then
             local error_code = g:error()
-            print('Problem with rule', rule_desc(irule))
+            print('Problem with rule', show_dotted_rule(irule))
             if error_code == luif_err_duplicate_rule then
                 print('Duplicate rule -- non-fatal')
             else
@@ -3409,7 +3414,7 @@ as needed.
 
        local start_miid
        local nsy_count = kollos_c.grammar_nsy_count(g)
-       print('NSY count', nsy_count)
+       -- print('NSY count', nsy_count)
        for nsy_id = 0,nsy_count-1 do
            if kollos_c.grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
                error('nulling NSY: ' .. nsy_id)
@@ -3420,13 +3425,13 @@ as needed.
            end
            if start_miid ~= nsy_id and not isym_by_miid[nsy_id]
            then
-               print('start NSY: ', nsy_id)
+               -- print('start NSY: ', nsy_id)
            end
        end
 
 
        local irl_count = kollos_c.grammar_irl_count(g)
-       print('IRL count', irl_count)
+       -- print('IRL count', irl_count)
        for miid = 0,irl_count-1 do
            local mxid = kollos_c.grammar_source_xrl(g, miid)
            if not mxid then
@@ -3546,7 +3551,10 @@ as needed.
     grammar_class.recce_new = recce.new
     grammar_class.a8lex_new = a8lex.new
 
-    local grammar_static_class = { new = grammar_new }
+    local grammar_static_class = {
+        new = grammar_new,
+        show_dotted_rule = show_dotted_rule
+        }
     return grammar_static_class
 
     --luatangle: write stdout main

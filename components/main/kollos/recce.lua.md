@@ -178,23 +178,6 @@ until an event occurs.
 
     -- luatangle: section progress_report() recce method
 
-    local function show_irule(irule_props, dot_position)
-        local pieces = {
-            irule_props.lhs.name,
-        "::="}
-        for dot_ix = 1,#irule_props.rh_instances do
-            pieces[#pieces+1] = irule_props.rh_instances[dot_ix].element.name
-        end
-        if dot_position then
-            if dot_position >= 0 then
-                table.insert(pieces, dot_position+3, '.')
-            else
-                pieces[#pieces+1] = '.'
-            end
-        end
-        return table.concat(pieces, ' ')
-    end
-
     function recce_class.progress_report(recce, earley_set)
         local lexer = recce.lexer
         local libmarpa_r = recce.libmarpa_r
@@ -211,7 +194,7 @@ until an event occurs.
             -- print(inspect(irule, { depth = 4 }))
             -- print("@" .. origin .. '-' .. latest_earley_set, rule_id, position)
             print("@" .. origin .. '-' .. latest_earley_set ..
-                "; " .. show_irule(irule, position))
+                "; " .. irule:show_dotted(position))
         end
         libmarpa_r:progress_report_finish()
     end
