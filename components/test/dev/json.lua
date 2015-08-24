@@ -23,6 +23,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --]]
 
+-- luacheck: globals plan is
 require 'Test.More'
 plan(1)
 
