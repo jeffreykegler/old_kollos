@@ -402,7 +402,7 @@ and `xalt` objects, which carry the semantics.
 
     -- luatangle: section xnone object
 
-    local xnone = {
+    local xnone = { -- luacheck: ignore xnone
        semantics = {}
     }
 
@@ -633,9 +633,8 @@ Otherwise, the RHS is stolen from `wrule`.
         }
         setmetatable(irule, mt_irule)
         local rhs1_mxid = rh_instance1.mxid
-        local rh_instance2 = rh_instance2
         local rhs2_mxid = rh_instance2 and rh_instance2.mxid or nil
-        rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
+        local rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
         if rule_mxid < 0 then
             local error_code = g:error()
             print('Problem with rule', show_dotted_rule(irule))
@@ -3389,23 +3388,29 @@ as needed.
        local start_mxid = wsym_by_name['!augment'].mxid
        g:start_symbol_set(start_mxid)
        local status = g:precompute()
-       -- print("precompute: ", status)
+       if not status then
+            return nil, kollos_c.error_new{
+                "grammar precomputation failed",
+                debug.getinfo(2,'S').source,
+                debug.getinfo(2, 'l').currentline
+            }
+       end
 
        local isym_by_mxid = {}
        local isym_by_miid = {}
        local mxids_by_cc = {}
 
-       for isym_name,isym in pairs(wsym_by_name) do
+       for _,isym in pairs(wsym_by_name) do
            local mxid = isym.mxid
            local miid = kollos_c.grammar_xsy_nsy(g, isym.mxid)
            isym_by_mxid[mxid] = isym
-           isym.miid = midd
+           isym.miid = miid
            isym_by_miid[miid] = isym
            if isym.lexeme_type == 'cc' then
                local cc_spec = isym.spec
-               local mxids = mxids_by_cc[isym.spec]
+               local mxids = mxids_by_cc[cc_spec]
                if not mxids then
-                   mxids_by_cc[isym.spec] = { mxid }
+                   mxids_by_cc[cc_spec] = { mxid }
                else
                    mxids[#mxids+1] = mxid
                end
@@ -3423,10 +3428,10 @@ as needed.
            then
                start_miid = nsy_id
            end
-           if start_miid ~= nsy_id and not isym_by_miid[nsy_id]
-           then
+           -- if start_miid ~= nsy_id and not isym_by_miid[nsy_id]
+           -- then
                -- print('start NSY: ', nsy_id)
-           end
+           -- end
        end
 
 
