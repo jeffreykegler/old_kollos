@@ -529,13 +529,14 @@ in this context, want.
 
 ```
 
-### Working rule constructor
+### Utility to show dotted rule
+
+With a nil position, it also works for non-dotted rules.
+Works with both internal and working rules.
 
 ```
-    -- luatangle: section wrule constructor
+    -- luatangle: section declare show_dotted_rule()
 
-    -- For debugging -- works with both internal
-    -- and working rules
     local function show_dotted_rule(rule_props, dot_position)
         local pieces = {
             rule_props.lhs.name,
@@ -552,6 +553,10 @@ in this context, want.
         end
         return table.concat(pieces, ' ')
     end
+
+### Working rule constructor
+
+    -- luatangle: section wrule constructor
 
     local function nullable_per_rhs(wrule)
         local rh_instances = wrule.rh_instances
@@ -2358,6 +2363,8 @@ or otherwise as occasion demands.
         return error_object
     end
 
+    -- luatangle: insert declare show_dotted_rule()
+
     -- luatangle: insert xsym constructor
     -- luatangle: insert xlexeme constructors
 
@@ -3442,7 +3449,7 @@ as needed.
            if not mxid then
                local lhs = kollos_c.grammar_irl_lhs(g, miid)
                if lhs ~= start_miid then
-                   error('no-XRL IRL: ', lhs, '::=', rhs)
+                   error('no-XRL IRL: lhs is ' .. lhs)
                end
            else
                local irule = irule_by_mxid[mxid]
