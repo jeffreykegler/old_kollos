@@ -397,7 +397,7 @@ the lexer.
     end
     -- make these entries write only
     setmetatable(mxids_for_byte, {
-       __newindex = function(table) 
+       __newindex = function(table) -- luacheck: ignore table
                 error("mxids by cc are write only")
            end --12
         }
@@ -550,8 +550,7 @@ Using the up-history, find the value at 'up_pos_arg`.
     -- luacheck: globals bit
     -- luacheck: globals __FILE__ __LINE__
 
-    local inspect = require "kollos.inspect" -- luacheck: ignore
-    local wrap = require "kollos.wrap"
+    -- local inspect = require "kollos.inspect"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
