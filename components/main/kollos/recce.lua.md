@@ -122,7 +122,7 @@ it allows the lexer's access to this datum.
 
     -- luatangle: section current_pos() recce method
 
-    function recce_class.current_pos(lexer)
+    function recce_class.current_pos(recce)
         return recce.down_pos
     end
 
@@ -158,21 +158,22 @@ until an event occurs.
 
     for _,symbol in ipairs(symbols) do
         local tokens_accepted = 0
-        print("@" .. recce.down_pos,  symbol, lexer.value(recce.down_pos))
-            if recce.libmarpa_r:alternative(symbol) then
-                tokens_accepted = tokens_accepted + 1
-                -- print("Character accepted", describe_character(byte),
-                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
+        print("@" .. recce.down_pos, symbol, lexer.value(recce.down_pos))
+        if recce.libmarpa_r:alternative(symbol) then
+            tokens_accepted = tokens_accepted + 1
+            -- print("Character accepted", describe_character(byte),
+            -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
             -- else
-                -- klol_progress_report(klol_r)
-                -- print("Character not accepted", describe_character(byte),
-                    -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
-            end
+            -- klol_progress_report(klol_r)
+            -- print("Character not accepted", describe_character(byte),
+            -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
+        end
         if tokens_accepted <= 0 then
-            print("Rejection at cursor", cursor)
+            print("Rejection at down position:", recce.down_pos)
             return
         end
-        local event_count = recce.libmarpa_r:earleme_complete() -- luacheck: ignore result
+        local event_count -- luacheck: ignore event_count
+            = recce.libmarpa_r:earleme_complete() -- luacheck: ignore result
     end
 
 # The progress report
@@ -180,7 +181,6 @@ until an event occurs.
     -- luatangle: section progress_report() recce method
 
     function recce_class.progress_report(recce, earley_set)
-        local lexer = recce.lexer
         local libmarpa_r = recce.libmarpa_r
         local grammar = recce.grammar
         local irule_by_mxid = grammar.irule_by_mxid
@@ -237,7 +237,19 @@ starting at earleme location `start`
 and ending at earleme location `current`.
 
     -- luatangle: section values() recce method
-    function recce_class.values(recce, xsym, start, current)
+    function recce_class.values(recce, xsym, start, current) -- luacheck: ignore recce current
+        if xsym ~= nil then
+            development_error(
+                'values() symbol argument not yet implemented\n'
+                .. '  It must be nil\n'
+            )
+        end
+        if start ~= nil then
+            development_error(
+                'values() start argument not yet implemented\n'
+                .. '  It must be nil\n'
+            )
+        end
     end
 
 ## Finish and return the recce static class
@@ -290,8 +302,9 @@ and ending at earleme location `current`.
 
     -- local inspect = require "kollos.inspect"
     local wrap = require "kollos.wrap"
-    local a8lex = require "kollos.a8lex"
     local bocage = require "kollos.bocage"
+    local kollos_c = require "kollos_c"
+    local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
     -- luatangle: insert Declare recce_class
     -- luatangle: insert Development error methods

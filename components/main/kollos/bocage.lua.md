@@ -67,18 +67,13 @@ the C language which contains the actual parse engine.
     end
 
     function bocage_class.show(bocage)
-        local grammar = bocage.grammar
         local libmarpa_b = bocage.libmarpa_b
-        local libmarpa_g = bocage.libmarpa_g
         local or_node_id = 0
         local data = {}
         local tags = {}
         while true do
             local irl_id = kollos_c._marpa_b_or_node_irl(libmarpa_b, or_node_id)
             if not irl_id then break end
-            local position = kollos_c._marpa_b_or_node_position(libmarpa_b, or_node_id)
-            local or_origin = kollos_c._marpa_b_or_node_origin(libmarpa_b, or_node_id)
-            local or_set = kollos_c._marpa_b_or_node_set(libmarpa_b, or_node_id)
             local first_and_node_id
             = kollos_c._marpa_b_or_node_first_and(libmarpa_b, or_node_id)
             local last_and_node_id
@@ -88,16 +83,14 @@ the C language which contains the actual parse engine.
                 local cause_tag
                 if symbol then cause_tag = 'S' .. symbol end
                 local cause_id = kollos_c._marpa_b_and_node_cause(libmarpa_b, and_node_id)
-                local cause_irl_id
                 if cause_id then
-                    cause_irl_id = kollos_c._marpa_b_or_node_irl(libmarpa_b, cause_id)
                     cause_tag = or_node_tag(libmarpa_b, cause_id)
                 end
                 local parent_tag = or_node_tag(libmarpa_b, or_node_id)
                 local predecessor_id = kollos_c._marpa_b_and_node_predecessor(libmarpa_b, or_node_id)
                 local predecessor_tag = '-'
                 if predecessor_id then
-                    local predecessor_tag = or_node_tag(libmarpa_b, predecssor_id)
+                    predecessor_tag = or_node_tag(libmarpa_b, predecessor_id)
                 end
                 local tag =
                 and_node_id .. ':'
