@@ -53,4 +53,6 @@ r0:lexer_set(lexer)
 r0:read()
 print(r0:progress_report())
 
+local b0 = r0:bocage_new()
+
 -- vim: expandtab shiftwidth=4:

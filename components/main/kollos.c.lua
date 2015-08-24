@@ -501,6 +501,8 @@ io.write[=[
 static char kollos_error_mt_key;
 static char kollos_g_ud_mt_key;
 static char kollos_r_ud_mt_key;
+static char kollos_b_ud_mt_key;
+static char kollos_o_ud_mt_key;
 
 /* Leaves the stack as before,
    except with the error object on top */
@@ -1072,7 +1074,6 @@ common_g_error_handler (lua_State * L,
   lua_pop(L, 1);
 }
 
-
 /* Handle libmarpa recce errors in the most usual way.
    Uses 1 position on the stack, and throws the
    error, if so desired.
@@ -1098,6 +1099,37 @@ common_r_error_handler (lua_State * L,
     {
       kollos_throw (L, marpa_error, description);
     }
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
+/* Handle libmarpa bocage errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_b_error_handler (lua_State * L,
+			int bocage_stack_ix, const char *description)
+{
+  int throw_flag;
+  Marpa_Error_Code marpa_error;
+  Marpa_Grammar *grammar_ud;
+  lua_getfield (L, bocage_stack_ix, "_g_ud");
+  /* [ ..., grammar_ud ] */
+  grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+  lua_pop(L, 1);
+  marpa_error = marpa_g_error (*grammar_ud, NULL);
+  lua_getfield (L, bocage_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  /* [ ..., throw_flag ] */
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* [ ..., throw_flag ] */
   /* Leave the stack as we found it */
   lua_pop(L, 1);
 }
@@ -1449,6 +1481,97 @@ static int wrap_progress_item(lua_State *L)
 
 ]=]
 
+-- bocage wrappers which need to be hand-written
+
+io.write[=[
+
+static int
+wrap_bocage_new (lua_State * L)
+{
+  const int bocage_stack_ix = 1;
+  const int recce_stack_ix = 2;
+  const int symbol_stack_ix = 3;
+  const int start_stack_ix = 4;
+  const int end_stack_ix = 5;
+  int end_earley_set = -1;
+  int end_earley_set_is_nil = 0;
+
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ bocage_table, recce_table ] */
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_bocage_new()", bocage_stack_ix, "bocage");
+      check_libmarpa_table (L, "wrap_bocage_new()", recce_stack_ix, "recce");
+      luaL_checktype(L, symbol_stack_ix, LUA_TNIL);
+      luaL_checktype(L, start_stack_ix, LUA_TNIL);
+    }
+
+  if (lua_type(L, end_stack_ix) == LUA_TNIL) {
+      end_earley_set_is_nil = 1;
+  } else {
+      end_earley_set = luaL_checkint(L, end_stack_ix);
+  }
+  /* Make some stack space */
+  lua_pop(L, 3);
+
+  /* [ bocage_table, recce_table ] */
+  {
+    Marpa_Recognizer *recce_ud;
+    /* Important: the bocage does *not* hold a reference to
+         the recognizer, so it should not memoize the userdata
+         pointing to it. */
+
+    /* [ bocage_table, recce_table ] */
+    Marpa_Bocage* bocage_ud =
+      (Marpa_Bocage *) lua_newuserdata (L, sizeof (Marpa_Bocage));
+    /* [ bocage_table, recce_table, bocage_ud ] */
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_b_ud_mt_key);
+    /* [ bocage_table, recce_table, bocage_ud, bocage_ud_mt ] */
+    lua_setmetatable (L, -2);
+    /* [ bocage_table, recce_table, bocage_ud ] */
+
+    lua_setfield (L, bocage_stack_ix, "_ud");
+    /* [ bocage_table, recce_table ] */
+    lua_getfield (L, recce_stack_ix, "_g_ud");
+    /* [ recce_table, recce_table, g_ud ] */
+    lua_setfield (L, bocage_stack_ix, "_g_ud");
+    /* [ bocage_table, recce_table ] */
+    lua_getfield (L, recce_stack_ix, "_ud");
+    /* [ recce_table, recce_table, recce_ud ] */
+    recce_ud = (Marpa_Recognizer *) lua_touserdata (L, -1);
+    /* [ bocage_table, recce_table, recce_ud ] */
+
+    if (end_earley_set_is_nil) {
+        /* No error check -- always succeeds, say libmarpa docs */
+        end_earley_set = marpa_r_latest_earley_set(*recce_ud);
+    } else {
+       if (end_earley_set < 0) {
+         common_b_error_handler (L, bocage_stack_ix,
+             "bocage_new(): end earley set arg is negative");
+         lua_pushnil (L);
+         return 1;
+       }
+    }
+
+    *bocage_ud = marpa_b_new (*recce_ud, end_earley_set);
+    if (!*bocage_ud)
+      {
+	common_b_error_handler (L, bocage_stack_ix, "marpa_b_new()");
+        lua_pushnil (L);
+        return 1;
+      }
+  }
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ bocage_table, recce_table, recce_ud ] */
+  lua_pop (L, 2);
+  /* [ bocage_table ] */
+  return 1;
+}
+
+]=]
+
 io.write[=[
 
 /*
@@ -1472,7 +1595,7 @@ static int l_recce_ud_mt_gc(lua_State *L) {
 }
 
 static int l_bocage_ud_mt_gc(lua_State *L) {
-    Marpa_Recognizer *p_bocage;
+    Marpa_Bocage *p_bocage;
     if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_bocage = (Marpa_Bocage *) lua_touserdata (L, 1);
     if (*p_bocage) marpa_b_unref(*p_bocage);
@@ -1480,7 +1603,7 @@ static int l_bocage_ud_mt_gc(lua_State *L) {
 }
 
 static int l_order_ud_mt_gc(lua_State *L) {
-    Marpa_Recognizer *p_order;
+    Marpa_Order *p_order;
     if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_order = (Marpa_Order *) lua_touserdata (L, 1);
     if (*p_order) marpa_o_unref(*p_order);
@@ -1505,7 +1628,6 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     /* Set up Kollos grammar userdata metatable */
     lua_newtable(L);
     /* [ kollos, mt_ud_g ] */
-    /* dup top of stack */
     lua_pushcfunction(L, l_grammar_ud_mt_gc);
     /* [ kollos, mt_g_ud, gc_function ] */
     lua_setfield(L, -2, "__gc");
@@ -1516,12 +1638,31 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     /* Set up Kollos recce userdata metatable */
     lua_newtable(L);
     /* [ kollos, mt_ud_r ] */
-    /* dup top of stack */
     lua_pushcfunction(L, l_recce_ud_mt_gc);
     /* [ kollos, mt_r_ud, gc_function ] */
     lua_setfield(L, -2, "__gc");
     /* [ kollos, mt_r_ud ] */
     lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_r_ud_mt_key);
+    /* [ kollos ] */
+
+    /* Set up Kollos bocage userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_bocage ] */
+    lua_pushcfunction(L, l_bocage_ud_mt_gc);
+    /* [ kollos, mt_b_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_b_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_b_ud_mt_key);
+    /* [ kollos ] */
+
+    /* Set up Kollos order userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_order ] */
+    lua_pushcfunction(L, l_order_ud_mt_gc);
+    /* [ kollos, mt_o_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_o_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_o_ud_mt_key);
     /* [ kollos ] */
 
     /* In alphabetical order by field name */
@@ -1566,6 +1707,9 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_progress_item);
     lua_setfield(L, kollos_table_stack_ix, "recce_progress_item");
+
+    lua_pushcfunction(L, wrap_bocage_new);
+    lua_setfield(L, kollos_table_stack_ix, "bocage_new");
 
     lua_newtable (L);
     /* [ kollos, error_code_table ] */

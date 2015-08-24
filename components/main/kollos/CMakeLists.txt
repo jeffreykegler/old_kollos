@@ -66,6 +66,24 @@ add_custom_target(
   VERBATIM
 )
 
+ADD_CUSTOM_COMMAND (
+  COMMENT "Writing bocage.lua"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bocage.lua
+  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+      ${CMAKE_CURRENT_SOURCE_DIR}/bocage.lua.md 
+      ${CMAKE_CURRENT_BINARY_DIR}/bocage.lua
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bocage.lua.md 
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+  VERBATIM
+  )
+
+add_custom_target(
+  bocage.lua ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bocage.lua
+  COMMENT "Writing bocage.lua"
+  VERBATIM
+)
+
 file(COPY
     "config.lua"
     "development.lua"

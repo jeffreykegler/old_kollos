@@ -53,6 +53,7 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Declare recce_class
     local recce_class = {}
+    recce_class.bocage_new = bocage.new
 
 ## The start() method
 
@@ -290,6 +291,7 @@ and ending at earleme location `current`.
     -- local inspect = require "kollos.inspect"
     local wrap = require "kollos.wrap"
     local a8lex = require "kollos.a8lex"
+    local bocage = require "kollos.bocage"
 
     -- luatangle: insert Declare recce_class
     -- luatangle: insert Development error methods
