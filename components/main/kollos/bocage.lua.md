@@ -163,6 +163,8 @@ the C language which contains the actual parse engine.
 
     -- local inspect = require "kollos.inspect"
     local wrap = require "kollos.wrap"
+    local kollos_c = require "kollos_c"
+    local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
     -- luatangle: insert Declare bocage_class
     -- luatangle: insert Development error methods
