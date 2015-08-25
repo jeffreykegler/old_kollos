@@ -37,12 +37,18 @@ the C language which contains the actual parse engine.
     local function bocage_new(recce)
         local grammar = recce.grammar
         local bocage = {
-             grammar = grammar,
-             libmarpa_g = grammar.libmarpa_g,
-             throw = recce.throw,
+            _type = "bocage",
+            grammar = grammar,
+            libmarpa_g = grammar.libmarpa_g,
+            throw = recce.throw,
         }
-        local b = wrap.bocage(recce.libmarpa_r)
-        bocage.libmarpa_b = b
+
+        bocage = kollos_c.bocage_new(bocage,
+            recce.libmarpa_r,
+            symbol,
+            start_loc,
+            end_loc
+        )
         setmetatable(bocage, {
                 __index = bocage_class,
             })
@@ -155,7 +161,6 @@ the C language which contains the actual parse engine.
     -- luacheck: globals __FILE__ __LINE__
 
     -- local inspect = require "kollos.inspect"
-    local wrap = require "kollos.wrap"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 

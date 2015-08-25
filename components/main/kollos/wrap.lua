@@ -133,23 +133,6 @@ function wrap.recce(grammar_object)
   return recce_object
 end
 
-local bocage_class  = {
-}
-
-function wrap.bocage(recce_object, symbol, start_loc, end_loc)
-  local bocage_object = kollos_c.bocage_new(
-      { _type = "bocage", throw = recce_object.throw },
-      recce_object,
-      symbol,
-      start_loc,
-      end_loc
-  )
-  setmetatable(bocage_object, {
-      __index = bocage_class,
-  })
-  return bocage_object
-end
-
 return wrap
 
 -- vim: expandtab shiftwidth=4:
