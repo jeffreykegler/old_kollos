@@ -21,7 +21,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 -- Prototype the LUIF parser
 
-local inspect = require 'kollos.inspect'
+-- local inspect = require 'kollos.inspect'
 require 'Test.More'
 -- luacheck: globals ok plan
 plan(1)

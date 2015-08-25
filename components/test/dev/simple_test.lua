@@ -1,6 +1,8 @@
-require 'Test.More'
 local kollos_external = require "kollos"
 local wrap = kollos_external.wrap
+
+-- luacheck: globals plan is
+require 'Test.More'
 plan(1)
 
 local luif_err_none -- luacheck: ignore luif_err_none

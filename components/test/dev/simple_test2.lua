@@ -1,5 +1,6 @@
 -- luacheck: std lua51
 
+-- luacheck: globals plan is
 require 'Test.More'
 plan(1)
 
