@@ -39,12 +39,11 @@ the C language which contains the actual parse engine.
         local bocage = {
             _type = "bocage",
             grammar = grammar,
-            inner_g = grammar.inner_g,
             throw = recce.throw,
         }
 
         bocage = kollos_c.bocage_new(bocage,
-            recce.inner_r,
+            recce,
             symbol,
             start_loc,
             end_loc
