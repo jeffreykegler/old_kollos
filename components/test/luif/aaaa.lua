@@ -54,5 +54,6 @@ r0:read()
 print(r0:progress_report())
 
 local b0 = r0:bocage_new()
+print(b0:show())
 
 -- vim: expandtab shiftwidth=4:

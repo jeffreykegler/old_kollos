@@ -63,39 +63,38 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Declare bocage show() method
 
-    local function or_node_tag(inner_b, or_node_id)
-        local irl_id = kollos_c._marpa_b_or_node_irl(inner_b, or_node_id)
-        local position = kollos_c._marpa_b_or_node_position(inner_b, or_node_id)
-        local or_origin = kollos_c._marpa_b_or_node_origin(inner_b, or_node_id)
-        local or_set = kollos_c._marpa_b_or_node_set(inner_b, or_node_id)
+    local function or_node_tag(bocage, or_node_id)
+        local irl_id = bocage:__or_node_irl(or_node_id)
+        local position = bocage:__or_node_position(or_node_id)
+        local or_origin = bocage:__or_node_origin(or_node_id)
+        local or_set = bocage:__or_node_set(or_node_id)
         return 'R' .. irl_id .. ':' .. position .. '@' .. or_origin .. '-' .. or_set
     end
 
     function bocage_class.show(bocage)
-        local inner_b = bocage.inner_b
         local or_node_id = 0
         local data = {}
         local tags = {}
         while true do
-            local irl_id = kollos_c._marpa_b_or_node_irl(inner_b, or_node_id)
+            local irl_id = bocage:__or_node_irl(or_node_id)
             if not irl_id then break end
             local first_and_node_id
-            = kollos_c._marpa_b_or_node_first_and(inner_b, or_node_id)
+            = bocage:__or_node_first_and(or_node_id)
             local last_and_node_id
-            = kollos_c._marpa_b_or_node_last_and(inner_b, or_node_id)
-            for and_node_id in first_and_node_id, last_and_node_id do
-                local symbol = kollos_c._marpa_b_and_node_symbol(inner_b, and_node_id)
+            = bocage:__or_node_last_and(or_node_id)
+            for and_node_id = first_and_node_id, last_and_node_id do
+                local symbol = bocage:__and_node_symbol(and_node_id)
                 local cause_tag
                 if symbol then cause_tag = 'S' .. symbol end
-                local cause_id = kollos_c._marpa_b_and_node_cause(inner_b, and_node_id)
+                local cause_id = bocage:__and_node_cause(and_node_id)
                 if cause_id then
-                    cause_tag = or_node_tag(inner_b, cause_id)
+                    cause_tag = or_node_tag(bocage, cause_id)
                 end
-                local parent_tag = or_node_tag(inner_b, or_node_id)
-                local predecessor_id = kollos_c._marpa_b_and_node_predecessor(inner_b, or_node_id)
+                local parent_tag = or_node_tag(bocage, or_node_id)
+                local predecessor_id = bocage:__and_node_predecessor(or_node_id)
                 local predecessor_tag = '-'
                 if predecessor_id then
-                    predecessor_tag = or_node_tag(inner_b, predecessor_id)
+                    predecessor_tag = or_node_tag(bocage, predecessor_id)
                 end
                 local tag =
                 and_node_id .. ':'
@@ -108,7 +107,7 @@ the C language which contains the actual parse engine.
             or_node_id = or_node_id + 1
         end
         table.sort(data)
-        for data_ix in 1, #data do
+        for data_ix = 1, #data do
             local and_node_id = data[data_ix]
             data[data_ix] = tags[and_node_id]
         end
@@ -164,6 +163,14 @@ the C language which contains the actual parse engine.
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
     -- luatangle: insert Declare bocage_class
+
+    for k,v in pairs(kollos_c) do
+         if k:match('^[_]?bocage') then
+             local c_wrapper_name = k:gsub('bocage', '', 1)
+             bocage_class[c_wrapper_name] = v
+         end
+    end
+
     -- luatangle: insert Development error methods
     -- luatangle: insert Constructor
     -- luatangle: insert Declare bocage show() method
