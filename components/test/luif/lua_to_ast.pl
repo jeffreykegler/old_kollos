@@ -25,7 +25,7 @@ use warnings;
 use English qw( -no_match_vars );
 use Scalar::Util;
 use Data::Dumper;
-use Test::More tests => 34;
+use Test::More tests => 33;
 use Fcntl;
 
 ## no critic (ErrorHandling::RequireCarping);
@@ -87,7 +87,6 @@ my @test_files = qw(
     components/lua/test/trace-globals.lua
     components/lua/test/factorial.lua
     components/lua/test/globals.lua
-    components/main/wrapper_gen.lua
     components/main/kollos/location.lua
     components/main/kollos/inspect.lua
     components/main/kollos/lo_g.lua
