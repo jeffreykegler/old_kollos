@@ -159,7 +159,15 @@ until an event occurs.
     for _,symbol in ipairs(symbols) do
         local tokens_accepted = 0
         print("@" .. recce.down_pos, symbol, lexer.value(recce.down_pos))
-        if recce.inner_r:alternative(symbol) then
+
+        local result = kollos_c.recce_alternative(recce.inner_r, symbol, 1, 1)
+        if result == luif_err_unexpected_token then result = nil
+        elseif result == luif_err_none then result = 1
+        else
+            kollos_c.error_throw(result, "alternative()");
+        end
+
+        if result then
             tokens_accepted = tokens_accepted + 1
             -- print("Character accepted", describe_character(byte),
             -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
@@ -305,6 +313,7 @@ and ending at earleme location `current`.
     local bocage = require "kollos.bocage"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
+    local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
 
     -- luatangle: insert Declare recce_class
     -- luatangle: insert Development error methods
