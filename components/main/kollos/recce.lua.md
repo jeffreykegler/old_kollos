@@ -42,7 +42,7 @@ the C language which contains the actual parse engine.
                 down_pos = 0,
                 _type = 'recce'
             },
-            grammar.inner_g
+            grammar
         )
         setmetatable(recce, {
                 __index = recce_class,

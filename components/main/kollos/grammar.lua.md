@@ -639,9 +639,9 @@ Otherwise, the RHS is stolen from `wrule`.
         setmetatable(irule, mt_irule)
         local rhs1_mxid = rh_instance1.mxid
         local rhs2_mxid = rh_instance2 and rh_instance2.mxid or nil
-        local rule_mxid = g:rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
+        local rule_mxid = grammar:_rule_new(lhs.mxid, rhs1_mxid, rhs2_mxid)
         if rule_mxid < 0 then
-            local error_code = g:error()
+            local error_code = grammar:error()
             print('Problem with rule', show_dotted_rule(irule))
             if error_code == luif_err_duplicate_rule then
                 print('Duplicate rule -- non-fatal')
@@ -2016,7 +2016,7 @@ is free of nulling and nullable symbols.
 
     -- luatangle: section Create the internal grammar
 
-    local g = wrap.grammar()
+    grammar= kollos_c.grammar_new(grammar)
     local irule_by_miid = {}
     local irule_by_mxid = {}
 
@@ -2035,7 +2035,7 @@ is free of nulling and nullable symbols.
                 local element = rh_instance.element
                 if element.type == 'wsym' then
                     -- "steal" the wsym, making it an isym
-                    element.mxid = g:symbol_new()
+                    element.mxid = grammar:_symbol_new()
                 end
                 -- TODO: delete after development
                 assert(rh_instance.type == 'isym')
@@ -2043,7 +2043,7 @@ is free of nulling and nullable symbols.
             local lhs = working_wrule.lhs
             -- TODO: delete after development
             if lhs.type == 'wsym' then
-                lhs.mxid = g:symbol_new()
+                lhs.mxid = grammar:_symbol_new()
             end
 
             -- TODO: delete after development
@@ -2292,7 +2292,6 @@ or otherwise as occasion demands.
     -- luacheck: globals __FILE__ __LINE__
 
     local inspect = require "kollos.inspect" -- luacheck: ignore
-    local wrap = require "kollos.wrap"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
     local luif_err_none -- luacheck: ignore
@@ -3399,8 +3398,8 @@ as needed.
         -- luatangle: insert Census fields
 
        local start_mxid = wsym_by_name['!augment'].mxid
-       g:start_symbol_set(start_mxid)
-       local status = g:precompute()
+       grammar:_start_symbol_set(start_mxid)
+       local status = grammar:_precompute()
        if not status then
             return nil, kollos_c.error_new{
                 "grammar precomputation failed",
@@ -3415,7 +3414,7 @@ as needed.
 
        for _,isym in pairs(wsym_by_name) do
            local mxid = isym.mxid
-           local miid = kollos_c._grammar_xsy_nsy(g, isym.mxid)
+           local miid = kollos_c._grammar_xsy_nsy(grammar, isym.mxid)
            isym_by_mxid[mxid] = isym
            isym.miid = miid
            isym_by_miid[miid] = isym
@@ -3431,13 +3430,13 @@ as needed.
        end
 
        local start_miid
-       local nsy_count = kollos_c._grammar_nsy_count(g)
+       local nsy_count = kollos_c._grammar_nsy_count(grammar)
        -- print('NSY count', nsy_count)
        for nsy_id = 0,nsy_count-1 do
-           if kollos_c._grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
+           if kollos_c._grammar_nsy_is_nulling(grammar, nsy_id) ~= 0 then
                error('nulling NSY: ' .. nsy_id)
            end
-           if kollos_c._grammar_nsy_is_start(g, nsy_id) ~= 0
+           if kollos_c._grammar_nsy_is_start(grammar, nsy_id) ~= 0
            then
                start_miid = nsy_id
            end
@@ -3448,12 +3447,12 @@ as needed.
        end
 
 
-       local irl_count = kollos_c._grammar_irl_count(g)
+       local irl_count = kollos_c._grammar_irl_count(grammar)
        -- print('IRL count', irl_count)
        for miid = 0,irl_count-1 do
-           local mxid = kollos_c._grammar_source_xrl(g, miid)
+           local mxid = kollos_c._grammar_source_xrl(grammar, miid)
            if not mxid then
-               local lhs = kollos_c._grammar_irl_lhs(g, miid)
+               local lhs = kollos_c._grammar_irl_lhs(grammar, miid)
                if lhs ~= start_miid then
                    error('no-XRL IRL: lhs is ' .. lhs)
                end
@@ -3470,7 +3469,7 @@ as needed.
        grammar.irule_by_miid = irule_by_miid
        grammar.irule_by_mxid = irule_by_mxid
        grammar.mxids_by_cc = mxids_by_cc
-       grammar.inner_g = g
+       grammar.inner_g = inner_g
        grammar.default_lexer_factory = a8lex.factory
 
        return grammar
@@ -3497,6 +3496,7 @@ as needed.
             xtopalt_by_ix = {},
             xsubalt_by_id = {},
 
+            _type = 'grammar',
             lexemes_by_type = {},
             next_lexeme_id = 0,
             xsym_by_id = {},
