@@ -41,8 +41,8 @@ the C language which contains the actual parse engine.
              throw = grammar.throw,
              down_pos = 0
         }
-        local r = wrap.recce(grammar.libmarpa_g)
-        recce.libmarpa_r = r
+        local r = wrap.recce(grammar.inner_g)
+        recce.inner_r = r
         setmetatable(recce, {
                 __index = recce_class,
             })
@@ -60,7 +60,7 @@ the C language which contains the actual parse engine.
     -- luatangle: section start() recce method
 
     function recce_class.start(recce)
-        local r = recce.libmarpa_r
+        local r = recce.inner_r
         return r:start_input()
     end
 
@@ -159,7 +159,7 @@ until an event occurs.
     for _,symbol in ipairs(symbols) do
         local tokens_accepted = 0
         print("@" .. recce.down_pos, symbol, lexer.value(recce.down_pos))
-        if recce.libmarpa_r:alternative(symbol) then
+        if recce.inner_r:alternative(symbol) then
             tokens_accepted = tokens_accepted + 1
             -- print("Character accepted", describe_character(byte),
             -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
@@ -173,7 +173,7 @@ until an event occurs.
             return
         end
         local event_count -- luacheck: ignore event_count
-            = recce.libmarpa_r:earleme_complete() -- luacheck: ignore result
+            = recce.inner_r:earleme_complete() -- luacheck: ignore result
     end
 
 # The progress report
@@ -181,15 +181,15 @@ until an event occurs.
     -- luatangle: section progress_report() recce method
 
     function recce_class.progress_report(recce, earley_set)
-        local libmarpa_r = recce.libmarpa_r
+        local inner_r = recce.inner_r
         local grammar = recce.grammar
         local irule_by_mxid = grammar.irule_by_mxid
         local latest_earley_set =
-            earley_set or libmarpa_r:latest_earley_set()
+            earley_set or inner_r:latest_earley_set()
         print("Earley set " .. latest_earley_set)
-        libmarpa_r:progress_report_start(latest_earley_set)
+        inner_r:progress_report_start(latest_earley_set)
         while true do
-            local rule_id, position, origin = libmarpa_r:progress_item()
+            local rule_id, position, origin = inner_r:progress_item()
             if not rule_id then break end
             local irule = irule_by_mxid[rule_id]
             -- print(inspect(irule, { depth = 4 }))
@@ -197,7 +197,7 @@ until an event occurs.
             print("@" .. origin .. '-' .. latest_earley_set ..
                 "; " .. irule:show_dotted(position))
         end
-        libmarpa_r:progress_report_finish()
+        inner_r:progress_report_finish()
     end
 
     --[===[ stuff that may prove useful --

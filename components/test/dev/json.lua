@@ -265,18 +265,18 @@ local function show_rule(rule_props, dot_position)
 end
 
 local function klol_progress_report(klol_r, earley_set)
-    local libmarpa_r = klol_r.libmarpa_r
+    local inner_r = klol_r.inner_r
     local latest_earley_set =
-        earley_set or libmarpa_r:latest_earley_set()
+        earley_set or inner_r:latest_earley_set()
     print("Earley set " .. latest_earley_set)
-    libmarpa_r:progress_report_start(latest_earley_set)
+    inner_r:progress_report_start(latest_earley_set)
     while true do
-        local rule_id, position, origin = libmarpa_r:progress_item()
+        local rule_id, position, origin = inner_r:progress_item()
         if not rule_id then break end
         print("@" .. origin .. '-' .. latest_earley_set ..
             "; " .. show_rule(klol_r.klol_g.rule_by_libmarpa_id[rule_id], position))
     end
-    libmarpa_r:progress_report_finish()
+    inner_r:progress_report_finish()
 end
 
 local function result_for_events(lexer, last_completions, last_completions_cursor)
@@ -292,7 +292,7 @@ end
 
 local function recce_new(klol_g)
     local klol_r = { klol_g = klol_g }
-    klol_r.libmarpa_r = kollos.wrap.recce(klol_g.libmarpa_g)
+    klol_r.inner_r = kollos.wrap.recce(klol_g.inner_g)
     return klol_r
 end
 
@@ -301,13 +301,13 @@ local function default_lexer_token_next(lexer)
     local klol_r = recce_new(lex_g)
     local last_completions
     local last_completions_cursor = -1
-    klol_r.libmarpa_r:start_input()
+    klol_r.inner_r:start_input()
     -- klol_progress_report(r)
     for _,lexeme_prefix in ipairs(lex_g.lexeme_prefixes) do
         -- print(lexeme_prefix.name, lexeme_prefix.libmarpa_id)
-        local result = klol_r.libmarpa_r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
+        local result = klol_r.inner_r:alternative(lexeme_prefix.libmarpa_id) -- luacheck: ignore result
     end
-    result = klol_r.libmarpa_r:earleme_complete() -- luacheck: ignore result
+    result = klol_r.inner_r:earleme_complete() -- luacheck: ignore result
     -- klol_progress_report(klol_r)
 
    -- print(inspect(lex_g.tokens_by_char))
@@ -326,7 +326,7 @@ local function default_lexer_token_next(lexer)
         end
         local tokens_accepted = 0
         for token_ix = 1,#tokens do
-            if klol_r.libmarpa_r:alternative(tokens[token_ix]) then
+            if klol_r.inner_r:alternative(tokens[token_ix]) then
                 tokens_accepted = tokens_accepted + 1
                 -- print("Character accepted", describe_character(byte),
                     -- "as", lex_g.symbol_by_libmarpa_id[tokens[token_ix]].name)
@@ -344,12 +344,12 @@ local function default_lexer_token_next(lexer)
             return result_for_events(lexer, last_completions, last_completions_cursor)
             -- NOT REACHED --
         end
-        local event_count = klol_r.libmarpa_r:earleme_complete() -- luacheck: ignore result
+        local event_count = klol_r.inner_r:earleme_complete() -- luacheck: ignore result
         -- events are 0-based
         local parse_is_exhausted = false
         local current_completions = {}
         for event_ix = 1, event_count do
-            local event_type, event_value = lex_g.libmarpa_g:event(event_ix)
+            local event_type, event_value = lex_g.inner_g:event(event_ix)
             if event_type == symbol_completed_event then
                 current_completions[#current_completions+1] = event_value
             elseif event_type == symbol_exhausted_event then
@@ -390,7 +390,7 @@ local function default_lexer_new(lex_g, input)
     local lexer= { input_object = input,
         input_string = input_string,
         cursor = start_cursor,
-        libmarpa_g = lex_g.libmarpa_g,
+        inner_g = lex_g.inner_g,
         klol_g = lex_g
     }
     setmetatable(lexer, default_lexer_mt)

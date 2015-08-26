@@ -39,12 +39,12 @@ the C language which contains the actual parse engine.
         local bocage = {
             _type = "bocage",
             grammar = grammar,
-            libmarpa_g = grammar.libmarpa_g,
+            inner_g = grammar.inner_g,
             throw = recce.throw,
         }
 
         bocage = kollos_c.bocage_new(bocage,
-            recce.libmarpa_r,
+            recce.inner_r,
             symbol,
             start_loc,
             end_loc
@@ -64,39 +64,39 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Declare bocage show() method
 
-    local function or_node_tag(libmarpa_b, or_node_id)
-        local irl_id = kollos_c._marpa_b_or_node_irl(libmarpa_b, or_node_id)
-        local position = kollos_c._marpa_b_or_node_position(libmarpa_b, or_node_id)
-        local or_origin = kollos_c._marpa_b_or_node_origin(libmarpa_b, or_node_id)
-        local or_set = kollos_c._marpa_b_or_node_set(libmarpa_b, or_node_id)
+    local function or_node_tag(inner_b, or_node_id)
+        local irl_id = kollos_c._marpa_b_or_node_irl(inner_b, or_node_id)
+        local position = kollos_c._marpa_b_or_node_position(inner_b, or_node_id)
+        local or_origin = kollos_c._marpa_b_or_node_origin(inner_b, or_node_id)
+        local or_set = kollos_c._marpa_b_or_node_set(inner_b, or_node_id)
         return 'R' .. irl_id .. ':' .. position .. '@' .. or_origin .. '-' .. or_set
     end
 
     function bocage_class.show(bocage)
-        local libmarpa_b = bocage.libmarpa_b
+        local inner_b = bocage.inner_b
         local or_node_id = 0
         local data = {}
         local tags = {}
         while true do
-            local irl_id = kollos_c._marpa_b_or_node_irl(libmarpa_b, or_node_id)
+            local irl_id = kollos_c._marpa_b_or_node_irl(inner_b, or_node_id)
             if not irl_id then break end
             local first_and_node_id
-            = kollos_c._marpa_b_or_node_first_and(libmarpa_b, or_node_id)
+            = kollos_c._marpa_b_or_node_first_and(inner_b, or_node_id)
             local last_and_node_id
-            = kollos_c._marpa_b_or_node_last_and(libmarpa_b, or_node_id)
+            = kollos_c._marpa_b_or_node_last_and(inner_b, or_node_id)
             for and_node_id in first_and_node_id, last_and_node_id do
-                local symbol = kollos_c._marpa_b_and_node_symbol(libmarpa_b, and_node_id)
+                local symbol = kollos_c._marpa_b_and_node_symbol(inner_b, and_node_id)
                 local cause_tag
                 if symbol then cause_tag = 'S' .. symbol end
-                local cause_id = kollos_c._marpa_b_and_node_cause(libmarpa_b, and_node_id)
+                local cause_id = kollos_c._marpa_b_and_node_cause(inner_b, and_node_id)
                 if cause_id then
-                    cause_tag = or_node_tag(libmarpa_b, cause_id)
+                    cause_tag = or_node_tag(inner_b, cause_id)
                 end
-                local parent_tag = or_node_tag(libmarpa_b, or_node_id)
-                local predecessor_id = kollos_c._marpa_b_and_node_predecessor(libmarpa_b, or_node_id)
+                local parent_tag = or_node_tag(inner_b, or_node_id)
+                local predecessor_id = kollos_c._marpa_b_and_node_predecessor(inner_b, or_node_id)
                 local predecessor_tag = '-'
                 if predecessor_id then
-                    predecessor_tag = or_node_tag(libmarpa_b, predecessor_id)
+                    predecessor_tag = or_node_tag(inner_b, predecessor_id)
                 end
                 local tag =
                 and_node_id .. ':'

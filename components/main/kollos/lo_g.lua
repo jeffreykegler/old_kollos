@@ -587,7 +587,7 @@ local function do_grammar(grammar, properties) -- luacheck: ignore grammar
 
     end
 
-    return { libmarpa_g = g,
+    return { inner_g = g,
         tokens_by_char = tokens_by_char, -- 0-based index
         lexeme_prefixes = lexeme_prefixes,
         symbol_by_libmarpa_id = symbol_by_libmarpa_id,
