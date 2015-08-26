@@ -19,6 +19,9 @@
 --
 -- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 
+-- This file is to be deleted when the lo_g tests are replaced
+-- and its interface is deleted
+
 local kollos_c = require 'kollos_c'
 
 -- The Libmarpa wrapper layer

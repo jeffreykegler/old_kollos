@@ -33,19 +33,17 @@ the C language which contains the actual parse engine.
 ## Constructor
 
     -- luatangle: section Constructor
-
     local function recce_new(grammar)
-        local recce = {
-             down_history = {},
-             grammar = grammar,
-             throw = grammar.throw,
-             down_pos = 0,
-             _type = 'recce'
-        }
-        local r = wrap.recce(grammar.inner_g)
-        recce._libmarpa = r._libmarpa
-        recce._libmarpa_g = r._libmarpa_g
-        recce._libmarpa_r = r._libmarpa_r
+        recce = kollos_c.recce_new(
+            {
+                down_history = {},
+                grammar = grammar,
+                throw = grammar.throw,
+                down_pos = 0,
+                _type = 'recce'
+            },
+            grammar.inner_g
+        )
         setmetatable(recce, {
                 __index = recce_class,
             })
@@ -310,7 +308,6 @@ and ending at earleme location `current`.
     -- luacheck: globals __FILE__ __LINE__
 
     -- local inspect = require "kollos.inspect"
-    local wrap = require "kollos.wrap"
     local bocage = require "kollos.bocage"
     local kollos_c = require "kollos_c"
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
