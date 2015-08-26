@@ -315,9 +315,8 @@ and ending at earleme location `current`.
 
     -- luatangle: insert Declare recce_class
     for k,v in pairs(kollos_c) do
-         if k:match('^recce_') then
-             -- print(k:gsub('^recce', '', 1))
-             local c_wrapper_name = k:gsub('^recce', '', 1)
+         if k:match('^[_]?recce_') then
+             local c_wrapper_name = k:gsub('recce', '', 1)
              recce_class[c_wrapper_name] = v
          end
     end

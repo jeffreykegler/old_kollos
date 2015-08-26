@@ -1765,12 +1765,13 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 for ix = 1, #c_fn_signatures do
    local signature = c_fn_signatures[ix]
    local function_name = signature[1]
-   local unprefixed_name = string.gsub(function_name, "^[_]?marpa_", "");
-   local class_letter = string.gsub(unprefixed_name, "_.*$", "");
+   local unprefixed_name = function_name:gsub("^[_]?marpa_", "", 1);
+   local class_letter = unprefixed_name:gsub("_.*$", "", 1);
    local wrapper_name = "wrap_" .. unprefixed_name;
    io.write("  lua_pushcfunction(L, " .. wrapper_name .. ");\n")
-   local classless_name = string.gsub(function_name, "^[_]?marpa_[^_]*_", "")
-   local quoted_field_name = '"' .. libmarpa_class_name[class_letter] .. '_' .. classless_name .. '"'
+   local classless_name = function_name:gsub("^[_]?marpa_[^_]*_", "")
+   local initial_underscore = function_name:match('^_') and '_' or ''
+   local quoted_field_name = '"' .. initial_underscore .. libmarpa_class_name[class_letter] .. '_' .. classless_name .. '"'
    io.write("  lua_setfield(L, kollos_table_stack_ix, " .. quoted_field_name .. ");\n")
 end
 

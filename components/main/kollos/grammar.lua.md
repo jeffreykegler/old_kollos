@@ -2545,6 +2545,12 @@ or otherwise as occasion demands.
         return new_instance
     end
 
+    for k,v in pairs(kollos_c) do
+         if k:match('^[_]?grammar_') then
+             local c_wrapper_name = k:gsub('grammar', '', 1)
+             grammar_class[c_wrapper_name] = v
+         end
+    end
     -- luatangle: insert RHS transitive closure function
     -- luatangle: insert nullable semantics functions
     -- luatangle: insert subalternative_new() internal method
@@ -3409,7 +3415,7 @@ as needed.
 
        for _,isym in pairs(wsym_by_name) do
            local mxid = isym.mxid
-           local miid = kollos_c.grammar_xsy_nsy(g, isym.mxid)
+           local miid = kollos_c._grammar_xsy_nsy(g, isym.mxid)
            isym_by_mxid[mxid] = isym
            isym.miid = miid
            isym_by_miid[miid] = isym
@@ -3425,13 +3431,13 @@ as needed.
        end
 
        local start_miid
-       local nsy_count = kollos_c.grammar_nsy_count(g)
+       local nsy_count = kollos_c._grammar_nsy_count(g)
        -- print('NSY count', nsy_count)
        for nsy_id = 0,nsy_count-1 do
-           if kollos_c.grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
+           if kollos_c._grammar_nsy_is_nulling(g, nsy_id) ~= 0 then
                error('nulling NSY: ' .. nsy_id)
            end
-           if kollos_c.grammar_nsy_is_start(g, nsy_id) ~= 0
+           if kollos_c._grammar_nsy_is_start(g, nsy_id) ~= 0
            then
                start_miid = nsy_id
            end
@@ -3442,12 +3448,12 @@ as needed.
        end
 
 
-       local irl_count = kollos_c.grammar_irl_count(g)
+       local irl_count = kollos_c._grammar_irl_count(g)
        -- print('IRL count', irl_count)
        for miid = 0,irl_count-1 do
-           local mxid = kollos_c.grammar_source_xrl(g, miid)
+           local mxid = kollos_c._grammar_source_xrl(g, miid)
            if not mxid then
-               local lhs = kollos_c.grammar_irl_lhs(g, miid)
+               local lhs = kollos_c._grammar_irl_lhs(g, miid)
                if lhs ~= start_miid then
                    error('no-XRL IRL: lhs is ' .. lhs)
                end
