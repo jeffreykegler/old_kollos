@@ -1003,14 +1003,14 @@ for ix = 1, #c_fn_signatures do
      io.write("  lua_pop(L, 1);\n")
    end
 
-   io.write('  lua_getfield (L, -1, "_ud");\n')
+   io.write('  lua_getfield (L, -1, "_libmarpa");\n')
    -- stack is [ self, self_ud ]
    local cast_to_ptr_to_class_type = "(" ..  libmarpa_class_type[class_letter] .. "*)"
    io.write("  self = *", cast_to_ptr_to_class_type, "lua_touserdata (L, -1);\n")
    io.write("  lua_pop(L, 1);\n")
    -- stack is [ self ]
 
-   io.write('  lua_getfield (L, -1, "_g_ud");\n')
+   io.write('  lua_getfield (L, -1, "_libmarpa_g");\n')
    -- stack is [ self, grammar_ud ]
    io.write("  grammar = *(Marpa_Grammar*)lua_touserdata (L, -1);\n")
    io.write("  lua_pop(L, 1);\n")
@@ -1087,7 +1087,7 @@ common_r_error_handler (lua_State * L,
   int throw_flag;
   Marpa_Error_Code marpa_error;
   Marpa_Grammar *grammar_ud;
-  lua_getfield (L, recce_stack_ix, "_g_ud");
+  lua_getfield (L, recce_stack_ix, "_libmarpa_g");
   /* [ ..., grammar_ud ] */
   grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
   lua_pop(L, 1);
@@ -1116,7 +1116,7 @@ common_b_error_handler (lua_State * L,
   int throw_flag;
   Marpa_Error_Code marpa_error;
   Marpa_Grammar *grammar_ud;
-  lua_getfield (L, bocage_stack_ix, "_g_ud");
+  lua_getfield (L, bocage_stack_ix, "_libmarpa_g");
   /* [ ..., grammar_ud ] */
   grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
   lua_pop(L, 1);
@@ -1197,9 +1197,9 @@ wrap_grammar_new (lua_State * L)
     /* dup top of stack */
     lua_pushvalue (L, -1);
     /* [ grammar_table, userdata, userdata ] */
-    lua_setfield (L, grammar_stack_ix, "_ud");
+    lua_setfield (L, grammar_stack_ix, "_libmarpa");
     /* [ grammar_table, userdata ] */
-    lua_setfield (L, grammar_stack_ix, "_g_ud");
+    lua_setfield (L, grammar_stack_ix, "_libmarpa_g");
     /* [ grammar_table ] */
 
     marpa_c_init (&marpa_config);
@@ -1242,7 +1242,7 @@ static int wrap_grammar_error(lua_State *L)
   Marpa_Error_Code marpa_error;
   const char *error_string = NULL;
 
-  lua_getfield (L, grammar_stack_ix, "_ud");
+  lua_getfield (L, grammar_stack_ix, "_libmarpa");
   /* [ grammar_object, grammar_ud ] */
   p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
   marpa_error = marpa_g_error(*p_g, &error_string);
@@ -1262,7 +1262,7 @@ static int wrap_grammar_events(lua_State *L)
   Marpa_Grammar *p_g;
   int event_count;
 
-  lua_getfield (L, grammar_stack_ix, "_ud");
+  lua_getfield (L, grammar_stack_ix, "_libmarpa");
   /* [ grammar_object, grammar_ud ] */
   p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
   event_count = marpa_g_event_count (*p_g);
@@ -1320,7 +1320,7 @@ static int wrap_grammar_event(lua_State *L)
   Marpa_Event event;
   const int event_ix = (Marpa_Symbol_ID)lua_tointeger(L, event_ix_stack_ix)-1;
 
-  lua_getfield (L, grammar_stack_ix, "_ud");
+  lua_getfield (L, grammar_stack_ix, "_libmarpa");
   /* [ grammar_object, grammar_ud ] */
   p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
   /* [ grammar_object, grammar_ud ] */
@@ -1376,7 +1376,7 @@ static int wrap_grammar_rule_new(lua_State *L)
     lua_pop(L, lua_gettop(L)-1);
     /* [ grammar_object ] */
 
-    lua_getfield (L, -1, "_ud");
+    lua_getfield (L, -1, "_libmarpa");
     /* [ grammar_object, grammar_ud ] */
     p_g = (Marpa_Grammar *) lua_touserdata (L, -1);
 
@@ -1422,12 +1422,12 @@ wrap_recce_new (lua_State * L)
     lua_setmetatable (L, -2);
     /* [ recce_table, grammar_table, recce_ud ] */
 
-    lua_setfield (L, recce_stack_ix, "_ud");
+    lua_setfield (L, recce_stack_ix, "_libmarpa");
     /* [ recce_table, grammar_table ] */
-    lua_getfield (L, grammar_stack_ix, "_g_ud");
+    lua_getfield (L, grammar_stack_ix, "_libmarpa_g");
     /* [ recce_table, grammar_table, g_ud ] */
     grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
-    lua_setfield (L, recce_stack_ix, "_g_ud");
+    lua_setfield (L, recce_stack_ix, "_libmarpa_g");
     /* [ recce_table, grammar_table ] */
 
     *recce_ud = marpa_r_new (*grammar_ud);
@@ -1456,7 +1456,7 @@ static int wrap_progress_item(lua_State *L)
   int position;
   Marpa_Rule_ID rule_id;
 
-  lua_getfield (L, recce_stack_ix, "_ud");
+  lua_getfield (L, recce_stack_ix, "_libmarpa");
   /* [ recce_object, recce_ud ] */
   p_r = (Marpa_Recce *) lua_touserdata (L, -1);
   rule_id = marpa_r_progress_item (*p_r, &position, &origin);
@@ -1531,13 +1531,13 @@ wrap_bocage_new (lua_State * L)
     lua_setmetatable (L, -2);
     /* [ bocage_table, recce_table, bocage_ud ] */
 
-    lua_setfield (L, bocage_stack_ix, "_ud");
+    lua_setfield (L, bocage_stack_ix, "_libmarpa");
     /* [ bocage_table, recce_table ] */
-    lua_getfield (L, recce_stack_ix, "_g_ud");
+    lua_getfield (L, recce_stack_ix, "_libmarpa_g");
     /* [ recce_table, recce_table, g_ud ] */
-    lua_setfield (L, bocage_stack_ix, "_g_ud");
+    lua_setfield (L, bocage_stack_ix, "_libmarpa_g");
     /* [ bocage_table, recce_table ] */
-    lua_getfield (L, recce_stack_ix, "_ud");
+    lua_getfield (L, recce_stack_ix, "_libmarpa");
     /* [ recce_table, recce_table, recce_ud ] */
     recce_ud = (Marpa_Recognizer *) lua_touserdata (L, -1);
     /* [ bocage_table, recce_table, recce_ud ] */
