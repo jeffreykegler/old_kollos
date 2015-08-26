@@ -39,10 +39,13 @@ the C language which contains the actual parse engine.
              down_history = {},
              grammar = grammar,
              throw = grammar.throw,
-             down_pos = 0
+             down_pos = 0,
+             _type = 'recce'
         }
         local r = wrap.recce(grammar.inner_g)
-        recce.inner_r = r
+        recce._libmarpa = r._libmarpa
+        recce._libmarpa_g = r._libmarpa_g
+        recce._libmarpa_r = r._libmarpa_r
         setmetatable(recce, {
                 __index = recce_class,
             })
@@ -60,8 +63,7 @@ the C language which contains the actual parse engine.
     -- luatangle: section start() recce method
 
     function recce_class.start(recce)
-        local r = recce.inner_r
-        return r:start_input()
+        return recce:_start_input()
     end
 
 ## The "down history"
@@ -160,7 +162,7 @@ until an event occurs.
         local tokens_accepted = 0
         print("@" .. recce.down_pos, symbol, lexer.value(recce.down_pos))
 
-        local result = kollos_c.recce_alternative(recce.inner_r, symbol, 1, 1)
+        local result = recce:_alternative(symbol, 1, 1)
         if result == luif_err_unexpected_token then result = nil
         elseif result == luif_err_none then result = 1
         else
@@ -181,7 +183,7 @@ until an event occurs.
             return
         end
         local event_count -- luacheck: ignore event_count
-            = recce.inner_r:earleme_complete() -- luacheck: ignore result
+            = recce:_earleme_complete() -- luacheck: ignore result
     end
 
 # The progress report
@@ -189,15 +191,14 @@ until an event occurs.
     -- luatangle: section progress_report() recce method
 
     function recce_class.progress_report(recce, earley_set)
-        local inner_r = recce.inner_r
         local grammar = recce.grammar
         local irule_by_mxid = grammar.irule_by_mxid
         local latest_earley_set =
-            earley_set or inner_r:latest_earley_set()
+            earley_set or recce:_latest_earley_set()
         print("Earley set " .. latest_earley_set)
-        inner_r:progress_report_start(latest_earley_set)
+        recce:_progress_report_start(latest_earley_set)
         while true do
-            local rule_id, position, origin = inner_r:progress_item()
+            local rule_id, position, origin = recce:_progress_item()
             if not rule_id then break end
             local irule = irule_by_mxid[rule_id]
             -- print(inspect(irule, { depth = 4 }))
@@ -205,7 +206,7 @@ until an event occurs.
             print("@" .. origin .. '-' .. latest_earley_set ..
                 "; " .. irule:show_dotted(position))
         end
-        inner_r:progress_report_finish()
+        recce:_progress_report_finish()
     end
 
     --[===[ stuff that may prove useful --
@@ -316,6 +317,13 @@ and ending at earleme location `current`.
     local luif_err_none = kollos_c.error_code_by_name['LUIF_ERR_NONE']
 
     -- luatangle: insert Declare recce_class
+    for k,v in pairs(kollos_c) do
+         if k:match('^recce_') then
+             -- print(k:gsub('^recce', '', 1))
+             local c_wrapper_name = k:gsub('^recce', '', 1)
+             recce_class[c_wrapper_name] = v
+         end
+    end
     -- luatangle: insert Development error methods
     -- luatangle: insert Constructor
     -- luatangle: insert start() recce method
