@@ -2844,6 +2844,55 @@ as needed.
 
 ```
 
+## Grammar miid_name() method
+
+```
+
+    -- luatangle: section grammar miid_name() method
+
+    function grammar_class.miid_name(grammar, miid)
+       local isym_by_miid = grammar.isym_by_miid
+       local isym = isym_by_miid[miid]
+       if not isym then
+           return '[MIID' .. miid .. ']'
+       end
+       return isym.name
+    end
+
+```
+
+## Grammar show_dotted_irl() method
+
+```
+
+    -- luatangle: section grammar show_dotted_irl() method
+
+    function grammar_class.show_dotted_irl(grammar, irl_id, dot_position)
+        local lhs_id = grammar:__irl_lhs(irl_id)
+        local irl_length = grammar:__irl_length(irl_id)
+        local pieces = { grammar:miid_name(lhs_id), '::=' }
+        if dot_position < 0 then
+            dot_position = irl_length
+        end
+
+        for ix = 0, irl_length - 1 do
+            local rhs_nsy_id = grammar:__irl_rhs(irl_id, ix)
+            local rhs_nsy_name = grammar:miid_name(rhs_nsy_id)
+            pieces[#pieces+1] = rhs_nsy_name
+        end
+
+        if dot_position then
+            if dot_position >= 0 then
+                table.insert(pieces, dot_position+3, '.')
+            else
+                pieces[#pieces+1] = '.'
+            end
+        end
+        return table.concat(pieces, ' ')
+    end
+
+```
+
 ## Grammar compile() method
 
 ```
@@ -3565,6 +3614,9 @@ as needed.
 ```
 
     -- luatangle: section+ main
+
+    -- luatangle: insert grammar miid_name() method
+    -- luatangle: insert grammar show_dotted_irl() method
 
     grammar_class.recce_new = recce.new
     grammar_class.a8lex_new = a8lex.new
