@@ -71,6 +71,28 @@ the C language which contains the actual parse engine.
         return 'R' .. irl_id .. ':' .. position .. '@' .. or_origin .. '-' .. or_set
     end
 
+    function and_node_tag(bocage, and_node_id)
+        local parent_or_node_id = bocage:__and_node_parent(and_node_id)
+        local origin_loc = bocage:__or_node_origin(parent_or_node_id)
+        local current_loc = bocage:__or_node_set(parent_or_node_id)
+        local cause_or_id        = bocage:__and_node_cause(and_node_id)
+        local predecessor_or_id = bocage:__and_node_predecessor(and_node_id)
+        local middle_loc = bocage:__and_node_middle(and_node_id)
+        local loc = bocage:__or_node_position(parent_or_node_id)
+        local irl_id = bocage:__or_node_irl(parent_or_node_id)
+        local pieces = {
+              'R', irl_id, ':', loc, '@',
+            origin_loc, '-', current_loc
+        }
+        if cause_or_id then
+            pieces[#pieces+1] = 'C' ..  bocage:__or_node_irl(cause_or_id)
+        else
+            pieces[#pieces+1] = 'S' .. bocage:__and_node_symbol(and_node_id)
+        end
+        pieces[#pieces+1] = '@' .. middle_loc
+        return table.concat(pieces)
+    end
+
     function bocage_class.show(bocage)
         local or_node_id = 0
         local data = {}
@@ -79,9 +101,9 @@ the C language which contains the actual parse engine.
             local irl_id = bocage:__or_node_irl(or_node_id)
             if not irl_id then break end
             local first_and_node_id
-            = bocage:__or_node_first_and(or_node_id)
+                = bocage:__or_node_first_and(or_node_id)
             local last_and_node_id
-            = bocage:__or_node_last_and(or_node_id)
+                = bocage:__or_node_last_and(or_node_id)
             for and_node_id = first_and_node_id, last_and_node_id do
                 local symbol = bocage:__and_node_symbol(and_node_id)
                 local cause_tag
@@ -115,45 +137,6 @@ the C language which contains the actual parse engine.
     end
 
 ## To do
-
-    sub Marpa::R2::Recognizer::and_node_tag {
-        my ( $recce, $and_node_id ) = @_;
-        my $bocage            = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-        my $recce_c           = $recce->[Marpa::R2::Internal::Recognizer::C];
-        my $parent_or_node_id = $bocage->_marpa_b_and_node_parent($and_node_id);
-        my $origin         = $bocage->_marpa_b_or_node_origin($parent_or_node_id);
-        my $origin_earleme = $recce_c->earleme($origin);
-        my $current_earley_set =
-            $bocage->_marpa_b_or_node_set($parent_or_node_id);
-        my $current_earleme = $recce_c->earleme($current_earley_set);
-        my $cause_id        = $bocage->_marpa_b_and_node_cause($and_node_id);
-        my $predecessor_id = $bocage->_marpa_b_and_node_predecessor($and_node_id);
-
-        my $middle_earley_set = $bocage->_marpa_b_and_node_middle($and_node_id);
-        my $middle_earleme    = $recce_c->earleme($middle_earley_set);
-
-        my $position = $bocage->_marpa_b_or_node_position($parent_or_node_id);
-        my $irl_id   = $bocage->_marpa_b_or_node_irl($parent_or_node_id);
-
-    #<<<  perltidy introduces trailing space on this
-        my $tag =
-              'R'
-            . $irl_id . q{:}
-            . $position . q{@}
-            . $origin_earleme . q{-}
-            . $current_earleme;
-    #>>>
-        if ( defined $cause_id ) {
-            my $cause_irl_id = $bocage->_marpa_b_or_node_irl($cause_id);
-            $tag .= 'C' . $cause_irl_id;
-        }
-        else {
-            my $symbol = $bocage->_marpa_b_and_node_symbol($and_node_id);
-            $tag .= 'S' . $symbol;
-        }
-        $tag .= q{@} . $middle_earleme;
-        return $tag;
-    } ## end sub Marpa::R2::Recognizer::and_node_tag
 
     sub Marpa::R2::Recognizer::show_and_nodes {
         my ($recce) = @_;
@@ -212,42 +195,6 @@ the C language which contains the actual parse engine.
         return ( join "\n", @sorted_data ) . "\n";
     } ## end sub Marpa::R2::Recognizer::show_and_nodes
 
-    sub Marpa::R2::Recognizer::show_or_nodes {
-        my ( $recce, $verbose ) = @_;
-        my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
-        my $bocage  = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-        my $text;
-        my @data = ();
-        my $id   = 0;
-        OR_NODE: for ( ;; ) {
-            my $origin   = $bocage->_marpa_b_or_node_origin($id);
-            my $set      = $bocage->_marpa_b_or_node_set($id);
-            my $irl_id   = $bocage->_marpa_b_or_node_irl($id);
-            my $position = $bocage->_marpa_b_or_node_position($id);
-            $id++;
-            last OR_NODE if not defined $origin;
-            my $origin_earleme  = $recce_c->earleme($origin);
-            my $current_earleme = $recce_c->earleme($set);
-
-    #<<<  perltidy introduces trailing space on this
-            my $desc =
-                  'R'
-                . $irl_id . q{:}
-                . $position . q{@}
-                . $origin_earleme . q{-}
-                . $current_earleme;
-    #>>>
-            push @data,
-                [ $origin_earleme, $current_earleme, $irl_id, $position, $desc ];
-        } ## end OR_NODE: for ( ;; )
-        my @sorted_data = map { $_->[-1] } sort {
-                   $a->[0] <=> $b->[0]
-                or $a->[1] <=> $b->[1]
-                or $a->[2] <=> $b->[2]
-                or $a->[3] <=> $b->[3]
-        } @data;
-        return ( join "\n", @sorted_data ) . "\n";
-    } ## end sub Marpa::R2::Recognizer::show_or_nodes
 
 ```
 
@@ -265,17 +212,32 @@ output is not suitable for use in a test suite.
         local current_set_id = bocage:__or_node_set(or_node_id)
         local irl_id = bocage:__or_node_irl(or_node_id)
         local position = bocage:__or_node_position(or_node_id)
-        local text =
-              "OR-node #" .. or_node_id .. ': R' .. irl_id .. ':'
-            .. position .. '@'
-            .. origin .. '-'
-            .. current_set_id .. "\n"
+        local pieces = {
+              "OR-node #" .. or_node_id .. ': '
+            .. or_node_tag(bocage, or_node_id)
+        }
+        local first_and_node_id
+            = bocage:__or_node_first_and(or_node_id)
+        local last_and_node_id
+            = bocage:__or_node_last_and(or_node_id)
+        local and_node_count = (last_and_node_id - first_and_node_id) + 1
+        pieces[#pieces+1] = ', ' .. and_node_count .. ' ands: '
+        local display_and_node_count = and_node_count > 5 and 5 or and_node_count
+        local and_descs = {}
+        for ix = 1,display_and_node_count do
+              and_descs[#and_descs+1] = and_node_tag(bocage, first_and_node_id + ix - 1)
+        end
+        table.sort(and_descs)
+        if display_and_node_count < and_node_count then
+              and_descs[#and_descs+1] = '...'
+        end
+        pieces[#pieces+1] = table.concat(and_descs, ' ') .. '\n'
         if verbose then
-            text = text .. "    "
+            pieces[#pieces+1] = "    "
             .. grammar:show_dotted_irl(irl_id, position)
             .. '\n'
         end
-        return text
+        return table.concat(pieces)
     end
 
     function bocage_class._or_nodes_show(bocage, verbose)
