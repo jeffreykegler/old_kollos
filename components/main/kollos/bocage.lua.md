@@ -144,7 +144,6 @@ the C language which contains the actual parse engine.
         local and_node_data = {}
         local and_node_id = 0
         while true do
-            -- print('and_node_id', and_node_id)
             local parent_or_node_id = bocage:__and_node_parent(and_node_id)
             if not parent_or_node_id then break end
             local schwartzian = { and_node_id,
