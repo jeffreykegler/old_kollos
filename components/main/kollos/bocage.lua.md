@@ -251,14 +251,14 @@ the C language which contains the actual parse engine.
 
 ```
 
-# The bocage _verbose_or_nodes() method
+# The bocage _or_nodes_show() method
 
 The nodes are not sorted and therefore the
 output is not suitable for use in a test suite.
 
-    -- luatangle: section declare bocage _verbose_or_nodes() method
+    -- luatangle: section declare bocage _or_nodes_show() method
 
-    local function verbose_or_node(bocage, or_node_id)
+    local function or_node_show(bocage, or_node_id, verbose)
         local origin = bocage:__or_node_origin(or_node_id)
         local grammar = bocage.grammar
         if not origin then return end
@@ -270,20 +270,33 @@ output is not suitable for use in a test suite.
             .. position .. '@'
             .. origin .. '-'
             .. current_set_id .. "\n"
-            .. "    "
+        if verbose then
+            text = text .. "    "
             .. grammar:show_dotted_irl(irl_id, position)
             .. '\n'
+        end
         return text
     end
 
-    function bocage_class._verbose_or_nodes(bocage)
-        local pieces = {}
-        local or_node_id = 0 
+    function bocage_class._or_nodes_show(bocage, verbose)
+        local or_node_data = {}
+        local or_node_id = 0
         while true do
-            or_node_desc = verbose_or_node(bocage, or_node_id)
-            if not or_node_desc then break end
-            pieces[#pieces+1] = or_node_desc
-            or_node_id = or_node_id + 1
+            local origin = bocage:__or_node_origin(or_node_id)
+            if not origin then break end
+            local schwartzian = { or_node_id, origin,
+                bocage:__or_node_set(or_node_id),
+                bocage:__or_node_irl(or_node_id),
+                bocage:__or_node_position(or_node_id) }
+            or_node_id = or_node_id+1
+            -- array index of or_node_id is or_node_id+1
+            -- so we use or_node_id *post-increment*
+            or_node_data[or_node_id] = schwartzian
+        end
+        table.sort(or_node_data, schwartz_cmp)
+        local pieces = {}
+        for ix = 1, #or_node_data do
+            pieces[ix] = or_node_show(bocage, or_node_data[ix][1], verbose)
         end
         return table.concat(pieces)
     end
@@ -334,6 +347,8 @@ output is not suitable for use in a test suite.
 
     -- local inspect = require "kollos.inspect"
     local kollos_c = require "kollos_c"
+    local util = require "kollos.util"
+    local schwartz_cmp = util.schwartz_cmp
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
     -- luatangle: insert declare bocage_class
@@ -348,7 +363,7 @@ output is not suitable for use in a test suite.
     -- luatangle: insert Development error methods
     -- luatangle: insert Constructor
     -- luatangle: insert declare bocage show() method
-    -- luatangle: insert declare bocage _verbose_or_nodes() method
+    -- luatangle: insert declare bocage _or_nodes_show() method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 

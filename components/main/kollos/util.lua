@@ -21,6 +21,32 @@
 
 local kollos_util = {}
 
+--[[
+    These are useful functions which
+    1.) do not fit in any larger group
+    2.) are too small for a file of their own
+--]]
+
+--[[
+    A comparision function for arrays which are part of
+    a "Schwartzian transform".
+    All arrays are assumed to be of the same length,
+    and to have at least two elements.
+    The first element is a data element, not used in
+    the comparison.
+    The second and later elements must be comparable with
+    the '<' operator.
+--]]
+
+function kollos_util.schwartz_cmp(a, b)
+   for ix = 2, #a do
+       if a[ix] ~= b[ix] then
+           return a[ix] < b[ix]
+       end
+   end
+   return false
+end
+
 -- smaller, More compact dumper function
 
 function kollos_util.val_to_str ( v )
