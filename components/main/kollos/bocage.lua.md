@@ -144,12 +144,14 @@ the C language which contains the actual parse engine.
         local and_node_data = {}
         local and_node_id = 0
         while true do
-            local origin = bocage:__and_node_origin(and_node_id)
-            if not origin then break end
-            local schwartzian = { and_node_id, origin,
-                bocage:__and_node_set(and_node_id),
-                bocage:__and_node_irl(and_node_id),
-                bocage:__and_node_position(and_node_id),
+            -- print('and_node_id', and_node_id)
+            local parent_or_node_id = bocage:__and_node_parent(and_node_id)
+            if not parent_or_node_id then break end
+            local schwartzian = { and_node_id,
+                bocage:__or_node_origin(parent_or_node_id),
+                bocage:__or_node_set(parent_or_node_id),
+                bocage:__or_node_irl(parent_or_node_id),
+                bocage:__or_node_position(parent_or_node_id),
                 bocage:__and_node_middle(and_node_id),
                 bocage:__and_node_cause(and_node_id),
                 (bocage:__and_node_symbol(and_node_id) or -1)
@@ -162,7 +164,7 @@ the C language which contains the actual parse engine.
         table.sort(and_node_data, schwartz_cmp)
         local pieces = {}
         for ix = 1, #and_node_data do
-            pieces[ix] = and_node_tag(bocage, and_node_data[ix][1])
+            pieces[ix] = and_node_tag(bocage, and_node_data[ix][1]) .. '\n'
         end
         return table.concat(pieces)
     end
@@ -207,6 +209,29 @@ output is not suitable for use in a test suite.
             pieces[#pieces+1] = "    "
             .. grammar:show_dotted_irl(irl_id, position)
             .. '\n'
+        end
+        return table.concat(pieces)
+    end
+
+    function bocage_class._or_nodes_show(bocage, verbose)
+        local or_node_data = {}
+        local or_node_id = 0
+        while true do
+            local origin = bocage:__or_node_origin(or_node_id)
+            if not origin then break end
+            local schwartzian = { or_node_id, origin,
+                bocage:__or_node_set(or_node_id),
+                bocage:__or_node_irl(or_node_id),
+                bocage:__or_node_position(or_node_id) }
+            or_node_id = or_node_id+1
+            -- array index of or_node_id is or_node_id+1
+            -- so we use or_node_id *post-increment*
+            or_node_data[or_node_id] = schwartzian
+        end
+        table.sort(or_node_data, schwartz_cmp)
+        local pieces = {}
+        for ix = 1, #or_node_data do
+            pieces[ix] = or_node_show(bocage, or_node_data[ix][1], verbose)
         end
         return table.concat(pieces)
     end

@@ -55,7 +55,7 @@ print(r0:progress_report())
 
 local b0 = r0:bocage_new()
 print(b0:show())
-print(b0:_or_nodes_show(true))
 print(b0:_and_nodes_show())
+print(b0:_or_nodes_show(true))
 
 -- vim: expandtab shiftwidth=4:
