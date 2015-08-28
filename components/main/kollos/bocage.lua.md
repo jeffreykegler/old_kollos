@@ -136,65 +136,36 @@ the C language which contains the actual parse engine.
         return table.concat(data, '\n') .. '\n'
     end
 
-## To do
+## Bocage and_nodes_show() method
 
-    sub Marpa::R2::Recognizer::show_and_nodes {
-        my ($recce) = @_;
-        my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
-        my $bocage  = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-        my $text;
-        my @data = ();
-        AND_NODE: for ( my $id = 0;; $id++ ) {
-            my $parent      = $bocage->_marpa_b_and_node_parent($id);
-            my $predecessor = $bocage->_marpa_b_and_node_predecessor($id);
-            my $cause       = $bocage->_marpa_b_and_node_cause($id);
-            my $symbol      = $bocage->_marpa_b_and_node_symbol($id);
-            last AND_NODE if not defined $parent;
-            my $origin            = $bocage->_marpa_b_or_node_origin($parent);
-            my $set               = $bocage->_marpa_b_or_node_set($parent);
-            my $irl_id            = $bocage->_marpa_b_or_node_irl($parent);
-            my $position          = $bocage->_marpa_b_or_node_position($parent);
-            my $origin_earleme    = $recce_c->earleme($origin);
-            my $current_earleme   = $recce_c->earleme($set);
-            my $middle_earley_set = $bocage->_marpa_b_and_node_middle($id);
-            my $middle_earleme    = $recce_c->earleme($middle_earley_set);
+    -- luatangle: section declare bocage _and_nodes_show() method
 
-    #<<<  perltidy introduces trailing space on this
-            my $desc =
-                  "And-node #$id: R"
-                . $irl_id . q{:}
-                . $position . q{@}
-                . $origin_earleme . q{-}
-                . $current_earleme;
-    #>>>
-            my $cause_rule = -1;
-            if ( defined $cause ) {
-                my $cause_irl_id = $bocage->_marpa_b_or_node_irl($cause);
-                $desc .= 'C' . $cause_irl_id;
+    function bocage_class._and_nodes_show(bocage)
+        local and_node_data = {}
+        local and_node_id = 0
+        while true do
+            local origin = bocage:__and_node_origin(and_node_id)
+            if not origin then break end
+            local schwartzian = { and_node_id, origin,
+                bocage:__and_node_set(and_node_id),
+                bocage:__and_node_irl(and_node_id),
+                bocage:__and_node_position(and_node_id),
+                bocage:__and_node_middle(and_node_id),
+                bocage:__and_node_cause(and_node_id),
+                (bocage:__and_node_symbol(and_node_id) or -1)
             }
-            else {
-                $desc .= 'S' . $symbol;
-            }
-            $desc .= q{@} . $middle_earleme;
-            push @data,
-                [
-                $origin_earleme, $current_earleme, $irl_id,
-                $position,       $middle_earleme,  $cause_rule,
-                ( $symbol // -1 ), $desc
-                ];
-        } ## end AND_NODE: for ( my $id = 0;; $id++ )
-        my @sorted_data = map { $_->[-1] } sort {
-                   $a->[0] <=> $b->[0]
-                or $a->[1] <=> $b->[1]
-                or $a->[2] <=> $b->[2]
-                or $a->[3] <=> $b->[3]
-                or $a->[4] <=> $b->[4]
-                or $a->[5] <=> $b->[5]
-                or $a->[6] <=> $b->[6]
-        } @data;
-        return ( join "\n", @sorted_data ) . "\n";
-    } ## end sub Marpa::R2::Recognizer::show_and_nodes
-
+            and_node_id = and_node_id+1
+            -- array index of and_node_id is and_node_id+1
+            -- so we use and_node_id *post-increment*
+            and_node_data[and_node_id] = schwartzian
+        end
+        table.sort(and_node_data, schwartz_cmp)
+        local pieces = {}
+        for ix = 1, #and_node_data do
+            pieces[ix] = and_node_tag(bocage, and_node_data[ix][1])
+        end
+        return table.concat(pieces)
+    end
 
 ```
 
@@ -236,29 +207,6 @@ output is not suitable for use in a test suite.
             pieces[#pieces+1] = "    "
             .. grammar:show_dotted_irl(irl_id, position)
             .. '\n'
-        end
-        return table.concat(pieces)
-    end
-
-    function bocage_class._or_nodes_show(bocage, verbose)
-        local or_node_data = {}
-        local or_node_id = 0
-        while true do
-            local origin = bocage:__or_node_origin(or_node_id)
-            if not origin then break end
-            local schwartzian = { or_node_id, origin,
-                bocage:__or_node_set(or_node_id),
-                bocage:__or_node_irl(or_node_id),
-                bocage:__or_node_position(or_node_id) }
-            or_node_id = or_node_id+1
-            -- array index of or_node_id is or_node_id+1
-            -- so we use or_node_id *post-increment*
-            or_node_data[or_node_id] = schwartzian
-        end
-        table.sort(or_node_data, schwartz_cmp)
-        local pieces = {}
-        for ix = 1, #or_node_data do
-            pieces[ix] = or_node_show(bocage, or_node_data[ix][1], verbose)
         end
         return table.concat(pieces)
     end
@@ -325,6 +273,7 @@ output is not suitable for use in a test suite.
     -- luatangle: insert Development error methods
     -- luatangle: insert Constructor
     -- luatangle: insert declare bocage show() method
+    -- luatangle: insert declare bocage _and_nodes_show() method
     -- luatangle: insert declare bocage _or_nodes_show() method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
