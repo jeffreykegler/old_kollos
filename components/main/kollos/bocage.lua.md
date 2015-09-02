@@ -64,12 +64,11 @@ the C language which contains the actual parse engine.
     -- luatangle: section declare values_coro: values coroutine
 
     local function or_node_value(or_node_id)
-        local value = {}
         local first_and_node_id = bocage:__or_node_first_and(or_node_id)
         local last_and_node_id = bocage:__or_node_last_and(or_node_id)
-        local value = { bocage:_or_node_tag(or_node_id) }
         for and_node_id = first_and_node_id, last_and_node_id do
             -- value[#value+1] = bocage:_and_node_tag(and_node_id)
+            local value = { bocage:_or_node_tag(or_node_id) }
             local symbol = bocage:__and_node_symbol(and_node_id)
                 local cause_tag
                 if symbol then
@@ -85,13 +84,14 @@ the C language which contains the actual parse engine.
                     predecessor_tag = or_node_value(predecessor_id)
                 end
                 value[#value+1] = predecessor_tag
+                coroutine.yield(value)
         end
         return value
     end
 
     local function values_coro()
         local top_or_node = bocage:__top_or_node()
-        coroutine.yield(or_node_value(top_or_node))
+        or_node_value(top_or_node)
         return
     end
 
