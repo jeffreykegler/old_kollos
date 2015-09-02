@@ -63,17 +63,35 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section declare values_coro: values coroutine
 
+    local function or_node_value(or_node_id)
+        local value = {}
+        local first_and_node_id = bocage:__or_node_first_and(or_node_id)
+        local last_and_node_id = bocage:__or_node_last_and(or_node_id)
+        local value = { bocage:_or_node_tag(or_node_id) }
+        for and_node_id = first_and_node_id, last_and_node_id do
+            -- value[#value+1] = bocage:_and_node_tag(and_node_id)
+            local symbol = bocage:__and_node_symbol(and_node_id)
+                local cause_tag
+                if symbol then
+                    value[#value+1] = 'S' .. symbol
+                end
+                local cause_id = bocage:__and_node_cause(and_node_id)
+                if cause_id then
+                    value[#value+1] = or_node_value(cause_id)
+                end
+                local predecessor_id = bocage:__and_node_predecessor(or_node_id)
+                local predecessor_tag = '-'
+                if predecessor_id then
+                    predecessor_tag = or_node_value(predecessor_id)
+                end
+                value[#value+1] = predecessor_tag
+        end
+        return value
+    end
+
     local function values_coro()
         local top_or_node = bocage:__top_or_node()
-        local first_and_node_id = bocage:__or_node_first_and(top_or_node)
-        local last_and_node_id = bocage:__or_node_last_and(top_or_node)
-        for and_node_id = first_and_node_id, last_and_node_id do
-            coroutine.yield(
-                bocage:_or_node_tag(top_or_node)
-                .. ' '
-                .. bocage:_and_node_tag(and_node_id)
-            )
-        end
+        coroutine.yield(or_node_value(top_or_node))
         return
     end
 
@@ -126,7 +144,6 @@ and ending at earleme location `current`.
         local origin_loc = bocage:__or_node_origin(parent_or_node_id)
         local current_loc = bocage:__or_node_set(parent_or_node_id)
         local cause_or_id        = bocage:__and_node_cause(and_node_id)
-        local predecessor_or_id = bocage:__and_node_predecessor(and_node_id)
         local middle_loc = bocage:__and_node_middle(and_node_id)
         local loc = bocage:__or_node_position(parent_or_node_id)
         local irl_id = bocage:__or_node_irl(parent_or_node_id)

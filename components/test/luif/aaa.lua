@@ -21,7 +21,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 -- An ambiguous parse
 
--- local inspect = require 'kollos.inspect'
+local inspect = require 'kollos.inspect'
 require 'Test.More'
 -- luacheck: globals ok plan
 plan(1)
@@ -64,7 +64,7 @@ while true do
     print('status', status)
     if not status then error(result) end
     if not result then break end
-    print(result)
+    print(inspect(result))
 end
 
 -- vim: expandtab shiftwidth=4:
