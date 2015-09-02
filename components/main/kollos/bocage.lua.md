@@ -59,11 +59,61 @@ the C language which contains the actual parse engine.
     -- luatangle: section declare bocage_class
     local bocage_class = {}
 
+## The bocage values coroutine
+
+    -- luatangle: section declare values_coro: values coroutine
+
+    local function values_coro()
+        local top_or_node = bocage:__top_or_node()
+        local first_and_node_id = bocage:__or_node_first_and(top_or_node)
+        local last_and_node_id = bocage:__or_node_last_and(top_or_node)
+        for and_node_id = first_and_node_id, last_and_node_id do
+            coroutine.yield(
+                bocage:_or_node_tag(top_or_node)
+                .. ' '
+                .. bocage:_and_node_tag(and_node_id)
+            )
+        end
+        return
+    end
+
+## The bocage values() method
+
+This method returns an interator of the values of
+the parse for external symbol `xsym`,
+starting at earleme location `start`
+and ending at earleme location `current`.
+
+    -- luatangle: section declare bocage values() method
+
+    function bocage_class.values(bocage, xsym, start, current)
+        if xsym ~= nil then
+            development_error(
+                'values() symbol argument not yet implemented\n'
+                .. '  It must be nil\n'
+            )
+        end
+        if start ~= nil then
+            development_error(
+                'values() start argument not yet implemented\n'
+                .. '  It must be nil\n'
+            )
+        end
+        if current ~= nil then
+            development_error(
+                'values() current argument not yet implemented\n'
+                .. '  It must be nil\n'
+            )
+        end
+        -- luatangle: insert declare values_coro: values coroutine
+        return coroutine.create(values_coro)
+    end
+
 ## Declare the bocage show() method
 
     -- luatangle: section declare bocage show() method
 
-    local function or_node_tag(bocage, or_node_id)
+    function bocage_class._or_node_tag(bocage, or_node_id)
         local irl_id = bocage:__or_node_irl(or_node_id)
         local position = bocage:__or_node_position(or_node_id)
         local or_origin = bocage:__or_node_origin(or_node_id)
@@ -71,7 +121,7 @@ the C language which contains the actual parse engine.
         return 'R' .. irl_id .. ':' .. position .. '@' .. or_origin .. '-' .. or_set
     end
 
-    function and_node_tag(bocage, and_node_id)
+    function bocage_class._and_node_tag(bocage, and_node_id)
         local parent_or_node_id = bocage:__and_node_parent(and_node_id)
         local origin_loc = bocage:__or_node_origin(parent_or_node_id)
         local current_loc = bocage:__or_node_set(parent_or_node_id)
@@ -110,13 +160,13 @@ the C language which contains the actual parse engine.
                 if symbol then cause_tag = 'S' .. symbol end
                 local cause_id = bocage:__and_node_cause(and_node_id)
                 if cause_id then
-                    cause_tag = or_node_tag(bocage, cause_id)
+                    cause_tag = bocage:_or_node_tag(cause_id)
                 end
-                local parent_tag = or_node_tag(bocage, or_node_id)
+                local parent_tag = bocage:_or_node_tag(or_node_id)
                 local predecessor_id = bocage:__and_node_predecessor(or_node_id)
                 local predecessor_tag = '-'
                 if predecessor_id then
-                    predecessor_tag = or_node_tag(bocage, predecessor_id)
+                    predecessor_tag = bocage:_or_node_tag(predecessor_id)
                 end
                 local tag =
                 and_node_id .. ':'
@@ -163,7 +213,7 @@ the C language which contains the actual parse engine.
         table.sort(and_node_data, schwartz_cmp)
         local pieces = {}
         for ix = 1, #and_node_data do
-            pieces[ix] = and_node_tag(bocage, and_node_data[ix][1]) .. '\n'
+            pieces[ix] = bocage:_and_node_tag(and_node_data[ix][1]) .. '\n'
         end
         return table.concat(pieces)
     end
@@ -186,7 +236,7 @@ output is not suitable for use in a test suite.
         local position = bocage:__or_node_position(or_node_id)
         local pieces = {
               "OR-node #" .. or_node_id .. ': '
-            .. or_node_tag(bocage, or_node_id)
+            .. bocage:_or_node_tag(or_node_id)
         }
         local first_and_node_id
             = bocage:__or_node_first_and(or_node_id)
@@ -197,7 +247,7 @@ output is not suitable for use in a test suite.
         local display_and_node_count = and_node_count > 5 and 5 or and_node_count
         local and_descs = {}
         for ix = 1,display_and_node_count do
-              and_descs[#and_descs+1] = and_node_tag(bocage, first_and_node_id + ix - 1)
+              and_descs[#and_descs+1] = bocage:_and_node_tag(first_and_node_id + ix - 1)
         end
         table.sort(and_descs)
         if display_and_node_count < and_node_count then
@@ -299,6 +349,7 @@ output is not suitable for use in a test suite.
     -- luatangle: insert declare bocage show() method
     -- luatangle: insert declare bocage _and_nodes_show() method
     -- luatangle: insert declare bocage _or_nodes_show() method
+    -- luatangle: insert declare bocage values() method
     -- luatangle: insert Finish return object
     -- luatangle: write stdout main
 

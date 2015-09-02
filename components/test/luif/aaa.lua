@@ -58,4 +58,13 @@ print(b0:show())
 print(b0:_and_nodes_show())
 print(b0:_or_nodes_show(true))
 
+local values_coro = b0:values()
+while true do
+    local status, result = coroutine.resume(values_coro)
+    print('status', status)
+    if not status then error(result) end
+    if not result then break end
+    print(result)
+end
+
 -- vim: expandtab shiftwidth=4:

@@ -58,4 +58,7 @@ print(b0:show())
 print(b0:_and_nodes_show())
 print(b0:_or_nodes_show(true))
 
+local values_coro = b0:values()
+print(coroutine.resume(values_coro))
+
 -- vim: expandtab shiftwidth=4:
