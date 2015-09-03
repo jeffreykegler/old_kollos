@@ -120,6 +120,24 @@ add_custom_target(
   VERBATIM
 )
 
+ADD_CUSTOM_COMMAND (
+  COMMENT "Writing value.lua"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/value.lua
+  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+      ${CMAKE_CURRENT_SOURCE_DIR}/value.lua.md 
+      ${CMAKE_CURRENT_BINARY_DIR}/value.lua
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/value.lua.md 
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+  VERBATIM
+  )
+
+add_custom_target(
+  value.lua ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/value.lua
+  COMMENT "Writing value.lua"
+  VERBATIM
+)
+
 file(COPY
     "config.lua"
     "development.lua"
