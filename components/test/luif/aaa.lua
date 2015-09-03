@@ -58,6 +58,8 @@ print(b0:show())
 print(b0:_and_nodes_show())
 print(b0:_or_nodes_show(true))
 
+local o0 = b0:order_new()
+
 --[[ Eliminate this?  It was probably a dead end.
     local values_coro = b0:values()
     while true do

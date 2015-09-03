@@ -58,6 +58,7 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section declare bocage_class
     local bocage_class = {}
+    bocage_class.order_new = order.new
 
 ## The bocage values coroutine
 
@@ -353,6 +354,7 @@ output is not suitable for use in a test suite.
     -- luacheck: globals __FILE__ __LINE__
 
     -- local inspect = require "kollos.inspect"
+    local order = require "kollos.order"
     local kollos_c = require "kollos_c"
     local util = require "kollos.util"
     local schwartz_cmp = util.schwartz_cmp
