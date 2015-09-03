@@ -503,6 +503,8 @@ static char kollos_g_ud_mt_key;
 static char kollos_r_ud_mt_key;
 static char kollos_b_ud_mt_key;
 static char kollos_o_ud_mt_key;
+static char kollos_t_ud_mt_key;
+static char kollos_v_ud_mt_key;
 
 /* Leaves the stack as before,
    except with the error object on top */
@@ -1134,6 +1136,99 @@ common_b_error_handler (lua_State * L,
   lua_pop(L, 1);
 }
 
+/* Handle libmarpa order errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_o_error_handler (lua_State * L,
+			int order_stack_ix, const char *description)
+{
+  int throw_flag;
+  Marpa_Error_Code marpa_error;
+  Marpa_Grammar *grammar_ud;
+  lua_getfield (L, order_stack_ix, "_libmarpa_g");
+  /* [ ..., grammar_ud ] */
+  grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+  lua_pop(L, 1);
+  marpa_error = marpa_g_error (*grammar_ud, NULL);
+  lua_getfield (L, order_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  /* [ ..., throw_flag ] */
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* [ ..., throw_flag ] */
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
+/* Handle libmarpa tree errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_t_error_handler (lua_State * L,
+			int tree_stack_ix, const char *description)
+{
+  int throw_flag;
+  Marpa_Error_Code marpa_error;
+  Marpa_Grammar *grammar_ud;
+  lua_getfield (L, tree_stack_ix, "_libmarpa_g");
+  /* [ ..., grammar_ud ] */
+  grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+  lua_pop(L, 1);
+  marpa_error = marpa_g_error (*grammar_ud, NULL);
+  lua_getfield (L, tree_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  /* [ ..., throw_flag ] */
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* [ ..., throw_flag ] */
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
+/* Handle libmarpa value errors in the most usual way.
+   Uses 1 position on the stack, and throws the
+   error, if so desired.
+   The error may not be thrown, and it expects the
+   caller to handle any non-thrown error.
+*/
+static void
+common_v_error_handler (lua_State * L,
+			int value_stack_ix, const char *description)
+{
+  int throw_flag;
+  Marpa_Error_Code marpa_error;
+  Marpa_Grammar *grammar_ud;
+  lua_getfield (L, value_stack_ix, "_libmarpa_g");
+  /* [ ..., grammar_ud ] */
+  grammar_ud = (Marpa_Grammar *) lua_touserdata (L, -1);
+  lua_pop(L, 1);
+  marpa_error = marpa_g_error (*grammar_ud, NULL);
+  lua_getfield (L, value_stack_ix, "throw");
+  /* [ ..., throw_flag ] */
+  throw_flag = lua_toboolean (L, -1);
+  /* [ ..., throw_flag ] */
+  if (throw_flag)
+    {
+      kollos_throw (L, marpa_error, description);
+    }
+  /* [ ..., throw_flag ] */
+  /* Leave the stack as we found it */
+  lua_pop(L, 1);
+}
+
 static int
 wrap_grammar_new (lua_State * L)
 {
@@ -1572,6 +1667,196 @@ wrap_bocage_new (lua_State * L)
 
 ]=]
 
+-- order wrappers which need to be hand-written
+
+io.write[=[
+
+static int
+wrap_order_new (lua_State * L)
+{
+  const int order_stack_ix = 1;
+  const int bocage_stack_ix = 2;
+
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ order_table, bocage_table ] */
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_order_new()", order_stack_ix, "order");
+      check_libmarpa_table (L, "wrap_order_new()", bocage_stack_ix, "bocage");
+    }
+
+  /* [ order_table, bocage_table ] */
+  {
+    Marpa_Bocage *bocage_ud;
+
+    /* [ order_table, bocage_table ] */
+    Marpa_Order* order_ud =
+      (Marpa_Order *) lua_newuserdata (L, sizeof (Marpa_Order));
+    /* [ order_table, bocage_table, order_ud ] */
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_o_ud_mt_key);
+    /* [ order_table, bocage_table, order_ud, order_ud_mt ] */
+    lua_setmetatable (L, -2);
+    /* [ order_table, bocage_table, order_ud ] */
+
+    lua_setfield (L, order_stack_ix, "_libmarpa");
+    /* [ order_table, bocage_table ] */
+    lua_getfield (L, bocage_stack_ix, "_libmarpa_g");
+    /* [ order_table, bocage_table, g_ud ] */
+    lua_setfield (L, order_stack_ix, "_libmarpa_g");
+    /* [ order_table, bocage_table ] */
+    lua_getfield (L, bocage_stack_ix, "_libmarpa");
+    /* [ order_table, bocage_table, bocage_ud ] */
+    bocage_ud = (Marpa_Bocage *) lua_touserdata (L, -1);
+    /* [ order_table, bocage_table, bocage_ud ] */
+
+    *order_ud = marpa_o_new (*bocage_ud);
+    if (!*order_ud)
+      {
+	common_o_error_handler (L, order_stack_ix, "marpa_o_new()");
+        lua_pushnil (L);
+        return 1;
+      }
+  }
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ order_table, bocage_table, bocage_ud ] */
+  lua_pop (L, 2);
+  /* [ order_table ] */
+  return 1;
+}
+
+]=]
+
+-- tree wrappers which need to be hand-written
+
+io.write[=[
+
+static int
+wrap_tree_new (lua_State * L)
+{
+  const int tree_stack_ix = 1;
+  const int order_stack_ix = 2;
+
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ tree_table, order_table ] */
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_tree_new()", tree_stack_ix, "tree");
+      check_libmarpa_table (L, "wrap_tree_new()", order_stack_ix, "order");
+    }
+
+  /* [ tree_table, order_table ] */
+  {
+    Marpa_Order *order_ud;
+    /* Important: the tree does *not* hold a reference to
+         the recognizer, so it should not memoize the userdata
+         pointing to it. */
+
+    /* [ tree_table, order_table ] */
+    Marpa_Tree* tree_ud =
+      (Marpa_Tree *) lua_newuserdata (L, sizeof (Marpa_Tree));
+    /* [ tree_table, order_table, tree_ud ] */
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_t_ud_mt_key);
+    /* [ tree_table, order_table, tree_ud, tree_ud_mt ] */
+    lua_setmetatable (L, -2);
+    /* [ tree_table, order_table, tree_ud ] */
+
+    lua_setfield (L, tree_stack_ix, "_libmarpa");
+    /* [ tree_table, order_table ] */
+    lua_getfield (L, order_stack_ix, "_libmarpa_g");
+    /* [ tree_table, order_table, g_ud ] */
+    lua_setfield (L, tree_stack_ix, "_libmarpa_g");
+    /* [ tree_table, order_table ] */
+    lua_getfield (L, order_stack_ix, "_libmarpa");
+    /* [ tree_table, order_table, order_ud ] */
+    order_ud = (Marpa_Order *) lua_touserdata (L, -1);
+    /* [ tree_table, order_table, order_ud ] */
+
+    *tree_ud = marpa_t_new (*order_ud);
+    if (!*tree_ud)
+      {
+	common_t_error_handler (L, tree_stack_ix, "marpa_t_new()");
+        lua_pushnil (L);
+        return 1;
+      }
+  }
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ tree_table, order_table, order_ud ] */
+  lua_pop (L, 2);
+  /* [ tree_table ] */
+  return 1;
+}
+
+]=]
+
+-- value wrappers which need to be hand-written
+
+io.write[=[
+
+static int
+wrap_value_new (lua_State * L)
+{
+  const int value_stack_ix = 1;
+  const int tree_stack_ix = 2;
+
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ value_table, tree_table ] */
+  if (1)
+    {
+      check_libmarpa_table (L, "wrap_value_new()", value_stack_ix, "value");
+      check_libmarpa_table (L, "wrap_value_new()", tree_stack_ix, "tree");
+    }
+
+  /* [ value_table, tree_table ] */
+  {
+    Marpa_Tree *tree_ud;
+    /* Important: the value does *not* hold a reference to
+         the recognizer, so it should not memoize the userdata
+         pointing to it. */
+
+    /* [ value_table, tree_table ] */
+    Marpa_Value* value_ud =
+      (Marpa_Value *) lua_newuserdata (L, sizeof (Marpa_Value));
+    /* [ value_table, tree_table, value_ud ] */
+    lua_rawgetp (L, LUA_REGISTRYINDEX, &kollos_v_ud_mt_key);
+    /* [ value_table, tree_table, value_ud, value_ud_mt ] */
+    lua_setmetatable (L, -2);
+    /* [ value_table, tree_table, value_ud ] */
+
+    lua_setfield (L, value_stack_ix, "_libmarpa");
+    /* [ value_table, tree_table ] */
+    lua_getfield (L, tree_stack_ix, "_libmarpa_g");
+    /* [ value_table, tree_table, g_ud ] */
+    lua_setfield (L, value_stack_ix, "_libmarpa_g");
+    /* [ value_table, tree_table ] */
+    lua_getfield (L, tree_stack_ix, "_libmarpa");
+    /* [ value_table, tree_table, tree_ud ] */
+    tree_ud = (Marpa_Tree *) lua_touserdata (L, -1);
+    /* [ value_table, tree_table, tree_ud ] */
+
+    *value_ud = marpa_v_new (*tree_ud);
+    if (!*value_ud)
+      {
+	common_v_error_handler (L, value_stack_ix, "marpa_v_new()");
+        lua_pushnil (L);
+        return 1;
+      }
+  }
+  if (0)
+    printf ("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+  /* [ value_table, tree_table, tree_ud ] */
+  lua_pop (L, 2);
+  /* [ value_table ] */
+  return 1;
+}
+
+]=]
+
+
 io.write[=[
 
 /*
@@ -1607,6 +1892,22 @@ static int l_order_ud_mt_gc(lua_State *L) {
     if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
     p_order = (Marpa_Order *) lua_touserdata (L, 1);
     if (*p_order) marpa_o_unref(*p_order);
+   return 0;
+}
+
+static int l_tree_ud_mt_gc(lua_State *L) {
+    Marpa_Tree *p_tree;
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_tree = (Marpa_Tree *) lua_touserdata (L, 1);
+    if (*p_tree) marpa_t_unref(*p_tree);
+   return 0;
+}
+
+static int l_value_ud_mt_gc(lua_State *L) {
+    Marpa_Value *p_value;
+    if (0) printf("%s %s %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    p_value = (Marpa_Value *) lua_touserdata (L, 1);
+    if (*p_value) marpa_v_unref(*p_value);
    return 0;
 }
 
@@ -1665,6 +1966,26 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
     lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_o_ud_mt_key);
     /* [ kollos ] */
 
+    /* Set up Kollos tree userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_tree ] */
+    lua_pushcfunction(L, l_tree_ud_mt_gc);
+    /* [ kollos, mt_t_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_t_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_t_ud_mt_key);
+    /* [ kollos ] */
+
+    /* Set up Kollos value userdata metatable */
+    lua_newtable(L);
+    /* [ kollos, mt_ud_value ] */
+    lua_pushcfunction(L, l_value_ud_mt_gc);
+    /* [ kollos, mt_v_ud, gc_function ] */
+    lua_setfield(L, -2, "__gc");
+    /* [ kollos, mt_v_ud ] */
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kollos_v_ud_mt_key);
+    /* [ kollos ] */
+
     /* In alphabetical order by field name */
 
     lua_pushcfunction(L, l_error_description_by_code);
@@ -1710,6 +2031,15 @@ LUALIB_API int luaopen_kollos_c(lua_State *L)
 
     lua_pushcfunction(L, wrap_bocage_new);
     lua_setfield(L, kollos_table_stack_ix, "bocage_new");
+
+    lua_pushcfunction(L, wrap_order_new);
+    lua_setfield(L, kollos_table_stack_ix, "order_new");
+
+    lua_pushcfunction(L, wrap_tree_new);
+    lua_setfield(L, kollos_table_stack_ix, "tree_new");
+
+    lua_pushcfunction(L, wrap_value_new);
+    lua_setfield(L, kollos_table_stack_ix, "value_new");
 
     lua_newtable (L);
     /* [ kollos, error_code_table ] */

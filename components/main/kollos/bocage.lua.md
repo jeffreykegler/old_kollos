@@ -61,6 +61,9 @@ the C language which contains the actual parse engine.
 
 ## The bocage values coroutine
 
+Eliminate this?
+It was probably a dead end.
+
     -- luatangle: section declare values_coro: values coroutine
 
     local function or_node_value(or_node_id)
@@ -96,6 +99,9 @@ the C language which contains the actual parse engine.
     end
 
 ## The bocage values() method
+
+Eliminate this?
+It was probably a dead end.
 
 This method returns an interator of the values of
 the parse for external symbol `xsym`,
