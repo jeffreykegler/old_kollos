@@ -102,6 +102,24 @@ add_custom_target(
   VERBATIM
 )
 
+ADD_CUSTOM_COMMAND (
+  COMMENT "Writing tree.lua"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tree.lua
+  COMMAND ${lua_INTERP} ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+      ${CMAKE_CURRENT_SOURCE_DIR}/tree.lua.md 
+      ${CMAKE_CURRENT_BINARY_DIR}/tree.lua
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tree.lua.md 
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/luatangle
+  VERBATIM
+  )
+
+add_custom_target(
+  tree.lua ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tree.lua
+  COMMENT "Writing tree.lua"
+  VERBATIM
+)
+
 file(COPY
     "config.lua"
     "development.lua"

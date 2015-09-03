@@ -23,9 +23,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -->
 
-# Kollos "mid-level" order code
+# Kollos "mid-level" tree code
 
-This is the code for the "middle layer" orderings
+This is the code for the "middle layer" trees
 of Kollos.
 Below it is Libmarpa, a library written in
 the C language which contains the actual parse engine.
@@ -34,35 +34,35 @@ the C language which contains the actual parse engine.
 
     -- luatangle: section Constructor
 
-    local function order_new(bocage)
-        local grammar = bocage.grammar
-        local order = {
-            _type = "order",
+    local function tree_new(order)
+        local grammar = order.grammar
+        local tree = {
+            _type = "tree",
             grammar = grammar,
-            throw = bocage.throw,
+            throw = order.throw,
         }
 
-        order = kollos_c.order_new(order, bocage)
-        setmetatable(order, {
-                __index = order_class,
+        tree = kollos_c.tree_new(tree, order)
+        setmetatable(tree, {
+                __index = tree_class,
             })
-        return order
+        return tree
     end
 
-## Declare the order class
+## Declare the tree class
 
-    -- luatangle: section declare order_class
-    local order_class = {}
-    order_class.tree_new = tree.new
+    -- luatangle: section declare tree_class
+    local tree_class = {}
+    -- tree_class.value_new = value.new
 
-## Finish and return the order static class
+## Finish and return the tree static class
 
     -- luatangle: section Finish return object
 
-    local order_static_class = {
-        new = order_new
+    local tree_static_class = {
+        new = tree_new
     }
-    return order_static_class
+    return tree_static_class
 
 ## Development errors
 
@@ -70,7 +70,7 @@ the C language which contains the actual parse engine.
 
     local function development_error_stringize(error_object)
         return
-        "order error at line "
+        "tree error at line "
         .. error_object.line
         .. " of "
         .. error_object.file
@@ -78,7 +78,7 @@ the C language which contains the actual parse engine.
         .. error_object.string
     end
 
-    local function development_error(order, string)
+    local function development_error(tree, string)
         local error_object
         = kollos_c.error_new{
             stringize = development_error_stringize,
@@ -87,7 +87,7 @@ the C language which contains the actual parse engine.
             line = debug.getinfo(2, 'l').currentline,
             string = string
         }
-        if order.throw then error(tostring(error_object)) end
+        if tree.throw then error(tostring(error_object)) end
         return error_object
     end
 
@@ -100,18 +100,18 @@ the C language which contains the actual parse engine.
     -- luacheck: globals __FILE__ __LINE__
 
     -- local inspect = require "kollos.inspect"
-    local tree = require "kollos.tree"
+    -- local value = require "kollos.value"
     local kollos_c = require "kollos_c"
     local util = require "kollos.util"
     local schwartz_cmp = util.schwartz_cmp
     local luif_err_development = kollos_c.error_code_by_name['LUIF_ERR_DEVELOPMENT']
 
-    -- luatangle: insert declare order_class
+    -- luatangle: insert declare tree_class
 
     for k,v in pairs(kollos_c) do
-         if k:match('^[_]?order') then
-             local c_wrapper_name = k:gsub('order', '', 1)
-             order_class[c_wrapper_name] = v
+         if k:match('^[_]?tree') then
+             local c_wrapper_name = k:gsub('tree', '', 1)
+             tree_class[c_wrapper_name] = v
          end
     end
 
