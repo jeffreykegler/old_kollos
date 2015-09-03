@@ -114,6 +114,7 @@ the C language which contains the actual parse engine.
              tree_class[c_wrapper_name] = v
          end
     end
+    tree_class.next = tree_class._next
 
     -- luatangle: insert Development error methods
     -- luatangle: insert Constructor

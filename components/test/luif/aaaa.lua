@@ -60,6 +60,7 @@ print(b0:_or_nodes_show(true))
 
 local o0 = b0:order_new()
 local t0 = o0:tree_new()
+t0:next()
 local v0 = t0:value_new()
 
 --[[ Eliminate this?  It was probably a dead end.
