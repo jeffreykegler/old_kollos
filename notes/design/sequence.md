@@ -229,6 +229,22 @@ by adding a unit rule:
     wanted-seq ::= returned-seq`
 ```
 
+### Eliminate nullables
+
+If we have
+```
+    Reduce( item, 0, n, sep, seq_type )
+```
+our procedure is
+```
+    Let sym1 = Reduce( item, 1, n, sep, seq_type )
+    Add rule seq ::=
+    Add rule seq ::= sym1
+```
+
+We may now assume that the minimum of our
+6-tuple is at least 1.
+
 ### Eliminate liberal separation
 
 If we have
@@ -257,22 +273,6 @@ our procedure is
 
 For the following steps, we can now assume
 that separation is either `proper` or `none`.
-
-#### Eliminate nullables
-
-If we have
-```
-    Reduce( item, 0, n, sep, seq_type )
-```
-our procedure is
-```
-    Let sym1 = Reduce( item, 1, n, sep, 'proper' )
-    Add rule seq ::= 
-    Add rule seq ::= sym1
-```
-
-We may now assume that the minimum of our
-6-tuple is at least 1.
 
 ### Normalize separated ranges
 
@@ -342,12 +342,13 @@ If we have
     Reduce( item, 1, n, sep, 'proper' )
 ```
 where n is greater than 2,
-we binarize it into a sequence of two
-smaller ranges:
+the conversion is
 ```
-    Let sym1 = Reduce( item, 1, pow2(n), sep, 'terminator' )
-    Let sym2 = Reduce( item, 0, n-pow2(n), sep, 'proper' )
-    Add rule seq ::= sym1 sym2
+    Let block = Reduce( item, pow2(n), pow2(n), sep, 'terminator' )
+    Let sym1 = Reduce( item, 1, n-pow2(n), sep, 'proper' )
+    Let sym2 = Reduce( item, 1, pow2(n), sep, 'proper' )
+    Add rule seq ::= block sym1
+    Add rule seq ::= sym2
 ```
 
 ### Eliminate large unseparated spans
