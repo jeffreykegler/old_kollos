@@ -229,6 +229,22 @@ by adding a unit rule:
     wanted-seq ::= returned-seq`
 ```
 
+### Eliminate nullables
+
+If we have
+```
+    Reduce( item, 0, n, sep, seq_type )
+```
+our procedure is
+```
+    Let sym1 = Reduce( item, 1, n, sep, seq_type )
+    Add rule seq ::=
+    Add rule seq ::= sym1
+```
+
+We may now assume that the minimum of our
+6-tuple is at least 1.
+
 ### Eliminate liberal separation
 
 If we have
@@ -257,22 +273,6 @@ our procedure is
 
 For the following steps, we can now assume
 that separation is either `proper` or `none`.
-
-#### Eliminate nullables
-
-If we have
-```
-    Reduce( item, 0, n, sep, seq_type )
-```
-our procedure is
-```
-    Let sym1 = Reduce( item, 1, n, sep, 'proper' )
-    Add rule seq ::= 
-    Add rule seq ::= sym1
-```
-
-We may now assume that the minimum of our
-6-tuple is at least 1.
 
 ### Normalize separated ranges
 
