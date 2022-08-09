@@ -1,6 +1,7 @@
 About Kollos
 ============
 
+[ THIS REPO IS INACTVE AND WILL BE ARCHIVED. ]
 This is the repository for the Kollos project, an extension of, and
 wrapper for, the Marpa parse engine.  Kollos is made available under
 same license as Lua 5.1: the "MIT License".
